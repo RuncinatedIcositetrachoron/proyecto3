@@ -1,0 +1,23 @@
+@font-face {
+    font-family: "biysmall";
+    src: url("/assets/fonts/biysmall.ttf") format("truetype");
+}
+
+html,
+body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background: #1d1d1d;
+}
+
+canvas {
+    display: block;
+}
