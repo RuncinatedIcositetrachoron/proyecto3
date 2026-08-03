@@ -10,6 +10,7 @@ export class GameScene extends Phaser.Scene {
     
     private player!: Entity;
     private boxes: Entity[] = [];
+    private goals: Entity[] = []; //TODO: this is currently unused, i need to read these values & decide if the goals are pressed.
 
     private offsetX = 0;
     private offsetY = 0;
@@ -78,7 +79,15 @@ export class GameScene extends Phaser.Scene {
 
         for (let y = 0; y<this.staticRows.length; y++) {
             for (let x = 0; x<this.staticRows[y].length; x++){
-                this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", this.staticRows[y][x]).setScale(2);
+                if (this.staticRows[y][x]==="6") {
+                    this.goals.push ({
+                    x: x,
+                    y: y,
+                    sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", 6).setScale(2)
+                    });
+                } else {
+                    this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", this.staticRows[y][x]).setScale(2);
+                }
             }
         }
         for (let y = 0; y<dynamicRows.length; y++) {
