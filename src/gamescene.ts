@@ -6,9 +6,24 @@ interface Entity {
     sprite: Phaser.GameObjects.Sprite;
 }
 
+interface GameState {
+    player: {
+        x: number;
+        y: number;
+    };
+
+    boxes: {
+        x: number;
+        y: number;
+    }[];
+}
+
 export class GameScene extends Phaser.Scene {
     
     private levelNumber = 1;
+
+    private turnNumber = 0;
+    private history: GameState[] = [];
 
     init(data: { level: number }) {
     this.levelNumber = data.level;
@@ -16,6 +31,7 @@ export class GameScene extends Phaser.Scene {
 
     private qKey!: Phaser.Input.Keyboard.Key;
     private rKey!: Phaser.Input.Keyboard.Key;
+    private zKey!: Phaser.Input.Keyboard.Key;
 
     private player!: Entity;
     private flag!: Entity;
@@ -75,6 +91,18 @@ export class GameScene extends Phaser.Scene {
         const newX = this.player.x + dx;
         const newY = this.player.y + dy;
         const box = this.getBoxAt(newX, newY);
+
+        this.history.push({
+            player: {
+                x: this.player.x,
+                y: this.player.y
+            },
+            boxes: this.boxes.map(box => ({
+                x: box.x,
+                y: box.y
+            }))
+        });
+
         if (this.isWall(newX, newY)){
             return;
         }
@@ -91,6 +119,7 @@ export class GameScene extends Phaser.Scene {
                 this.offsetY + box.y * 64
             );
         }
+
         this.player.x = newX;
         this.player.y = newY;
         this.player.sprite.setPosition(
@@ -124,6 +153,7 @@ export class GameScene extends Phaser.Scene {
     create() {
         this.qKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
         this.rKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+        this.zKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
         const level = this.cache.text.get(`level${this.levelNumber}`);
         const [staticLayer, dynamicLayer] = level.split(".");
         this.staticRows = staticLayer.trim().split("\n");
@@ -202,6 +232,29 @@ export class GameScene extends Phaser.Scene {
             this.boxes = [];
             this.goals = [];
             this.scene.start("game", {level: this.levelNumber+1});
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.zKey)) {
+            const state = this.history.pop();
+            if (!state) {
+                return;
+            }
+            this.player.x = state.player.x;
+            this.player.y = state.player.y;
+            for (let i = 0; i < this.boxes.length; i++) {
+                this.boxes[i].x = state.boxes[i].x;
+                this.boxes[i].y = state.boxes[i].y;
+            }
+            this.player.sprite.setPosition(
+                this.offsetX + this.player.x * 64,
+                this.offsetY + this.player.y * 64
+            );
+
+            for (let i = 0; i < this.boxes.length; i++) {
+                this.boxes[i].sprite.setPosition(
+                    this.offsetX + this.boxes[i].x * 64,
+                    this.offsetY + this.boxes[i].y * 64
+                );
+            }
         }
     }
 }
