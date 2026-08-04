@@ -8,9 +8,19 @@ interface Entity {
 
 export class GameScene extends Phaser.Scene {
     
+    private levelNumber = 1;
+
+    init(data: { level: number }) {
+    this.levelNumber = data.level;
+    }
+
+    private qKey!: Phaser.Input.Keyboard.Key;
+    private rKey!: Phaser.Input.Keyboard.Key;
+
     private player!: Entity;
+    private flag!: Entity;
     private boxes: Entity[] = [];
-    private goals: Entity[] = []; //TODO: this is currently unused, i need to read these values & decide if the goals are pressed.
+    private goals: Entity[] = [];
 
     private offsetX = 0;
     private offsetY = 0;
@@ -19,6 +29,16 @@ export class GameScene extends Phaser.Scene {
 
     private staticRows;
 
+    private isOccupied(x:number, y:number): boolean {
+        if (this.goals.find(goal => goal.x === x && goal.y === y)) {
+            if (this.getBoxAt(x, y)) {
+                return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
     private getBoxAt(x: number, y: number): Entity | undefined {
         return this.boxes.find(box => box.x === x && box.y === y);
     }
@@ -26,6 +46,28 @@ export class GameScene extends Phaser.Scene {
     private isWall(x: number, y: number): boolean {
         if (this.staticRows[y][x] === "7") {
             return true;
+        }
+        return false;
+    }
+
+    private winConditionsMet(): boolean {
+        let counter: number = 0;
+        for (let y = 0; y<this.goals.length; y++) {
+            if (!this.isOccupied(this.goals[y].x, this.goals[y].y)) {
+                counter++;
+            }
+        }
+        if (counter > 0) {
+            return false;
+        }
+        return true;
+    }
+
+    private flagCheck() {
+        if (!this.winConditionsMet()) {
+            this.flag.sprite.setTexture("tiles", 2).setScale(2)
+        } else {
+            this.flag.sprite.setTexture("tiles", 4).setScale(2)
         }
     }
 
@@ -55,6 +97,12 @@ export class GameScene extends Phaser.Scene {
             this.offsetX + this.player.x * 64,
             this.offsetY + this.player.y * 64
         );
+
+        if (this.player.x == this.flag.x && this.player.y == this.flag.y && this.winConditionsMet() == true) {
+            this.boxes = [];
+            this.goals = [];
+            this.scene.start("game", {level: this.levelNumber+1});
+        }
     }
 
     constructor() {
@@ -66,11 +114,17 @@ export class GameScene extends Phaser.Scene {
             frameWidth: 32,
             frameHeight: 32,
         });
-        this.load.text("level1", "assets/level.txt");
+        this.load.text("level1", `assets/level1.txt`);
+        this.load.text("level2", `assets/level2.txt`);
+        this.load.text("level3", `assets/level3.txt`);
+        this.load.text("level4", `assets/level4.txt`);
+        this.load.text("level5", `assets/level5.txt`);
     }
 
     create() {
-        const level = this.cache.text.get("level1");
+        this.qKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
+        this.rKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+        const level = this.cache.text.get(`level${this.levelNumber}`);
         const [staticLayer, dynamicLayer] = level.split(".");
         this.staticRows = staticLayer.trim().split("\n");
         const dynamicRows = dynamicLayer.trim().split("\n");
@@ -85,6 +139,13 @@ export class GameScene extends Phaser.Scene {
                     y: y,
                     sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", 6).setScale(2)
                     });
+                }
+                if (this.staticRows[y][x] == "4") {
+                    this.flag = {
+                    x: x,
+                    y: y,
+                    sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", 4).setScale(2)
+                    };
                 } else {
                     this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", this.staticRows[y][x]).setScale(2);
                 }
@@ -113,18 +174,34 @@ export class GameScene extends Phaser.Scene {
     update() {
         if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
             this.updatePosition(-1, 0);
+            this.flagCheck();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
             this.updatePosition(1, 0);
+            this.flagCheck();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
             this.updatePosition(0, -1);
+            this.flagCheck();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
             this.updatePosition(0, 1);
+            this.flagCheck();
+        }
+
+        if (Phaser.Input.Keyboard.JustDown(this.rKey)) {
+            this.boxes = [];
+            this.goals = [];
+            this.scene.start("game", {level: this.levelNumber});
+        }
+
+        if (Phaser.Input.Keyboard.JustDown(this.qKey)) {
+            this.boxes = [];
+            this.goals = [];
+            this.scene.start("game", {level: this.levelNumber+1});
         }
     }
 }

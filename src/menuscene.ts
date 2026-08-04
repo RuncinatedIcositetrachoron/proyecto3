@@ -66,7 +66,7 @@ export class MenuScene extends Phaser.Scene {
         this.input.keyboard!.on("keydown-ENTER", () => {
             switch (this.selected) {
                 case 0:
-                    this.scene.start("game");
+                    this.scene.start("game", {level: 1});
                     break;
 
                 case 1:
