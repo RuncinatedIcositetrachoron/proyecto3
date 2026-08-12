@@ -5,6 +5,9 @@ import { MenuScene } from "./menuscene";
 import { GameScene } from "./gamescene";
 import { OptionsScene } from "./optionsscene";
 import { CreditsScene } from "./creditsscene";
+import { EditorScene } from "./editorscene";
+import { LevelselectScene } from "./levelselectscene";
+import { CommunityScene } from "./communityscene";
 
 await document.fonts.ready;
 
@@ -22,7 +25,10 @@ const config: Phaser.Types.Core.GameConfig = {
         MenuScene,
         GameScene,
         OptionsScene,
-        CreditsScene
+        CreditsScene,
+        EditorScene,
+        LevelselectScene,
+        CommunityScene
     ]
 };
 
