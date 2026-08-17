@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+
 export class EditorScene extends Phaser.Scene {
     constructor() {
         super("EditorScene");
@@ -15,6 +16,14 @@ export class EditorScene extends Phaser.Scene {
     private mouseX: number = -1;
     private mouseY: number = -1;
     private hoverCell!: Phaser.GameObjects.Rectangle;
+
+    private mapa!: Phaser.Tilemaps.Tilemap;
+    private tablero!: Phaser.Tilemaps.TilemapLayer;
+    private herramienta: number = 1;
+
+    preload(): void {
+      this.load.image("editorTiles", "assets/placeholders.png");
+    }
 
     create(): void {
         const boardCenterX = this.board_offset_x + this.board_width / 2;
@@ -38,12 +47,73 @@ export class EditorScene extends Phaser.Scene {
             this.cellsize - 1,
             this.cellsize - 1,
             0x0000ff,
-            1,
+            0.5,
           )
           .setVisible(false);
-          this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-            this.updateHoveredCell(pointer.worldX, pointer.worldY);
+          
+        this.input.on("pointermove", (mouse: Phaser.Input.Pointer) => {
+          this.updateHoveredCell(
+            mouse.worldX,
+            mouse.worldY,
+          );
+
+          if (mouse.isDown && mouse.button === 0) {
+            this.usarHerramienta();
+          }
+        });
+
+          this.mapa = this.make.tilemap({
+            width: this.columns,
+            height: this.rows,
+            tileWidth: this.cellsize,
+            tileHeight: this.cellsize,
           });
+
+          const conjuntoTiles = this.mapa.addTilesetImage(
+            "gameTiles",
+            "editorTiles",
+            this.cellsize,
+            this.cellsize,
+            0,
+            0,
+            1
+            );
+
+            if (conjuntoTiles === null) {
+             return;
+            }
+            console.log("Tiles reconocidos:", conjuntoTiles.total);
+
+            const capaCreada = this.mapa.createBlankLayer(
+              "objetos",
+              conjuntoTiles,
+              this.board_offset_x,
+              this.board_offset_y,
+            );
+            
+            if (capaCreada === null) {
+             return;
+            }
+            
+            this.tablero = capaCreada;
+            this.tablero.setDepth(1);
+            this.hoverCell.setDepth(2);
+            
+            this.input.on("pointerdown", (mouse: Phaser.Input.Pointer) => {
+              if (mouse.button !== 0) {
+                return;
+              }
+
+              this.updateHoveredCell(
+                mouse.worldX,
+                mouse.worldY,
+              );
+              this.usarHerramienta();
+            });
+
+            this.input.keyboard?.on("keydown-SPACE", () => {
+              this.herramienta = (this.herramienta + 1) % 7;
+            });
       }
       private updateHoveredCell(pointerX: number, pointerY: number): void {
         const localX = pointerX - this.board_offset_x;
@@ -66,7 +136,33 @@ export class EditorScene extends Phaser.Scene {
         const cell_center_y = this.board_offset_y + this.mouseY * this.cellsize + this.cellsize / 2;
         this.hoverCell.setPosition(cell_center_x, cell_center_y);
         this.hoverCell.setVisible(true);
+
+    }
+      private usarHerramienta(): void {
+        if (this.mouseX === -1 || this.mouseY === -1) {
+          return;
+         }
+
+        if (this.herramienta === 0) {
+          this.mapa.removeTileAt(
+            this.mouseX,
+            this.mouseY,
+            true,
+            true,
+            this.tablero,
+          );
+        } else {
+          this.mapa.putTileAt(
+            this.herramienta+2,
+            this.mouseX,
+            this.mouseY,
+            true,
+            this.tablero,
+        );
     }
 }
+
+}
+
 
     
