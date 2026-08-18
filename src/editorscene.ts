@@ -17,6 +17,11 @@ export class EditorScene extends Phaser.Scene {
     private mouseY: number = -1;
     private hoverCell!: Phaser.GameObjects.Rectangle;
 
+    private seleccionando: boolean = false;
+    private seleccionInicioX: number = -1;
+    private seleccionInicioY: number = -1;
+    private rectanguloSeleccion!: Phaser.GameObjects.Rectangle;
+
     private mapa!: Phaser.Tilemaps.Tilemap;
     private tablero!: Phaser.Tilemaps.TilemapLayer;
     private herramienta: number = 1;
@@ -60,6 +65,23 @@ export class EditorScene extends Phaser.Scene {
           if (mouse.isDown && mouse.button === 0) {
             this.usarHerramienta();
           }
+
+          if (this.herramienta === 1 && this.seleccionando) {
+            this.actualizarSeleccion();
+            return;
+          }
+        });
+
+        this.input.on("pointerup", (mouse: Phaser.Input.Pointer) => {
+              if (!this.seleccionando) {
+                  return;
+              }
+              this.updateHoveredCell(
+                  mouse.worldX,
+                  mouse.worldY,
+              );
+              this.actualizarSeleccion();
+              this.seleccionando = false;
         });
 
           this.mapa = this.make.tilemap({
@@ -103,17 +125,36 @@ export class EditorScene extends Phaser.Scene {
               if (mouse.button !== 0) {
                 return;
               }
-
+              
               this.updateHoveredCell(
                 mouse.worldX,
                 mouse.worldY,
               );
-              this.usarHerramienta();
+              
+              if (this.herramienta === 1) {
+                this.iniciarSeleccion();
+              } else {
+                this.usarHerramienta();
+              }
             });
 
             this.input.keyboard?.on("keydown-SPACE", () => {
-              this.herramienta = (this.herramienta + 1) % 7;
+              this.herramienta = (this.herramienta + 1) % 25;
             });
+
+            this.rectanguloSeleccion = this.add.rectangle(
+              0,
+              0,
+              1,
+              1,
+              0xff5a00,
+              0.5,
+            )     
+            .setOrigin(0, 0)
+            .setStrokeStyle(2, 0x3399ff, 1)
+            .setDepth(3)
+            .setVisible(false);
+
       }
       private updateHoveredCell(pointerX: number, pointerY: number): void {
         const localX = pointerX - this.board_offset_x;
@@ -151,17 +192,74 @@ export class EditorScene extends Phaser.Scene {
             true,
             this.tablero,
           );
-        } else {
+        }else {
           this.mapa.putTileAt(
-            this.herramienta+2,
+            this.herramienta,
             this.mouseX,
             this.mouseY,
             true,
             this.tablero,
-        );
+         )};
+      }
+      private iniciarSeleccion(): void {
+        if (this.mouseX === -1 || this.mouseY === -1) {
+            return;
+        }
+    
+        this.seleccionInicioX = this.mouseX;
+        this.seleccionInicioY = this.mouseY;
+        this.seleccionando = true;
+    
+        this.rectanguloSeleccion.setVisible(true);
+        this.actualizarSeleccion();
     }
-}
-
+    
+    private actualizarSeleccion(): void {
+        if (this.mouseX === -1 || this.mouseY === -1) {
+            return;
+        }
+    
+        const columnaIzquierda = Math.min(
+            this.seleccionInicioX,
+            this.mouseX,
+        );
+    
+        const columnaDerecha = Math.max(
+            this.seleccionInicioX,
+            this.mouseX,
+        );
+    
+        const filaSuperior = Math.min(
+            this.seleccionInicioY,
+            this.mouseY,
+        );
+    
+        const filaInferior = Math.max(
+            this.seleccionInicioY,
+            this.mouseY,
+        );
+    
+        const posicionX =
+            this.board_offset_x +
+            columnaIzquierda * this.cellsize;
+    
+        const posicionY =
+            this.board_offset_y +
+            filaSuperior * this.cellsize;
+    
+        const ancho =
+            (columnaDerecha - columnaIzquierda + 1) *
+            this.cellsize;
+    
+        const alto =
+            (filaInferior - filaSuperior + 1) *
+            this.cellsize;
+    
+        this.rectanguloSeleccion
+            .setPosition(posicionX, posicionY)
+            .setSize(ancho, alto);
+      }
+      
 }
 
 
