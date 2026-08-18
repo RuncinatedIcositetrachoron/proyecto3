@@ -74,16 +74,7 @@ export class GameScene extends Phaser.Scene {
 
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 
-    private staticRows;
-
-    private isOccupied(x: number, y: number): boolean {
-        const goal = this.entities.find(entity => entity.type === "goal" && entity.x === x && entity.y === y);
-        if (!goal) {
-            return false;
-        }
-        const useful = this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
-        return useful !== undefined;
-    }   
+    private staticRows;  
 
     private getEntityAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
