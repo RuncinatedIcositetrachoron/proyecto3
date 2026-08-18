@@ -12,6 +12,8 @@ export class EditorScene extends Phaser.Scene {
     private board_offset_y: number = 32;
     private board_width: number = this.columns * this.cellsize;
     private board_height: number = this.rows * this.cellsize;
+
+    private selectTool: number  = 4;
     
     private mouseX: number = -1;
     private mouseY: number = -1;
@@ -21,6 +23,11 @@ export class EditorScene extends Phaser.Scene {
     private seleccionInicioX: number = -1;
     private seleccionInicioY: number = -1;
     private rectanguloSeleccion!: Phaser.GameObjects.Rectangle;
+
+    private seleccionIzquierda: number = -1;
+    private seleccionDerecha: number = -1;
+    private seleccionArriba: number = -1;
+    private seleccionAbajo: number = -1;
 
     private mapa!: Phaser.Tilemaps.Tilemap;
     private tablero!: Phaser.Tilemaps.TilemapLayer;
@@ -66,7 +73,7 @@ export class EditorScene extends Phaser.Scene {
             this.usarHerramienta();
           }
 
-          if (this.herramienta === 1 && this.seleccionando) {
+          if (this.herramienta === this.selectTool && this.seleccionando) {
             this.actualizarSeleccion();
             return;
           }
@@ -126,12 +133,14 @@ export class EditorScene extends Phaser.Scene {
                 return;
               }
               
+              this.quitarSeleccion();
+
               this.updateHoveredCell(
                 mouse.worldX,
                 mouse.worldY,
               );
               
-              if (this.herramienta === 1) {
+              if (this.herramienta === this.selectTool) {
                 this.iniciarSeleccion();
               } else {
                 this.usarHerramienta();
@@ -155,6 +164,13 @@ export class EditorScene extends Phaser.Scene {
             .setDepth(3)
             .setVisible(false);
 
+            this.input.keyboard?.on("keydown-BACKSPACE", () => {
+              this.borrarSeleccion();
+            });
+          
+            this.input.keyboard?.on("keydown-DELETE", () => {
+              this.borrarSeleccion();
+            });
       }
       private updateHoveredCell(pointerX: number, pointerY: number): void {
         const localX = pointerX - this.board_offset_x;
@@ -180,7 +196,7 @@ export class EditorScene extends Phaser.Scene {
 
     }
       private usarHerramienta(): void {
-        if (this.mouseX === -1 || this.mouseY === -1) {
+        if (this.mouseX === -1 || this.mouseY === -1 || this.herramienta === this.selectTool) {
           return;
          }
 
@@ -258,8 +274,44 @@ export class EditorScene extends Phaser.Scene {
         this.rectanguloSeleccion
             .setPosition(posicionX, posicionY)
             .setSize(ancho, alto);
+
+        this.seleccionIzquierda = columnaIzquierda;
+        this.seleccionDerecha = columnaDerecha;
+        this.seleccionArriba = filaSuperior;
+        this.seleccionAbajo = filaInferior;
       }
       
+      private borrarSeleccion(): void {
+        if (this.seleccionIzquierda === -1 || this.seleccionDerecha === -1 || this.seleccionAbajo === -1 || this.seleccionArriba === -1) {
+            return;
+        }
+        for (let fila = this.seleccionArriba; fila <= this.seleccionAbajo; fila++) {
+          for (let columna = this.seleccionIzquierda; columna <= this.seleccionDerecha; columna++) {
+            this.mapa.removeTileAt(
+              columna,
+              fila,
+              true,
+              true,
+              this.tablero,
+            );
+          }
+        }
+      }
+
+      private quitarSeleccion(): void {
+        this.seleccionando = false;
+    
+        this.rectanguloSeleccion.setVisible(false);
+    
+        this.seleccionInicioX = -1;
+        this.seleccionInicioY = -1;
+    
+        this.seleccionIzquierda = -1;
+        this.seleccionDerecha = -1;
+        this.seleccionArriba = -1;
+        this.seleccionAbajo = -1;
+      }
+
 }
 
 
