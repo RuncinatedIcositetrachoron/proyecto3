@@ -70,7 +70,7 @@ export class MenuScene extends Phaser.Scene {
                     break;
 
                 case 1:
-                    this.scene.start("options");
+                    this.scene.start("EditorScene");
                     break;
 
                 case 2:

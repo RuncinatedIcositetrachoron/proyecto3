@@ -1,0 +1,168 @@
+import Phaser from "phaser";
+
+export class EditorScene extends Phaser.Scene {
+    constructor() {
+        super("EditorScene");
+    }
+
+    private columns: number = 16;
+    private rows: number = 10;
+    private cellsize: number = 32;
+    private board_offset_x: number = 32;
+    private board_offset_y: number = 32;
+    private board_width: number = this.columns * this.cellsize;
+    private board_height: number = this.rows * this.cellsize;
+    
+    private mouseX: number = -1;
+    private mouseY: number = -1;
+    private hoverCell!: Phaser.GameObjects.Rectangle;
+
+    private mapa!: Phaser.Tilemaps.Tilemap;
+    private tablero!: Phaser.Tilemaps.TilemapLayer;
+    private herramienta: number = 1;
+
+    preload(): void {
+      this.load.image("editorTiles", "assets/placeholders.png");
+    }
+
+    create(): void {
+        const boardCenterX = this.board_offset_x + this.board_width / 2;
+        const boardCenterY = this.board_offset_y + this.board_height / 2;
+        this.add.grid(
+          boardCenterX,
+          boardCenterY,
+          this.board_width,
+          this.board_height,
+          this.cellsize,
+          this.cellsize,
+          0x00ff00,
+          1,
+          0xff0000,
+          1,
+        );
+        this.hoverCell = this.add
+          .rectangle(
+            this.board_offset_x + this.cellsize / 2,
+            this.board_offset_y + this.cellsize / 2,
+            this.cellsize - 1,
+            this.cellsize - 1,
+            0x0000ff,
+            0.5,
+          )
+          .setVisible(false);
+          
+        this.input.on("pointermove", (mouse: Phaser.Input.Pointer) => {
+          this.updateHoveredCell(
+            mouse.worldX,
+            mouse.worldY,
+          );
+
+          if (mouse.isDown && mouse.button === 0) {
+            this.usarHerramienta();
+          }
+        });
+
+          this.mapa = this.make.tilemap({
+            width: this.columns,
+            height: this.rows,
+            tileWidth: this.cellsize,
+            tileHeight: this.cellsize,
+          });
+
+          const conjuntoTiles = this.mapa.addTilesetImage(
+            "gameTiles",
+            "editorTiles",
+            this.cellsize,
+            this.cellsize,
+            0,
+            0,
+            1
+            );
+
+            if (conjuntoTiles === null) {
+             return;
+            }
+            console.log("Tiles reconocidos:", conjuntoTiles.total);
+
+            const capaCreada = this.mapa.createBlankLayer(
+              "objetos",
+              conjuntoTiles,
+              this.board_offset_x,
+              this.board_offset_y,
+            );
+            
+            if (capaCreada === null) {
+             return;
+            }
+            
+            this.tablero = capaCreada;
+            this.tablero.setDepth(1);
+            this.hoverCell.setDepth(2);
+            
+            this.input.on("pointerdown", (mouse: Phaser.Input.Pointer) => {
+              if (mouse.button !== 0) {
+                return;
+              }
+
+              this.updateHoveredCell(
+                mouse.worldX,
+                mouse.worldY,
+              );
+              this.usarHerramienta();
+            });
+
+            this.input.keyboard?.on("keydown-SPACE", () => {
+              this.herramienta = (this.herramienta + 1) % 7;
+            });
+      }
+      private updateHoveredCell(pointerX: number, pointerY: number): void {
+        const localX = pointerX - this.board_offset_x;
+        const localY = pointerY - this.board_offset_y;
+        const inside_board =
+          localX >= 0 &&
+          localX < this.board_width &&
+          localY >= 0 &&
+          localY < this.board_height;
+    
+        if (!inside_board) {
+          this.mouseX = -1;
+          this.mouseY = -1;
+          this.hoverCell.setVisible(false);
+          return;
+        }
+        this.mouseX = Math.floor(localX / this.cellsize);
+        this.mouseY = Math.floor(localY / this.cellsize);
+        const cell_center_x = this.board_offset_x + this.mouseX * this.cellsize + this.cellsize / 2;
+        const cell_center_y = this.board_offset_y + this.mouseY * this.cellsize + this.cellsize / 2;
+        this.hoverCell.setPosition(cell_center_x, cell_center_y);
+        this.hoverCell.setVisible(true);
+
+    }
+      private usarHerramienta(): void {
+        if (this.mouseX === -1 || this.mouseY === -1) {
+          return;
+         }
+
+        if (this.herramienta === 0) {
+          this.mapa.removeTileAt(
+            this.mouseX,
+            this.mouseY,
+            true,
+            true,
+            this.tablero,
+          );
+        } else {
+          this.mapa.putTileAt(
+            this.herramienta+2,
+            this.mouseX,
+            this.mouseY,
+            true,
+            this.tablero,
+        );
+    }
+}
+
+}
+
+
+    
