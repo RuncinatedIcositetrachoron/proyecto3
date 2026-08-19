@@ -14,6 +14,11 @@ export class EditorScene extends Phaser.Scene {
     private board_height: number = this.rows * this.cellsize;
 
     private arrastrandoSeleccion: boolean = false;
+    private posibleArrastreSeleccion: boolean = false;
+    private arrastreInicioX: number = -1;
+    private arrastreInicioY: number = -1;
+
+    private tileVacio: number = 1;
 
     private selectTool: number  = 4;
     private pasteTool: number = 30;
@@ -71,11 +76,28 @@ export class EditorScene extends Phaser.Scene {
           
         this.input.on("pointermove", (mouse: Phaser.Input.Pointer) => {
           this.updateHoveredCell(mouse.worldX, mouse.worldY);
+
+          if (
+            this.posibleArrastreSeleccion &&
+            mouse.leftButtonDown() &&
+            this.mouseX !== -1 &&
+            this.mouseY !== -1 &&
+            (
+              this.mouseX !== this.arrastreInicioX ||
+              this.mouseY !== this.arrastreInicioY
+            )
+          ) {
+            this.posibleArrastreSeleccion = false;
+            this.arrastrandoSeleccion = true;
+            this.seleccionando = false;
+            this.copiarSeleccion();
+          }
+
           if (this.herramienta === this.pasteTool || this.arrastrandoSeleccion) {
             this.actualizarVistaPegado();
           }
 
-          if (mouse.isDown && mouse.button === 0) {
+          if (mouse.leftButtonDown()) {
             this.usarHerramienta();
           }
 
@@ -87,15 +109,49 @@ export class EditorScene extends Phaser.Scene {
 
         this.input.on("pointerup", (mouse: Phaser.Input.Pointer) => {
           this.updateHoveredCell(mouse.worldX, mouse.worldY);
+
           if (this.arrastrandoSeleccion) {
             if (this.puedePegarSeleccion()) {
-                this.borrarSeleccion();
-                this.pegarSeleccion();
+              const altoSeleccion = this.seleccionCopiada.length;
+              const anchoSeleccion = this.seleccionCopiada[0].length;
+
+              const inicioX =
+                this.mouseX - Math.floor((anchoSeleccion - 1) / 2);
+
+              const inicioY =
+                this.mouseY - Math.floor((altoSeleccion - 1) / 2);
+
+              this.borrarSeleccion(false);
+              this.pegarSeleccion();
+              this.ubicarSeleccion(
+                inicioX,
+                inicioY,
+                anchoSeleccion,
+                altoSeleccion,
+              );
             }
+
             this.arrastrandoSeleccion = false;
+            this.posibleArrastreSeleccion = false;
+            this.arrastreInicioX = -1;
+            this.arrastreInicioY = -1;
             this.vistaPegado.setVisible(false);
             return;
           }
+
+          if (this.posibleArrastreSeleccion) {
+            const columna = this.arrastreInicioX;
+            const fila = this.arrastreInicioY;
+
+            this.posibleArrastreSeleccion = false;
+            this.arrastreInicioX = -1;
+            this.arrastreInicioY = -1;
+
+            this.quitarSeleccion();
+            this.ubicarSeleccion(columna, fila, 1, 1);
+            return;
+          }
+
           if (this.seleccionando) {
             this.actualizarSeleccion();
             this.seleccionando = false;
@@ -135,6 +191,19 @@ export class EditorScene extends Phaser.Scene {
             }
             
             this.tablero = capaCreada;
+
+            for (let fila = 0; fila < this.rows; fila++) {
+              for (let columna = 0; columna < this.columns; columna++) {
+                this.mapa.putTileAt(
+                  this.tileVacio,
+                  columna,
+                  fila,
+                  true,
+                  this.tablero,
+                );
+              }
+            }
+
             this.tablero.setDepth(1);
             this.hoverCell.setDepth(2);
         
@@ -145,10 +214,10 @@ export class EditorScene extends Phaser.Scene {
               }
               this.updateHoveredCell(mouse.worldX, mouse.worldY);
               if (this.herramienta === this.selectTool && this.mouseDentroSeleccion()) {
-                  this.copiarSeleccion();
-                  this.arrastrandoSeleccion = true;
+                  this.posibleArrastreSeleccion = true;
+                  this.arrastreInicioX = this.mouseX;
+                  this.arrastreInicioY = this.mouseY;
                   this.seleccionando = false;
-                  this.actualizarVistaPegado();
                   return;
               }
               if (this.herramienta === this.pasteTool) {
@@ -156,6 +225,9 @@ export class EditorScene extends Phaser.Scene {
                   return;
               }
               if (this.herramienta === this.selectTool) {
+                  this.posibleArrastreSeleccion = false;
+                  this.arrastreInicioX = -1;
+                  this.arrastreInicioY = -1;
                   this.quitarSeleccion();
                   this.iniciarSeleccion();
                   return;
@@ -239,10 +311,10 @@ export class EditorScene extends Phaser.Scene {
          }
 
         if (this.herramienta === 0) {
-          this.mapa.removeTileAt(
+          this.mapa.putTileAt(
+            this.tileVacio,
             this.mouseX,
             this.mouseY,
-            true,
             true,
             this.tablero,
           );
@@ -319,22 +391,24 @@ export class EditorScene extends Phaser.Scene {
         this.seleccionAbajo = filaInferior;
       }
       
-      private borrarSeleccion(): void {
+      private borrarSeleccion(quitar: boolean = true): void {
         if (this.seleccionIzquierda === -1 || this.seleccionDerecha === -1 || this.seleccionAbajo === -1 || this.seleccionArriba === -1) {
             return;
         }
         for (let fila = this.seleccionArriba; fila <= this.seleccionAbajo; fila++) {
           for (let columna = this.seleccionIzquierda; columna <= this.seleccionDerecha; columna++) {
-            this.mapa.removeTileAt(
+            this.mapa.putTileAt(
+              this.tileVacio,
               columna,
               fila,
-              true,
               true,
               this.tablero,
             );
           }
         }
-        this.quitarSeleccion();
+        if (quitar) {
+          this.quitarSeleccion();
+        }
       }
 
       private quitarSeleccion(): void {
@@ -390,23 +464,15 @@ export class EditorScene extends Phaser.Scene {
               const destinoX = inicioX + columna;
               const destinoY = inicioY + fila;
               const tileEncontrada = this.seleccionCopiada[fila][columna];
-                if (tileEncontrada === -1) {
-                    this.mapa.removeTileAt(
-                        destinoX,
-                        destinoY,
-                        true,
-                        true,
-                        this.tablero,
-                    );
-                } else {
-                    this.mapa.putTileAt(
-                        tileEncontrada,
-                        destinoX,
-                        destinoY,
-                        true,
-                        this.tablero,
-                    );
-                }
+                this.mapa.putTileAt(
+                    tileEncontrada === -1
+                      ? this.tileVacio
+                      : tileEncontrada,
+                    destinoX,
+                    destinoY,
+                    true,
+                    this.tablero,
+                );
             }
         }
     }
@@ -452,6 +518,17 @@ export class EditorScene extends Phaser.Scene {
     }
 
     private mouseDentroSeleccion(): boolean {
+      if (
+        this.mouseX === -1 ||
+        this.mouseY === -1 ||
+        this.seleccionIzquierda === -1 ||
+        this.seleccionDerecha === -1 ||
+        this.seleccionArriba === -1 ||
+        this.seleccionAbajo === -1
+      ) {
+        return false;
+      }
+
       return (
           this.mouseX >= this.seleccionIzquierda &&
           this.mouseX <= this.seleccionDerecha &&
@@ -459,6 +536,34 @@ export class EditorScene extends Phaser.Scene {
           this.mouseY <= this.seleccionAbajo
       );
   }
+
+
+    private ubicarSeleccion(
+      inicioX: number,
+      inicioY: number,
+      ancho: number,
+      alto: number,
+    ): void {
+      this.seleccionando = false;
+      this.seleccionInicioX = inicioX;
+      this.seleccionInicioY = inicioY;
+
+      this.seleccionIzquierda = inicioX;
+      this.seleccionDerecha = inicioX + ancho - 1;
+      this.seleccionArriba = inicioY;
+      this.seleccionAbajo = inicioY + alto - 1;
+
+      this.rectanguloSeleccion
+        .setPosition(
+          this.board_offset_x + inicioX * this.cellsize,
+          this.board_offset_y + inicioY * this.cellsize,
+        )
+        .setSize(
+          ancho * this.cellsize,
+          alto * this.cellsize,
+        )
+        .setVisible(true);
+    }
 
   private puedePegarSeleccion(): boolean {
     if (this.seleccionCopiada.length === 0 || this.mouseX === -1 || this.mouseY === -1) {
@@ -472,9 +577,3 @@ export class EditorScene extends Phaser.Scene {
     );
   }
 }
-
-
-
-
-
-    
