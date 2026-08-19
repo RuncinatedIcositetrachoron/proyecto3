@@ -13,7 +13,13 @@ export class EditorScene extends Phaser.Scene {
     private board_width: number = this.columns * this.cellsize;
     private board_height: number = this.rows * this.cellsize;
 
+    private arrastrandoSeleccion: boolean = false;
+
     private selectTool: number  = 4;
+    private pasteTool: number = 30;
+
+    private seleccionCopiada: number[][] = [];
+    private vistaPegado!: Phaser.GameObjects.Rectangle;
     
     private mouseX: number = -1;
     private mouseY: number = -1;
@@ -64,10 +70,10 @@ export class EditorScene extends Phaser.Scene {
           .setVisible(false);
           
         this.input.on("pointermove", (mouse: Phaser.Input.Pointer) => {
-          this.updateHoveredCell(
-            mouse.worldX,
-            mouse.worldY,
-          );
+          this.updateHoveredCell(mouse.worldX, mouse.worldY);
+          if (this.herramienta === this.pasteTool || this.arrastrandoSeleccion) {
+            this.actualizarVistaPegado();
+          }
 
           if (mouse.isDown && mouse.button === 0) {
             this.usarHerramienta();
@@ -80,15 +86,20 @@ export class EditorScene extends Phaser.Scene {
         });
 
         this.input.on("pointerup", (mouse: Phaser.Input.Pointer) => {
-              if (!this.seleccionando) {
-                  return;
-              }
-              this.updateHoveredCell(
-                  mouse.worldX,
-                  mouse.worldY,
-              );
-              this.actualizarSeleccion();
-              this.seleccionando = false;
+          this.updateHoveredCell(mouse.worldX, mouse.worldY);
+          if (this.arrastrandoSeleccion) {
+            if (this.puedePegarSeleccion()) {
+                this.borrarSeleccion();
+                this.pegarSeleccion();
+            }
+            this.arrastrandoSeleccion = false;
+            this.vistaPegado.setVisible(false);
+            return;
+          }
+          if (this.seleccionando) {
+            this.actualizarSeleccion();
+            this.seleccionando = false;
+          }
         });
 
           this.mapa = this.make.tilemap({
@@ -111,7 +122,6 @@ export class EditorScene extends Phaser.Scene {
             if (conjuntoTiles === null) {
              return;
             }
-            console.log("Tiles reconocidos:", conjuntoTiles.total);
 
             const capaCreada = this.mapa.createBlankLayer(
               "objetos",
@@ -127,25 +137,32 @@ export class EditorScene extends Phaser.Scene {
             this.tablero = capaCreada;
             this.tablero.setDepth(1);
             this.hoverCell.setDepth(2);
+        
             
             this.input.on("pointerdown", (mouse: Phaser.Input.Pointer) => {
               if (mouse.button !== 0) {
-                return;
+                  return;
               }
-              
-              this.quitarSeleccion();
-
-              this.updateHoveredCell(
-                mouse.worldX,
-                mouse.worldY,
-              );
-              
+              this.updateHoveredCell(mouse.worldX, mouse.worldY);
+              if (this.herramienta === this.selectTool && this.mouseDentroSeleccion()) {
+                  this.copiarSeleccion();
+                  this.arrastrandoSeleccion = true;
+                  this.seleccionando = false;
+                  this.actualizarVistaPegado();
+                  return;
+              }
+              if (this.herramienta === this.pasteTool) {
+                  this.pegarSeleccion();
+                  return;
+              }
               if (this.herramienta === this.selectTool) {
-                this.iniciarSeleccion();
-              } else {
-                this.usarHerramienta();
+                  this.quitarSeleccion();
+                  this.iniciarSeleccion();
+                  return;
               }
-            });
+              this.quitarSeleccion();
+              this.usarHerramienta();
+          });
 
             this.input.keyboard?.on("keydown-SPACE", () => {
               this.herramienta = (this.herramienta + 1) % 25;
@@ -167,10 +184,31 @@ export class EditorScene extends Phaser.Scene {
             this.input.keyboard?.on("keydown-BACKSPACE", () => {
               this.borrarSeleccion();
             });
+
+            this.input.keyboard?.on("keydown-C", () => {
+              this.copiarSeleccion();
+            });
+
+            this.input.keyboard?.on("keydown-V", () => {
+              if (this.seleccionCopiada.length === 0) {
+                return;
+              }
+              this.herramienta = this.pasteTool;
+              this.actualizarVistaPegado();
+            });
           
             this.input.keyboard?.on("keydown-DELETE", () => {
               this.borrarSeleccion();
             });
+
+            this.vistaPegado = this.add.rectangle(0, 0, 1, 1);
+            this.vistaPegado.setOrigin(0);
+            this.vistaPegado.setFillStyle(0xffffff, 0.25);
+            this.vistaPegado.setStrokeStyle(2, 0xffffff);
+            this.vistaPegado.setVisible(false);
+            this.vistaPegado.setDepth(10);
+
+
       }
       private updateHoveredCell(pointerX: number, pointerY: number): void {
         const localX = pointerX - this.board_offset_x;
@@ -196,7 +234,7 @@ export class EditorScene extends Phaser.Scene {
 
     }
       private usarHerramienta(): void {
-        if (this.mouseX === -1 || this.mouseY === -1 || this.herramienta === this.selectTool) {
+        if (this.mouseX === -1 || this.mouseY === -1 || this.herramienta === this.selectTool || this.herramienta === this.pasteTool) {
           return;
          }
 
@@ -208,7 +246,7 @@ export class EditorScene extends Phaser.Scene {
             true,
             this.tablero,
           );
-        }else {
+        }else{
           this.mapa.putTileAt(
             this.herramienta,
             this.mouseX,
@@ -296,6 +334,7 @@ export class EditorScene extends Phaser.Scene {
             );
           }
         }
+        this.quitarSeleccion();
       }
 
       private quitarSeleccion(): void {
@@ -312,7 +351,130 @@ export class EditorScene extends Phaser.Scene {
         this.seleccionAbajo = -1;
       }
 
+      private copiarSeleccion(): void {
+        if (this.seleccionIzquierda === -1 || this.seleccionAbajo === -1 || this.seleccionArriba === -1 || this.seleccionDerecha === -1) {
+            return;
+        }
+        this.seleccionCopiada = [];
+        for (let fila = this.seleccionArriba; fila <= this.seleccionAbajo; fila++) {
+            let filaCopiada: number[] = [];
+            for (let columna = this.seleccionIzquierda; columna <= this.seleccionDerecha; columna++) {
+                let tileEncontrada = this.mapa.getTileAt(
+                    columna,
+                    fila,
+                    true,
+                    this.tablero,
+                );
+                filaCopiada.push(tileEncontrada.index);
+            }
+            this.seleccionCopiada.push(filaCopiada);
+        }
+        this.actualizarVistaPegado();
+      }
+
+      private pegarSeleccion(): void {
+        if ((this.herramienta !== this.pasteTool && !this.arrastrandoSeleccion) || this.seleccionCopiada.length === 0 || this.mouseX === -1 || this.mouseY === -1) {
+            return;
+        }
+        const altoSeleccion = this.seleccionCopiada.length;
+        const anchoSeleccion = this.seleccionCopiada[0].length;
+
+        const inicioX = this.mouseX - Math.floor((anchoSeleccion - 1) / 2);
+        const inicioY = this.mouseY - Math.floor((altoSeleccion - 1) / 2);
+
+        if (inicioX + anchoSeleccion > this.columns || inicioY + altoSeleccion > this.rows || inicioX < 0 || inicioY < 0) {
+          return;
+        }
+        for (let fila = 0; fila < this.seleccionCopiada.length; fila++) {
+            for (let columna = 0; columna < this.seleccionCopiada[fila].length; columna++) {
+              const destinoX = inicioX + columna;
+              const destinoY = inicioY + fila;
+              const tileEncontrada = this.seleccionCopiada[fila][columna];
+                if (tileEncontrada === -1) {
+                    this.mapa.removeTileAt(
+                        destinoX,
+                        destinoY,
+                        true,
+                        true,
+                        this.tablero,
+                    );
+                } else {
+                    this.mapa.putTileAt(
+                        tileEncontrada,
+                        destinoX,
+                        destinoY,
+                        true,
+                        this.tablero,
+                    );
+                }
+            }
+        }
+    }
+    
+    private actualizarVistaPegado(): void {
+      if ((!this.arrastrandoSeleccion && this.herramienta !== this.pasteTool) || this.seleccionCopiada.length === 0 || this.mouseX === -1 || this.mouseY === -1) {
+        this.vistaPegado.setVisible(false);
+        return;
+      }
+      const altoSeleccion = this.seleccionCopiada.length;
+      const anchoSeleccion = this.seleccionCopiada[0].length;
+
+      const inicioX = this.mouseX - Math.floor((anchoSeleccion - 1) / 2);
+      const inicioY = this.mouseY - Math.floor((altoSeleccion - 1) / 2);
+
+      const posicionX = this.board_offset_x + inicioX * this.cellsize;
+      const posicionY = this.board_offset_y + inicioY * this.cellsize;
+      this.vistaPegado.setPosition(posicionX, posicionY);
+
+      const entraEnTablero = inicioX + anchoSeleccion <= this.columns &&  inicioY + altoSeleccion <= this.rows && inicioX >= 0 && inicioY >= 0;
+      const izquierdaVisible = Math.max(inicioX, 0);
+      const arribaVisible = Math.max(inicioY, 0);
+      const derechaVisible = Math.min(inicioX + anchoSeleccion, this.columns);
+      const abajoVisible = Math.min(inicioY + altoSeleccion, this.rows);
+      const anchoVisible = derechaVisible - izquierdaVisible;
+      const altoVisible = abajoVisible - arribaVisible;
+      if (anchoVisible <= 0 || altoVisible <= 0) {
+          this.vistaPegado.setVisible(false);
+          return;
+      }
+      const posX = this.board_offset_x + izquierdaVisible * this.cellsize;
+      const posY = this.board_offset_y + arribaVisible * this.cellsize;
+      this.vistaPegado.setPosition(posX, posY);
+      this.vistaPegado.setSize(anchoVisible * this.cellsize, altoVisible * this.cellsize);
+      if (entraEnTablero) {
+          this.vistaPegado.setFillStyle(0xffffff, 0.25);
+          this.vistaPegado.setStrokeStyle(2, 0xffffff);
+      } else {
+          this.vistaPegado.setFillStyle(0xff0000, 0.25);
+          this.vistaPegado.setStrokeStyle(2, 0xff0000);
+      }
+      this.vistaPegado.setVisible(true);
+    }
+
+    private mouseDentroSeleccion(): boolean {
+      return (
+          this.mouseX >= this.seleccionIzquierda &&
+          this.mouseX <= this.seleccionDerecha &&
+          this.mouseY >= this.seleccionArriba &&
+          this.mouseY <= this.seleccionAbajo
+      );
+  }
+
+  private puedePegarSeleccion(): boolean {
+    if (this.seleccionCopiada.length === 0 || this.mouseX === -1 || this.mouseY === -1) {
+        return false;
+    }
+    const altoSeleccion = this.seleccionCopiada.length;
+    const anchoSeleccion = this.seleccionCopiada[0].length;
+    const inicioX = this.mouseX - Math.floor((anchoSeleccion - 1) / 2);
+    const inicioY = this.mouseY - Math.floor((altoSeleccion - 1) / 2);
+    return (inicioX >= 0 && inicioY >= 0 && inicioX + anchoSeleccion <= this.columns && inicioY + altoSeleccion <= this.rows
+    );
+  }
 }
+
+
+
 
 
     
