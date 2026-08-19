@@ -58,6 +58,8 @@ export class GameScene extends Phaser.Scene {
     private levelNumber = 1;
 
     private history: GameState[] = [];
+    
+    private laser;
 
     init(data: { level: number }) {
     this.levelNumber = data.level;
@@ -68,6 +70,7 @@ export class GameScene extends Phaser.Scene {
     private zKey!: Phaser.Input.Keyboard.Key;
 
     private entities: Entity[] = [];
+    private lasers: Phaser.GameObjects.Sprite[] = [];
 
     private offsetX = 0;
     private offsetY = 0;
@@ -80,6 +83,43 @@ export class GameScene extends Phaser.Scene {
         return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
     }
     
+private addLaser(x: number, y: number, dir: number) {
+    let dx = 0;
+    let dy = 0;
+    switch (dir) {
+        case 0: dy = -1; break;
+        case 1: dx = 1;  break;
+        case 2: dy = 1;  break;
+        case 3: dx = -1; break;
+    }
+    const nextX = x + dx;
+    const nextY = y + dy;
+
+    if (this.isWall(nextX, nextY) || this.getEntityAt(nextX, nextY)) {
+        return;
+    }
+    
+    if (dir === 0 || dir === 2) {
+        this.laser = this.add.sprite(this.offsetX + nextX * 64, this.offsetY + nextY * 64, "tiles", Tile.LaserV).setScale(2);
+    }
+    if (dir === 1 || dir === 3) {
+        this.laser = this.add.sprite(this.offsetX + nextX * 64, this.offsetY + nextY * 64, "tiles", Tile.LaserH).setScale(2);
+    }
+    this.lasers.push(this.laser);
+    this.addLaser(nextX, nextY, dir);
+}
+
+    private raycast() {
+        for (const laser of this.lasers) {
+            laser.destroy();
+        }
+        this.lasers = [];
+        const emitters = this.entities.filter(entity => entity.type === "laserEmissor");
+        for (const emitter of emitters) {
+            this.addLaser(emitter.x, emitter.y, emitter.dir);
+        }
+    }
+
     private isWall(x: number, y: number): boolean {
         if (this.staticRows[y][x] === "#") {
             return true;
@@ -246,7 +286,7 @@ export class GameScene extends Phaser.Scene {
                 switch(thistile) {
                     case "w":
                         this.entities.push ({
-                        type: "laserUp",
+                        type: "laserEmissor",
                         x: x,
                         y: y,
                         dir: 0,
@@ -256,7 +296,7 @@ export class GameScene extends Phaser.Scene {
                         break;
                     case "a":
                         this.entities.push ({
-                        type: "laserLeft",
+                        type: "laserEmissor",
                         x: x,
                         y: y,
                         dir: 3,
@@ -266,7 +306,7 @@ export class GameScene extends Phaser.Scene {
                         break;
                     case "s":
                         this.entities.push ({
-                        type: "laserDown",
+                        type: "laserEmissor",
                         x: x,
                         y: y,
                         dir: 2,
@@ -276,7 +316,7 @@ export class GameScene extends Phaser.Scene {
                         break;
                     case "d":
                         this.entities.push ({
-                        type: "laserRight",
+                        type: "laserEmissor",
                         x: x,
                         y: y,
                         dir: 1,
@@ -298,6 +338,7 @@ export class GameScene extends Phaser.Scene {
             }
         }
         this.cursors = this.input.keyboard!.createCursorKeys();
+        this.raycast();
     }
 
     //////////////////////////////
@@ -308,21 +349,25 @@ export class GameScene extends Phaser.Scene {
         if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
             this.updatePosition(-1, 0);
             this.flagCheck();
+            this.raycast();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
             this.updatePosition(1, 0);
             this.flagCheck();
+            this.raycast();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
             this.updatePosition(0, -1);
             this.flagCheck();
+            this.raycast();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
             this.updatePosition(0, 1);
             this.flagCheck();
+            this.raycast();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.rKey)) {
@@ -348,6 +393,7 @@ export class GameScene extends Phaser.Scene {
                 entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
             }
             this.flagCheck();
+            this.raycast();
         }
     }
 }
