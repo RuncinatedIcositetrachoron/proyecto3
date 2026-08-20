@@ -313,6 +313,3 @@ export class EditorScene extends Phaser.Scene {
       }
 
 }
-
-
-    
