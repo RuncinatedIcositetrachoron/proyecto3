@@ -83,31 +83,31 @@ export class GameScene extends Phaser.Scene {
         return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
     }
     
-private addLaser(x: number, y: number, dir: number) {
-    let dx = 0;
-    let dy = 0;
-    switch (dir) {
-        case 0: dy = -1; break;
-        case 1: dx = 1;  break;
-        case 2: dy = 1;  break;
-        case 3: dx = -1; break;
-    }
-    const nextX = x + dx;
-    const nextY = y + dy;
+    private addLaser(x: number, y: number, dir: number) {
+        let dx = 0;
+        let dy = 0;
+        switch (dir) {
+            case 0: dy = -1; break;
+            case 1: dx = 1;  break;
+            case 2: dy = 1;  break;
+            case 3: dx = -1; break;
+        }
+        const nextX = x + dx;
+        const nextY = y + dy;
 
-    if (this.isWall(nextX, nextY) || this.getEntityAt(nextX, nextY)) {
-        return;
-    }
+        if (this.isWall(nextX, nextY) || this.getEntityAt(nextX, nextY)) {
+            return;
+        }
     
-    if (dir === 0 || dir === 2) {
-        this.laser = this.add.sprite(this.offsetX + nextX * 64, this.offsetY + nextY * 64, "tiles", Tile.LaserV).setScale(2);
+        if (dir === 0 || dir === 2) {
+            this.laser = this.add.sprite(this.offsetX + nextX * 64, this.offsetY + nextY * 64, "tiles", Tile.LaserV).setScale(2);
+        }
+        if (dir === 1 || dir === 3) {
+            this.laser = this.add.sprite(this.offsetX + nextX * 64, this.offsetY + nextY * 64, "tiles", Tile.LaserH).setScale(2);
+        }
+        this.lasers.push(this.laser);
+        this.addLaser(nextX, nextY, dir);
     }
-    if (dir === 1 || dir === 3) {
-        this.laser = this.add.sprite(this.offsetX + nextX * 64, this.offsetY + nextY * 64, "tiles", Tile.LaserH).setScale(2);
-    }
-    this.lasers.push(this.laser);
-    this.addLaser(nextX, nextY, dir);
-}
 
     private raycast() {
         for (const laser of this.lasers) {
@@ -115,6 +115,9 @@ private addLaser(x: number, y: number, dir: number) {
         }
         this.lasers = [];
         const emitters = this.entities.filter(entity => entity.type === "laserEmissor");
+        if (!emitters) {
+            return;
+        }
         for (const emitter of emitters) {
             this.addLaser(emitter.x, emitter.y, emitter.dir);
         }
@@ -137,6 +140,18 @@ private addLaser(x: number, y: number, dir: number) {
         }
         return true;
     }
+    
+    private winConditionsMet2(): boolean {
+        const recievers = this.entities.filter(entity => entity.type === "laserReciever");
+        for (const reciever of recievers) {
+            const currX = reciever.x;
+            const currY = reciever.y;
+            if (!this.lasers.find((laser) => (laser.x === this.offsetX + currX * 64 && (laser.y === this.offsetY + (currY+1) * 64 || laser.y === this.offsetY + (currY-1) * 64) && String(laser.frame.name) === "8")||(laser.y === this.offsetY + currY * 64 && (laser.x === this.offsetX + (currX+1) * 64 || laser.x === this.offsetX + (currX-1) * 64) && String(laser.frame.name) === "4"))) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     private flagCheck() {
         const flag = this.entities.find(entity => entity.type === "flag");
@@ -145,53 +160,52 @@ private addLaser(x: number, y: number, dir: number) {
         }
         if (!this.winConditionsMet()) {
             flag.sprite.setTexture("tiles", Tile.Flag0).setScale(2);
+        } else if (!this.winConditionsMet2()) {
+            flag.sprite.setTexture("tiles", Tile.Flag0).setScale(2);
         } else {
             flag.sprite.setTexture("tiles", Tile.Flag1).setScale(2);
         }
     }
 
     private updatePosition(dx: number, dy: number) {
-    const player = this.entities.find(entity => entity.type === "player");
-    const newX = player.x + dx;
-    const newY = player.y + dy;
-    this.history.push({
-        entities: this.entities.map(entity => ({
-            type: entity.type,
-            x: entity.x,
-            y: entity.y,
-            dir: entity.dir
-        }))
-    });
+        const player = this.entities.find(entity => entity.type === "player");
+        const newX = player.x + dx;
+        const newY = player.y + dy;
+        this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir}))
+        });
 
-    if (this.isWall(newX, newY)) {
-        return;
-    }
-    const entity = this.getEntityAt(newX, newY);
-    if (entity) {
-        const newEntityX = entity.x + dx;
-        const newEntityY = entity.y + dy;
-        if (this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) {
+        if (this.isWall(newX, newY)) {
             return;
         }
-        entity.x = newEntityX;
-        entity.y = newEntityY;
-        entity.sprite.setPosition(
-            this.offsetX + entity.x * 64,
-            this.offsetY + entity.y * 64
-        );
-    }
-    player.x = newX;
-    player.y = newY;
-    player.dir = dx !== 0 ? dx : dy;
-    player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64);
+        const entity = this.getEntityAt(newX, newY);
+        if (entity) {
+            const newEntityX = entity.x + dx;
+            const newEntityY = entity.y + dy;
+            if (this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) {
+                return;
+            }
+            entity.x = newEntityX;
+            entity.y = newEntityY;
+            entity.sprite.setPosition(
+                this.offsetX + entity.x * 64,
+                this.offsetY + entity.y * 64
+            );
+        }
+        player.x = newX;
+        player.y = newY;
+        player.dir = dx !== 0 ? dx : dy;
+        player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64);
 
-    const flag = this.entities.find(entity => entity.type === "flag");
+        const flag = this.entities.find(entity => entity.type === "flag");
 
-    if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet()) {
-        this.scene.start("game", {
-            level: this.levelNumber + 1
-        });
-    }
+        if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
+            this.entities = [];
+            for (const laser of this.lasers) {
+                laser.destroy();
+            }
+            this.lasers = [];
+            this.scene.start("game", {level: this.levelNumber+1});
+        }
     }
 
     constructor() {
@@ -212,6 +226,9 @@ private addLaser(x: number, y: number, dir: number) {
     }
 
     create() {
+        this.entities = [];
+        this.history = [];
+        this.lasers = [];
         this.qKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
         this.rKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
         this.zKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
@@ -348,35 +365,43 @@ private addLaser(x: number, y: number, dir: number) {
     update() {
         if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
             this.updatePosition(-1, 0);
-            this.flagCheck();
             this.raycast();
+            this.flagCheck();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
             this.updatePosition(1, 0);
-            this.flagCheck();
             this.raycast();
+            this.flagCheck();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
             this.updatePosition(0, -1);
-            this.flagCheck();
             this.raycast();
+            this.flagCheck();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
             this.updatePosition(0, 1);
-            this.flagCheck();
             this.raycast();
+            this.flagCheck();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.rKey)) {
             this.entities = [];
+            for (const laser of this.lasers) {
+                laser.destroy();
+            }
+            this.lasers = [];
             this.scene.start("game", {level: this.levelNumber});
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.qKey)) {
             this.entities = [];
+            for (const laser of this.lasers) {
+                laser.destroy();
+            }
+            this.lasers = [];
             this.scene.start("game", {level: this.levelNumber+1});
         }
         if (Phaser.Input.Keyboard.JustDown(this.zKey)) {
@@ -392,7 +417,6 @@ private addLaser(x: number, y: number, dir: number) {
                 entity.dir = oldEntity.dir;
                 entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
             }
-            this.flagCheck();
             this.raycast();
         }
     }
