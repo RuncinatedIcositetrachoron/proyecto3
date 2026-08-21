@@ -146,8 +146,27 @@ export class GameScene extends Phaser.Scene {
         for (const reciever of recievers) {
             const currX = reciever.x;
             const currY = reciever.y;
-            if (!this.lasers.find((laser) => (laser.x === this.offsetX + currX * 64 && (laser.y === this.offsetY + (currY+1) * 64 || laser.y === this.offsetY + (currY-1) * 64) && String(laser.frame.name) === "8")||(laser.y === this.offsetY + currY * 64 && (laser.x === this.offsetX + (currX+1) * 64 || laser.x === this.offsetX + (currX-1) * 64) && String(laser.frame.name) === "4"))) {
-                return false;
+            switch(reciever.dir){
+            case 0:
+                if (!this.lasers.find((laser) => (laser.x === this.offsetX + currX * 64 && laser.y === this.offsetY + (currY-1) * 64 && String(laser.frame.name) === "8"))) {
+                    return false;
+                }
+                break;
+            case 1:
+                if (!this.lasers.find((laser) => (laser.y === this.offsetY + currY * 64 && laser.x === this.offsetX + (currX+1) * 64 && String(laser.frame.name) === "4"))) {
+                    return false;
+                }
+                break;
+            case 2:
+                if (!this.lasers.find((laser) => (laser.x === this.offsetX + currX * 64 && laser.y === this.offsetY + (currY+1) * 64 && String(laser.frame.name) === "8"))) {
+                    return false;
+                }
+                break;
+            case 3:
+                if (!this.lasers.find((laser) => (laser.y === this.offsetY + currY * 64 && laser.x === this.offsetX + (currX-1) * 64 && String(laser.frame.name) === "4"))) {
+                    return false;
+                }
+                break;
             }
         }
         return true;
@@ -341,12 +360,42 @@ export class GameScene extends Phaser.Scene {
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.LaserEmissorD).setScale(2)
                         });
                         break;
-                    case "r":
+                    case "i":
                         this.entities.push ({
                         type: "laserReciever",
                         x: x,
                         y: y,
                         dir: 0,
+                        pushable: true,
+                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Reciever).setScale(2)
+                        });
+                        break;
+                    case "j":
+                        this.entities.push ({
+                        type: "laserReciever",
+                        x: x,
+                        y: y,
+                        dir: 3,
+                        pushable: true,
+                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Reciever).setScale(2)
+                        });
+                        break;
+                    case "k":
+                        this.entities.push ({
+                        type: "laserReciever",
+                        x: x,
+                        y: y,
+                        dir: 2,
+                        pushable: true,
+                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Reciever).setScale(2)
+                        });
+                        break;
+                    case "l":
+                        this.entities.push ({
+                        type: "laserReciever",
+                        x: x,
+                        y: y,
+                        dir: 1,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Reciever).setScale(2)
                         });
