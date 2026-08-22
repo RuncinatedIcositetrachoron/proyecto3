@@ -6,7 +6,7 @@ export class MenuScene extends Phaser.Scene {
     private menuItems: Phaser.GameObjects.Text[] = [];
     
     private updateMenu() {
-        const labels = ["START", "OPTIONS", "CREDITS"];
+        const labels = ["START", "OPTIONS", "EDITOR", "CREDITS"];
 
         for (let i = 0; i < this.menuItems.length; i++) {
             if (i === this.selected) {
@@ -28,6 +28,7 @@ export class MenuScene extends Phaser.Scene {
         const options = [
             "START",
             "OPTIONS",
+            "EDITOR",
             "CREDITS"
         ];
         this.add.image(400, 150, "logo").setScale(2);
@@ -68,12 +69,16 @@ export class MenuScene extends Phaser.Scene {
                 case 0:
                     this.scene.start("game", {level: 1});
                     break;
-
+                
                 case 1:
-                    this.scene.start("EditorScene");
+                    this.scene.start("options");
                     break;
 
                 case 2:
+                    this.scene.start("EditorScene");
+                    break;
+
+                case 3:
                     this.scene.start("credits");
                     break;
             }

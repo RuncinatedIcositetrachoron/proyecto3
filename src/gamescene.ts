@@ -5,6 +5,7 @@ interface Entity {
     x: number;
     y: number;
     dir: number;
+    emitting: number;
     pushable: boolean;
     sprite: Phaser.GameObjects.Sprite;
 }
@@ -32,7 +33,7 @@ const Tile = {
     Wall: 10,
     Door1: 11,
 
-    MirrorLEempty: 12,
+    MirrorLEmpty: 12,
     MirrorLBack: 13,
     MirrorLBackFront: 14,
     MirrorLFront: 15,
@@ -82,6 +83,9 @@ export class GameScene extends Phaser.Scene {
     private getEntityAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
     }
+    private getMirrorAt(x: number, y: number): Entity | undefined {
+        return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y && entity.type === "mirror");
+    }
     
     private addLaser(x: number, y: number, dir: number) {
         let dx = 0;
@@ -95,8 +99,45 @@ export class GameScene extends Phaser.Scene {
         const nextX = x + dx;
         const nextY = y + dy;
 
-        if (this.isWall(nextX, nextY) || this.getEntityAt(nextX, nextY)) {
+        if (this.isWall(nextX, nextY) || (this.getEntityAt(nextX, nextY) && !this.getMirrorAt(nextX, nextY))) {
             return;
+        }
+        if (this.getMirrorAt(nextX, nextY)) {
+            const mirror = this.getMirrorAt(nextX, nextY);
+            switch(dir) {
+            case 0:
+                switch(mirror.dir) {
+                    case 0: return;
+                    case 1: return;
+                    case 2: mirror.emitting = 1; mirror.sprite.setTexture("tiles", Tile.MirrorRFront); break;
+                    case 3: mirror.emitting = 3; mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
+                }
+                return;
+            case 1:
+                switch(mirror.dir) {
+                    case 0: mirror.emitting = 0; mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
+                    case 1: return;
+                    case 2: return;
+                    case 3: mirror.emitting = 2; mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
+                }
+                return;
+            case 2:
+                switch(mirror.dir) {
+                    case 0: mirror.emitting = 3; mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
+                    case 1: mirror.emitting = 1; mirror.sprite.setTexture("tiles", Tile.MirrorLBack); break;
+                    case 2: return;
+                    case 3: return;
+                }
+                return;
+            case 3:
+                switch(mirror.dir) {
+                    case 0: return;
+                    case 1: mirror.emitting = 0; mirror.sprite.setTexture("tiles", Tile.MirrorLBack);  break;
+                    case 2: mirror.emitting = 2; mirror.sprite.setTexture("tiles", Tile.MirrorRFront);  break;
+                    case 3: return;
+                }
+                return;
+            }
         }
     
         if (dir === 0 || dir === 2) {
@@ -110,17 +151,28 @@ export class GameScene extends Phaser.Scene {
     }
 
     private raycast() {
-        for (const laser of this.lasers) {
-            laser.destroy();
-        }
-        this.lasers = [];
-        const emitters = this.entities.filter(entity => entity.type === "laserEmissor");
+        const emitters = this.entities.filter(entity => entity.emitting !== 4);
         if (!emitters) {
             return;
         }
         for (const emitter of emitters) {
-            this.addLaser(emitter.x, emitter.y, emitter.dir);
+            this.addLaser(emitter.x, emitter.y, emitter.emitting);
         }
+    }
+
+    private laserFunction() {
+        const mirrors = this.entities.filter(entity => entity.type === "mirror");
+        if (mirrors) {
+            for (const mirror of mirrors) {
+                mirror.emitting = 4;
+                switch(mirror.dir) {
+                    case 0: case 2: mirror.sprite.setTexture("tiles", Tile.MirrorREmpty); break;
+                    case 1: case 3: mirror.sprite.setTexture("tiles", Tile.MirrorLEmpty); break;
+                }
+            }
+        }
+        this.raycast();
+        this.raycast();
     }
 
     private isWall(x: number, y: number): boolean {
@@ -148,28 +200,28 @@ export class GameScene extends Phaser.Scene {
             const currY = reciever.y;
             switch(reciever.dir){
             case 0:
-                if (!this.lasers.find((laser) => (laser.x === this.offsetX + currX * 64 && laser.y === this.offsetY + (currY-1) * 64 && String(laser.frame.name) === "8"))) {
-                    return false;
+                if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 64 && laser.y === this.offsetY + (currY-1) * 64 && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
+                    return true;
                 }
                 break;
             case 1:
-                if (!this.lasers.find((laser) => (laser.y === this.offsetY + currY * 64 && laser.x === this.offsetX + (currX+1) * 64 && String(laser.frame.name) === "4"))) {
-                    return false;
+                if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 64 && laser.x === this.offsetX + (currX+1) * 64 && String(laser.frame.name) === "4")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
+                    return true;
                 }
                 break;
             case 2:
-                if (!this.lasers.find((laser) => (laser.x === this.offsetX + currX * 64 && laser.y === this.offsetY + (currY+1) * 64 && String(laser.frame.name) === "8"))) {
-                    return false;
+                if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 64 && laser.y === this.offsetY + (currY+1) * 64 && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
+                    return true;
                 }
                 break;
             case 3:
-                if (!this.lasers.find((laser) => (laser.y === this.offsetY + currY * 64 && laser.x === this.offsetX + (currX-1) * 64 && String(laser.frame.name) === "4"))) {
-                    return false;
+                if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 64 && laser.x === this.offsetX + (currX-1) * 64 && String(laser.frame.name) === "4")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
+                    return true;
                 }
                 break;
             }
         }
-        return true;
+        return false;
     }
 
     private flagCheck() {
@@ -272,6 +324,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 0,
+                        emitting: 4,
                         pushable: false,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Goal).setScale(2)
                         });
@@ -282,6 +335,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 0,
+                        emitting: 4,
                         pushable: false,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Flag1).setScale(2)
                         });
@@ -299,6 +353,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 0,
+                        emitting: 4,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Player).setScale(2)
                         });
@@ -309,6 +364,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 0,
+                        emitting: 4,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Box).setScale(2)
                         });
@@ -326,6 +382,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 0,
+                        emitting: 0,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.LaserEmissorW).setScale(2)
                         });
@@ -336,6 +393,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 3,
+                        emitting: 3,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.LaserEmissorA).setScale(2)
                         });
@@ -346,6 +404,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 2,
+                        emitting: 2,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.LaserEmissorS).setScale(2)
                         });
@@ -356,6 +415,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 1,
+                        emitting: 1,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.LaserEmissorD).setScale(2)
                         });
@@ -366,6 +426,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 0,
+                        emitting: 4,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Reciever).setScale(2)
                         });
@@ -376,6 +437,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 3,
+                        emitting: 4,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Reciever).setScale(2)
                         });
@@ -386,6 +448,7 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 2,
+                        emitting: 4,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Reciever).setScale(2)
                         });
@@ -396,8 +459,53 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: 1,
+                        emitting: 4,
                         pushable: true,
                         sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.Reciever).setScale(2)
+                        });
+                        break;
+                    case "t":
+                        this.entities.push ({
+                        type: "mirror",
+                        x: x,
+                        y: y,
+                        dir: 0,
+                        emitting: 4,
+                        pushable: true,
+                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.MirrorREmpty).setScale(2)
+                        });
+                        break;
+                    case "f":
+                        this.entities.push ({
+                        type: "mirror",
+                        x: x,
+                        y: y,
+                        dir: 3,
+                        emitting: 4,
+                        pushable: true,
+                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.MirrorLEmpty).setScale(2)
+                        });
+                        break;
+                    case "g":
+                        this.entities.push ({
+                        type: "mirror",
+                        x: x,
+                        y: y,
+                        dir: 2,
+                        emitting: 4,
+                        pushable: true,
+                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.MirrorREmpty).setScale(2)
+                        });
+                        break;
+                    case "h":
+                        this.entities.push ({
+                        type: "mirror",
+                        x: x,
+                        y: y,
+                        dir: 1,
+                        emitting: 4,
+                        pushable: true,
+                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "tiles", Tile.MirrorLEmpty).setScale(2)
                         });
                         break;
                 }
@@ -414,25 +522,41 @@ export class GameScene extends Phaser.Scene {
     update() {
         if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
             this.updatePosition(-1, 0);
-            this.raycast();
+            for (const laser of this.lasers) {
+                laser.destroy();
+            }
+            this.lasers = [];
+            this.laserFunction();
             this.flagCheck();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
             this.updatePosition(1, 0);
-            this.raycast();
+            for (const laser of this.lasers) {
+                laser.destroy();
+            }
+            this.lasers = [];
+            this.laserFunction();
             this.flagCheck();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
             this.updatePosition(0, -1);
-            this.raycast();
+            for (const laser of this.lasers) {
+                laser.destroy();
+            }
+            this.lasers = [];
+            this.laserFunction();
             this.flagCheck();
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
             this.updatePosition(0, 1);
-            this.raycast();
+            for (const laser of this.lasers) {
+                laser.destroy();
+            }
+            this.lasers = [];
+            this.laserFunction();
             this.flagCheck();
         }
 
@@ -466,7 +590,7 @@ export class GameScene extends Phaser.Scene {
                 entity.dir = oldEntity.dir;
                 entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
             }
-            this.raycast();
+            this.laserFunction();
         }
     }
 }
