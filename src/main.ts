@@ -8,6 +8,7 @@ import { CreditsScene } from "./creditsscene";
 import { EditorScene } from "./editorscene";
 import { LevelselectScene } from "./levelselectscene";
 import { CommunityScene } from "./communityscene";
+import { LevelsScene } from "./levelsscene";
 
 await document.fonts.ready;
 
@@ -28,7 +29,8 @@ const config: Phaser.Types.Core.GameConfig = {
         CreditsScene,
         EditorScene,
         LevelselectScene,
-        CommunityScene
+        CommunityScene,
+        LevelsScene
     ]
 };
 
