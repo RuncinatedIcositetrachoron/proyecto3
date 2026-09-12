@@ -12,7 +12,7 @@ export class EditorScene extends Phaser.Scene {
   }
 
   constructor() {
-        super("EditorScene");
+        super("editor");
     }
 
     private nivelId: string | null = null;
