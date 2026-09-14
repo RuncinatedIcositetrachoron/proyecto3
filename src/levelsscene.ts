@@ -36,7 +36,7 @@ export class LevelsScene extends Phaser.Scene {
     this.add.text(40, 30, "Level Editor", {fontSize: "28px", color: "#ffffff"});
     crearBoton(this, 120, 90, 120, "Crear Nivel", () => {
         const nivel = crearNivel(10, 16);
-        this.scene.start("EditorScene", {nivelId: nivel.id});
+        this.scene.start("editor", {nivelId: nivel.id});
     });
     crearBoton(this, 260, 90, 120, "Invertir Orden", () => {
       this.scene.restart({
