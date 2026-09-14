@@ -40,6 +40,15 @@ export class EditorScene extends Phaser.Scene {
     private sinHerramienta: number = -1;
     private selectTool: number  = 100;
     private pasteTool: number = 101;
+    private tilesSinPortal: number[] = [2, 5, 6, 7, 8];
+
+    //PORTALES
+
+    private portalTool: number = 102;
+    private portalArriba: number = 25;
+    private portalDerecha: number = 26;
+    private portalIzquierda: number = 27;
+    private portalAbajo: number = 28;
 
     //UNDO Y REDO
 
@@ -65,6 +74,8 @@ export class EditorScene extends Phaser.Scene {
 
     private seleccionCopiada: number[][] = [];
     private portapapelesArrastre: number[][] | null = null;
+    private portalesCopiados: number[][] = [];
+    private portapapelesPortalesArrastre: number[][] | null = null;
     private vistaPegado!: Phaser.GameObjects.Rectangle;
     
     private mouseX: number = -1;
@@ -82,8 +93,12 @@ export class EditorScene extends Phaser.Scene {
     private seleccionArriba: number = -1;
     private seleccionAbajo: number = -1;
 
+    //LAYERS DEL TILEMAP
+
     private mapa!: Phaser.Tilemaps.Tilemap;
     private tablero!: Phaser.Tilemaps.TilemapLayer;
+    private capaPortales!: Phaser.Tilemaps.TilemapLayer;
+
     private herramienta: number = 1;
 
     preload(): void {
@@ -139,6 +154,8 @@ export class EditorScene extends Phaser.Scene {
                 this.scene.start("LevelsScene");
               });
 
+        //EVENTOS DEL MOUSE
+
         this.input.on("pointermove", (mouse: Phaser.Input.Pointer) => {
           this.updateHoveredCell(mouse.worldX, mouse.worldY);
           if (
@@ -155,6 +172,7 @@ export class EditorScene extends Phaser.Scene {
             this.arrastrandoSeleccion = true;
             this.seleccionando = false;
             this.portapapelesArrastre = this.seleccionCopiada;
+            this.portapapelesPortalesArrastre = this.portalesCopiados;
             this.haySeleccion = false;
             this.copiarSeleccion();
             this.actualizarInterfaz();
@@ -179,8 +197,6 @@ export class EditorScene extends Phaser.Scene {
           this.saveIfChanged();
           this.actualizarInterfaz();
           this.actualizarHotbar();
-        
-        //EVENTOS  
 
           if (this.arrastrandoSeleccion) {
             if (this.puedePegarSeleccion()) {
@@ -202,6 +218,10 @@ export class EditorScene extends Phaser.Scene {
             if (this.portapapelesArrastre !== null) {
               this.seleccionCopiada = this.portapapelesArrastre;
               this.portapapelesArrastre = null;
+            }
+            if (this.portapapelesPortalesArrastre !== null) {
+              this.portalesCopiados = this.portapapelesPortalesArrastre;
+              this.portapapelesPortalesArrastre = null;
             }
             this.arrastrandoSeleccion = false;
             this.posibleArrastreSeleccion = false;
@@ -236,12 +256,16 @@ export class EditorScene extends Phaser.Scene {
           }
         });
 
+          //CREADO DEL TILEMAP
+
           this.mapa = this.make.tilemap({
             width: this.columns,
             height: this.rows,
             tileWidth: this.cellsize,
             tileHeight: this.cellsize,
           });
+
+          //CREADO DEL TILESET
 
           const conjuntoTiles = this.mapa.addTilesetImage(
             "gameTiles",
@@ -257,6 +281,9 @@ export class EditorScene extends Phaser.Scene {
              return;
             }
 
+
+            //CREADO DE CAPAS
+
             const capaCreada = this.mapa.createBlankLayer(
               "objetos",
               conjuntoTiles,
@@ -269,6 +296,23 @@ export class EditorScene extends Phaser.Scene {
             }
             
             this.tablero = capaCreada;
+
+            //CAPA DE PORTALES
+
+            const capaPortalesCreada = this.mapa.createBlankLayer(
+              "portales",
+              conjuntoTiles,
+              this.board_offset_x,
+              this.board_offset_y,
+            );
+            
+            if (capaPortalesCreada === null) {
+              return;
+            }
+            
+            this.capaPortales = capaPortalesCreada;
+
+            //RELLENADO INICIAL DEL TABLERO
 
             for (let fila = 0; fila < this.rows; fila++) {
               for (let columna = 0; columna < this.columns; columna++) {
@@ -289,12 +333,19 @@ export class EditorScene extends Phaser.Scene {
             }
 
             this.tablero.setDepth(1);
-            this.hoverCell.setDepth(2);
+            this.capaPortales.setDepth(2);
+            this.hoverCell.setDepth(3);
         
-            
+            //EVENTOS DE CLICK
+
             this.input.on("pointerdown", (mouse: Phaser.Input.Pointer) => {
               if (mouse.button !== 0) {
                   return;
+              }
+              if (this.herramienta === this.portalTool) {
+                this.quitarSeleccion();
+                this.usarPortal(mouse.worldX, mouse.worldY);
+                return;
               }
               this.updateHoveredCell(mouse.worldX, mouse.worldY);
               if (this.mouseX === -1 || this.mouseY === -1) return;
@@ -378,6 +429,10 @@ export class EditorScene extends Phaser.Scene {
             if (this.haySeleccion) this.quitarSeleccion();
           }
 
+          if (tecla === "p") {
+            this.herramienta = this.portalTool;
+          }
+
           if (control && tecla === "z" && !evento.shiftKey) {
             evento.preventDefault();
             this.undo();
@@ -430,7 +485,7 @@ export class EditorScene extends Phaser.Scene {
 
     }
       private usarHerramienta(): void {
-        if (this.mouseX === -1 || this.mouseY === -1 || this.herramienta === this.selectTool || this.herramienta === this.pasteTool || this.herramienta === this.sinHerramienta) {
+        if (this.mouseX === -1 || this.mouseY === -1 || this.herramienta === this.selectTool || this.herramienta === this.pasteTool || this.herramienta === this.sinHerramienta || this.herramienta === this.portalTool) {
           return;
          }
 
@@ -441,6 +496,13 @@ export class EditorScene extends Phaser.Scene {
             this.mouseY,
             true,
             this.tablero,
+          );
+          this.mapa.removeTileAt(
+            this.mouseX,
+            this.mouseY,
+            true,
+            true,
+            this.capaPortales,
           );
         }else{
           this.mapa.putTileAt(
@@ -528,6 +590,13 @@ export class EditorScene extends Phaser.Scene {
               true,
               this.tablero,
             );
+            this.mapa.removeTileAt(
+              columna,
+              fila,
+              true,
+              true,
+              this.capaPortales,
+            );
           }
         }
         if (quitar) {
@@ -557,6 +626,7 @@ export class EditorScene extends Phaser.Scene {
           return;
         }
         this.seleccionCopiada = contenido;
+        this.portalesCopiados = this.obtenerPortalesSeleccion();
         this.actualizarVistaPegado();
         this.actualizarInterfaz();
       } 
@@ -582,6 +652,12 @@ export class EditorScene extends Phaser.Scene {
               true,
               this.tablero,
             );
+            const portalEncontrado = this.portalesCopiados[fila][columna];
+            if (portalEncontrado === -1) {
+              this.mapa.removeTileAt(inicioX + columna, inicioY + fila, true, true, this.capaPortales);
+            } else {
+              this.mapa.putTileAt(portalEncontrado, inicioX + columna, inicioY + fila, true, this.capaPortales);
+            }
           }
         }
       }
@@ -982,5 +1058,106 @@ private actualizarHotbar(): void {
   }
 }
 
+
+//FUNCIONES DE COLOCADO DE PORTALES
+
+private obtenerPortal(pointerX: number, pointerY: number): number {
+  const izquierda = this.board_offset_x + this.mouseX * this.cellsize;
+  const arriba = this.board_offset_y + this.mouseY * this.cellsize;
+
+  const x = pointerX - izquierda;
+  const y = pointerY - arriba;
+
+  const distanciaArriba = y;
+  const distanciaDerecha = this.cellsize - x;
+  const distanciaAbajo = this.cellsize - y;
+  const distanciaIzquierda = x;
+
+  const menor = Math.min(
+    distanciaArriba,
+    distanciaDerecha,
+    distanciaAbajo,
+    distanciaIzquierda,
+  );
+
+  if (menor === distanciaArriba) return this.portalArriba;
+  if (menor === distanciaDerecha) return this.portalDerecha;
+  if (menor === distanciaAbajo) return this.portalAbajo;
+
+  return this.portalIzquierda;
 }
 
+private usarPortal(pointerX: number, pointerY: number): void {
+  if (this.mouseX === -1 || this.mouseY === -1) {
+    return;
+  }
+  const portal = this.obtenerPortal(pointerX, pointerY);
+  if (!this.puedeColocarPortal(this.mouseX, this.mouseY, portal)) {
+    return;
+  }
+  const portalActual = this.mapa.getTileAt(
+    this.mouseX,
+    this.mouseY,
+    false,
+    this.capaPortales,
+  );
+
+  if (portalActual !== null && portalActual.index === portal) {
+    this.mapa.removeTileAt(
+      this.mouseX,
+      this.mouseY,
+      true,
+      true,
+      this.capaPortales,
+    );
+  } else {
+    this.mapa.putTileAt(
+      portal,
+      this.mouseX,
+      this.mouseY,
+      true,
+      this.capaPortales,
+    );
+  }
+}
+
+private puedeColocarPortal(columna: number, fila: number, portal: number): boolean {
+  const tile = this.mapa.getTileAt(columna, fila, false, this.tablero);
+  if (tile === null) {
+    return false;
+  }
+  if (tile.index === this.tileInvisible) {
+    return false;
+  }
+  for (let i = 0; i < this.tilesSinPortal.length; i++) {
+    if (tile.index === this.tilesSinPortal[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+//PORTALES CON HERRAMIENTAS
+
+private obtenerPortalesSeleccion(): number[][] {
+  if (this.seleccionIzquierda === -1 || this.seleccionDerecha === -1 || this.seleccionArriba === -1 || this.seleccionAbajo === -1) {
+    return [];
+  }
+  const contenido: number[][] = [];
+  for (let fila = this.seleccionArriba; fila <= this.seleccionAbajo; fila++) {
+    const filaCopiada: number[] = [];
+    for (let columna = this.seleccionIzquierda; columna <= this.seleccionDerecha; columna++) {
+      const portal = this.mapa.getTileAt(columna, fila, false, this.capaPortales);
+      if (portal === null) {
+        filaCopiada.push(-1);
+      } else {
+        filaCopiada.push(portal.index);
+      }
+    }
+    contenido.push(filaCopiada);
+  }
+  return contenido;
+}
+
+
+}
