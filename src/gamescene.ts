@@ -19,6 +19,7 @@ interface GameState {
         x: number;
         y: number;
         dir: number;
+        portal: number;
     }[];
 }
 
@@ -389,8 +390,19 @@ export class GameScene extends Phaser.Scene {
                     entity.x = exit.x;
                     entity.y = exit.y;
                     entity.dir = (((entity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
+                    if (entity.portal !== undefined) {
+                        entity.portal = (((entity.portal + (entry.portal - exit.portal)) % 4) + 4) % 4;
+                    }
                     entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
-                    if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);}
+                    if (entity.sprite2) {
+                        entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                        switch(entity.portal) {
+                            case 0: entity.sprite2.setTexture("tiles", Tile.PortalW).setScale(2); break;
+                            case 1: entity.sprite2.setTexture("tiles", Tile.PortalD).setScale(2); break;
+                            case 2: entity.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
+                            case 3: entity.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
+                        }
+                    }
                     let done = false;
                     switch(exit.portal) {
                         case 0:
@@ -509,6 +521,15 @@ export class GameScene extends Phaser.Scene {
         this.tempstorage.x = newX;
         this.tempstorage.y = newY;
         this.tempstorage.sprite.setPosition(this.offsetX + newX * 64, this.offsetY + newY * 64);
+        if (this.tempstorage.sprite2) {
+            this.tempstorage.sprite2.setPosition(this.offsetX + this.tempstorage.x * 64, this.offsetY + this.tempstorage.y * 64);
+            switch(this.tempstorage.portal) {
+                case 0: this.tempstorage.sprite2.setTexture("tiles", Tile.PortalW).setScale(2); break;
+                case 1: this.tempstorage.sprite2.setTexture("tiles", Tile.PortalD).setScale(2); break;
+                case 2: this.tempstorage.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
+                case 3: this.tempstorage.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
+            }
+        }
         return true;
     }
 
@@ -530,7 +551,6 @@ export class GameScene extends Phaser.Scene {
             frameHeight: 28,
         });
         this.load.text("level1", `assets/level1.txt`);
-        this.load.text("level2", `assets/level2.txt`);
     }
 
     create() {
@@ -896,7 +916,7 @@ export class GameScene extends Phaser.Scene {
             const player = this.entities.find(entity => entity.type === "player");
             player.dir = 3;
             this.operationNumber = 0;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir}))
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
             });
             this.updatePosition(-1, 0, 1);
             for (const laser of this.lasers) {
@@ -911,7 +931,7 @@ export class GameScene extends Phaser.Scene {
             const player = this.entities.find(entity => entity.type === "player");
             player.dir = 1;
             this.operationNumber = 0;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir}))
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
             });
             this.updatePosition(1, 0, 3);
             for (const laser of this.lasers) {
@@ -926,7 +946,7 @@ export class GameScene extends Phaser.Scene {
             const player = this.entities.find(entity => entity.type === "player");
             player.dir = 0;
             this.operationNumber = 0;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir}))
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
             });
             this.updatePosition(0, -1, 2);
             for (const laser of this.lasers) {
@@ -941,7 +961,7 @@ export class GameScene extends Phaser.Scene {
             const player = this.entities.find(entity => entity.type === "player");
             player.dir = 2;
             this.operationNumber = 0;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir}))
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
             }); 
             this.updatePosition(0, 1, 0);
             for (const laser of this.lasers) {
@@ -991,7 +1011,21 @@ export class GameScene extends Phaser.Scene {
                 entity.x = oldEntity.x;
                 entity.y = oldEntity.y;
                 entity.dir = oldEntity.dir;
+                entity.portal = oldEntity.portal;
                 entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                if (entity.sprite2) {
+                    entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                    switch(entity.portal) {
+                        case 0: entity.sprite2.setTexture("tiles", Tile.PortalW).setScale(2); break;
+                        case 1: entity.sprite2.setTexture("tiles", Tile.PortalD).setScale(2); break;
+                        case 2: entity.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
+                        case 3: entity.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
+                    }
+                }
+                if (entity.type === "player") {
+                    entity.sprite.setTexture("lindsey", entity.dir).setScale(4).setDepth(10);
+                    entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64 - this.playeroffsetY);
+                }
             }
             for (const laser of this.lasers) {
                 laser.destroy();
