@@ -1,5 +1,10 @@
 import Phaser from "phaser";
 
+interface EstadoEditor {
+  tablero: number[][];
+  portales: number[][];
+}
+
 import {obtenerNivel, actualizarNivel, crearBoton} from "./niveles";
 
 export class EditorScene extends Phaser.Scene {
@@ -52,10 +57,12 @@ export class EditorScene extends Phaser.Scene {
 
     //UNDO Y REDO
 
-    private undoHistory: number[][][] = [];
-    private redoHistory: number[][][] = [];
-    private lastBoardState: number[][] = [];
-
+    private undoHistory: EstadoEditor[] = [];
+    private redoHistory: EstadoEditor[] = [];
+    private lastState: EstadoEditor = {
+      tablero: [],
+      portales: [],
+    };
     //INTERFAZ
 
     private botonSeleccionar!: Phaser.GameObjects.Rectangle;
@@ -77,6 +84,8 @@ export class EditorScene extends Phaser.Scene {
     private portalesCopiados: number[][] = [];
     private portapapelesPortalesArrastre: number[][] | null = null;
     private vistaPegado!: Phaser.GameObjects.Rectangle;
+    private tilesOcultasVistaPegado: Phaser.Tilemaps.Tile[] = [];
+    private portalesOcultosVistaPegado: Phaser.Tilemaps.Tile[] = [];
     
     private mouseX: number = -1;
     private mouseY: number = -1;
@@ -98,6 +107,8 @@ export class EditorScene extends Phaser.Scene {
     private mapa!: Phaser.Tilemaps.Tilemap;
     private tablero!: Phaser.Tilemaps.TilemapLayer;
     private capaPortales!: Phaser.Tilemaps.TilemapLayer;
+    private capaVistaPegado!: Phaser.Tilemaps.TilemapLayer;
+    private capaVistaPortalesPegado!: Phaser.Tilemaps.TilemapLayer;
 
     private herramienta: number = 1;
 
@@ -229,6 +240,9 @@ export class EditorScene extends Phaser.Scene {
             this.arrastreInicioY = -1;
         
             this.vistaPegado.setVisible(false);
+            this.capaVistaPegado.setVisible(false);
+            this.capaVistaPortalesPegado.setVisible(false);
+            this.restaurarTilesVistaPegado();
             this.haySeleccion = true;
             this.actualizarInterfaz();
             return;
@@ -312,6 +326,37 @@ export class EditorScene extends Phaser.Scene {
             
             this.capaPortales = capaPortalesCreada;
 
+            const capaVistaPegadoCreada = this.mapa.createBlankLayer(
+              "vistaTilesPegado",
+              conjuntoTiles,
+              this.board_offset_x,
+              this.board_offset_y,
+            );
+            
+            if (capaVistaPegadoCreada === null) {
+              return;
+            }
+            
+            this.capaVistaPegado = capaVistaPegadoCreada;
+            this.capaVistaPegado.setAlpha(0.4);
+            this.capaVistaPegado.setVisible(false);
+
+            const capaVistaPortalesPegadoCreada = this.mapa.createBlankLayer(
+              "vistaPortalesPegado",
+              conjuntoTiles,
+              this.board_offset_x,
+              this.board_offset_y,
+            );
+          if (capaVistaPortalesPegadoCreada === null) {
+            return;
+          }
+
+          this.capaVistaPortalesPegado = capaVistaPortalesPegadoCreada;
+          this.capaVistaPortalesPegado.setAlpha(0.4);
+          this.capaVistaPortalesPegado.setVisible(false);
+
+          this.restaurarTilesVistaPegado(); 
+
             //RELLENADO INICIAL DEL TABLERO
 
             for (let fila = 0; fila < this.rows; fila++) {
@@ -334,7 +379,9 @@ export class EditorScene extends Phaser.Scene {
 
             this.tablero.setDepth(1);
             this.capaPortales.setDepth(2);
-            this.hoverCell.setDepth(3);
+            this.capaVistaPegado.setDepth(3);
+            this.capaVistaPortalesPegado.setDepth(4);
+            this.hoverCell.setDepth(5);
         
             //EVENTOS DE CLICK
 
@@ -382,7 +429,7 @@ export class EditorScene extends Phaser.Scene {
             )     
             .setOrigin(0, 0)
             .setStrokeStyle(2, 0x3399ff, 1)
-            .setDepth(3)
+            .setDepth(6)
             .setVisible(false);
 
         //EVENTOS DE TECLADO
@@ -401,6 +448,9 @@ export class EditorScene extends Phaser.Scene {
             if (this.herramienta === this.pasteTool) {
               this.herramienta = this.sinHerramienta;
               this.vistaPegado.setVisible(false);
+              this.capaVistaPegado.setVisible(false);
+              this.capaVistaPortalesPegado.setVisible(false);
+              this.restaurarTilesVistaPegado();
             } else {
               this.herramienta = this.pasteTool;
               this.actualizarVistaPegado();
@@ -414,6 +464,9 @@ export class EditorScene extends Phaser.Scene {
             else {
               this.herramienta = this.selectTool;
               this.vistaPegado.setVisible(false);
+              this.capaVistaPegado.setVisible(false);
+              this.capaVistaPortalesPegado.setVisible(false);
+              this.restaurarTilesVistaPegado();
             }
             this.actualizarInterfaz();
             this.actualizarHotbar();
@@ -450,6 +503,9 @@ export class EditorScene extends Phaser.Scene {
             this.vistaPegado.setFillStyle(0xffffff, 0.25);
             this.vistaPegado.setStrokeStyle(2, 0xffffff);
             this.vistaPegado.setVisible(false);
+            this.capaVistaPegado.setVisible(false);
+            this.capaVistaPortalesPegado.setVisible(false);
+            this.restaurarTilesVistaPegado();
             this.vistaPegado.setDepth(10);
 
             this.crearInterfaz();
@@ -459,7 +515,7 @@ export class EditorScene extends Phaser.Scene {
             this.actualizarInterfaz();
             this.actualizarHotbar();
 
-            this.lastBoardState = this.getBoardState();
+            this.lastState = this.getEditorState();
       }
       private updateHoveredCell(pointerX: number, pointerY: number): void {
         const localX = pointerX - this.board_offset_x;
@@ -665,6 +721,9 @@ export class EditorScene extends Phaser.Scene {
     private actualizarVistaPegado(): void {
       if ((!this.arrastrandoSeleccion && this.herramienta !== this.pasteTool) || this.seleccionCopiada.length === 0 || this.mouseX === -1 || this.mouseY === -1) {
         this.vistaPegado.setVisible(false);
+        this.capaVistaPegado.setVisible(false);
+        this.capaVistaPortalesPegado.setVisible(false);
+        this.restaurarTilesVistaPegado();
         return;
       }
       const altoSeleccion = this.seleccionCopiada.length;
@@ -672,6 +731,9 @@ export class EditorScene extends Phaser.Scene {
 
       const inicioX = this.mouseX - Math.floor((anchoSeleccion - 1) / 2);
       const inicioY = this.mouseY - Math.floor((altoSeleccion - 1) / 2);
+      
+      this.ocultarTilesDebajoVistaPegado(inicioX, inicioY);
+      this.actualizarTilesVistaPegado(inicioX, inicioY);
 
       const posicionX = this.board_offset_x + inicioX * this.cellsize;
       const posicionY = this.board_offset_y + inicioY * this.cellsize;
@@ -686,6 +748,9 @@ export class EditorScene extends Phaser.Scene {
       const altoVisible = abajoVisible - arribaVisible;
       if (anchoVisible <= 0 || altoVisible <= 0) {
           this.vistaPegado.setVisible(false);
+          this.capaVistaPegado.setVisible(false);
+          this.capaVistaPortalesPegado.setVisible(false);
+          this.restaurarTilesVistaPegado();
           return;
       }
       const posX = this.board_offset_x + izquierdaVisible * this.cellsize;
@@ -796,54 +861,51 @@ export class EditorScene extends Phaser.Scene {
     }
   }
 
-private statesAreEqual(firstState: number[][], secondState: number[][]): boolean {
-  if (firstState.length !== secondState.length) {
-    return false;
+  private statesAreEqual(firstState: EstadoEditor, secondState: EstadoEditor): boolean {
+    return (
+      this.matricesAreEqual(firstState.tablero, secondState.tablero) &&
+      this.matricesAreEqual(firstState.portales, secondState.portales)
+    );
   }
-  for (let row = 0; row < this.rows; row++) {
-    for (let column = 0;column < this.columns; column++) {
-      if (firstState[row][column] !== secondState[row][column]) {
-        return false;
-      }
+
+  private saveIfChanged(): void {
+    const currentState = this.getEditorState();
+  
+    if (this.statesAreEqual(this.lastState, currentState)) {
+      return;
+    }
+  
+    this.undoHistory.push(this.lastState);
+    this.redoHistory = [];
+    this.lastState = currentState;
+  
+    if (this.undoHistory.length > 100) {
+      this.undoHistory.shift();
     }
   }
-  return true;
-}
+  
 
-private saveIfChanged(): void {
-  const currentState = this.getBoardState();
-  if (this.statesAreEqual(this.lastBoardState, currentState)) {
-    return;
+  private undo(): void {
+    const previousState = this.undoHistory.pop();
+    if (previousState === undefined) {
+      return;
+    }
+    this.redoHistory.push(this.getEditorState());
+    this.restoreEditorState(previousState);
+    this.lastState = previousState;
+    this.quitarSeleccion();
   }
-  this.undoHistory.push(this.lastBoardState);
-  this.redoHistory = [];
-  this.lastBoardState = currentState;
-  if (this.undoHistory.length > 100) {
-    this.undoHistory.shift();
-  }
-}
 
-private undo(): void {
-  const previousState = this.undoHistory.pop();
-  if (!previousState) {
-    return;
+  private redo(): void {
+    const nextState = this.redoHistory.pop();
+    if (nextState === undefined) {
+      return;
+    }
+    this.undoHistory.push(this.getEditorState());
+    this.restoreEditorState(nextState);
+    this.lastState = nextState;
+    this.quitarSeleccion();
   }
-  this.redoHistory.push(this.getBoardState());
-  this.restoreBoardState(previousState);
-  this.lastBoardState = previousState;
-  this.quitarSeleccion();
-}
-
-private redo(): void {
-  const nextState = this.redoHistory.pop();
-  if (!nextState) {
-    return;
-  }
-  this.undoHistory.push(this.getBoardState());
-  this.restoreBoardState(nextState);
-  this.lastBoardState = nextState;
-  this.quitarSeleccion();
-}
 
 private obtenerContenidoSeleccion(): number[][] {
   if (this.seleccionIzquierda === -1 || this.seleccionDerecha === -1 || this.seleccionArriba === -1 || this.seleccionAbajo === -1) {
@@ -872,6 +934,9 @@ update(): void {
   }
   if (this.herramienta !== this.pasteTool && !this.arrastrandoSeleccion && this.vistaPegado.visible) {
     this.vistaPegado.setVisible(false);
+    this.capaVistaPegado.setVisible(false);
+    this.capaVistaPortalesPegado.setVisible(false);
+    this.restaurarTilesVistaPegado();
   }
 }
 
@@ -961,6 +1026,9 @@ this.botonSeleccionar = crearBoton(this, x, y, 100, "Seleccionar", () => {
   } else {
     this.herramienta = this.selectTool;
     this.vistaPegado.setVisible(false);
+    this.capaVistaPegado.setVisible(false);
+    this.capaVistaPortalesPegado.setVisible(false);
+    this.restaurarTilesVistaPegado();
   }
   this.actualizarInterfaz();
   this.actualizarHotbar();
@@ -975,6 +1043,9 @@ this.botonPegar = crearBoton(this, x, y, 100, "Pegar", () => {
   if (this.herramienta === this.pasteTool) {
     this.herramienta = this.sinHerramienta;
     this.vistaPegado.setVisible(false);
+    this.capaVistaPegado.setVisible(false);
+    this.capaVistaPortalesPegado.setVisible(false);
+    this.restaurarTilesVistaPegado();
   } else {
     this.herramienta = this.pasteTool;
     this.actualizarVistaPegado();
@@ -1020,6 +1091,9 @@ private crearHotbar(): void {
       } else {
         this.herramienta = tile;
         this.vistaPegado.setVisible(false);
+        this.capaVistaPegado.setVisible(false);
+        this.capaVistaPortalesPegado.setVisible(false);
+        this.restaurarTilesVistaPegado();
       }
       this.actualizarInterfaz();
       this.actualizarHotbar();
@@ -1035,6 +1109,9 @@ private crearHotbar(): void {
     } else {
       this.herramienta = 0;
       this.vistaPegado.setVisible(false);
+      this.capaVistaPegado.setVisible(false);
+      this.capaVistaPortalesPegado.setVisible(false);
+      this.restaurarTilesVistaPegado();
     }
     this.actualizarInterfaz();
     this.actualizarHotbar();
@@ -1159,5 +1236,122 @@ private obtenerPortalesSeleccion(): number[][] {
   return contenido;
 }
 
+
+
+
+private actualizarTilesVistaPegado(inicioX: number, inicioY: number): void {
+  this.capaVistaPegado.fill(-1);
+  this.capaVistaPortalesPegado.fill(-1);
+  for (let fila = 0; fila < this.seleccionCopiada.length; fila++) {
+    for (let columna = 0; columna < this.seleccionCopiada[fila].length; columna++) {
+      const x = inicioX + columna;
+      const y = inicioY + fila;
+      if (x < 0 || y < 0 || x >= this.columns || y >= this.rows) {
+        continue;
+      }
+      const tileEncontrada = this.seleccionCopiada[fila][columna];
+      this.capaVistaPegado.putTileAt(tileEncontrada, x, y);
+      const portalEncontrado = this.portalesCopiados[fila][columna];
+      if (portalEncontrado !== -1) {
+        this.capaVistaPortalesPegado.putTileAt(portalEncontrado, x, y);
+      }
+    }
+  }
+  this.capaVistaPegado.setVisible(true);
+  this.capaVistaPortalesPegado.setVisible(true);
+}
+
+private restaurarTilesVistaPegado(): void {
+  for (const tile of this.tilesOcultasVistaPegado) {
+    tile.visible = true;
+  }
+  for (const portal of this.portalesOcultosVistaPegado) {
+    portal.visible = true;
+  }
+  this.tilesOcultasVistaPegado = [];
+  this.portalesOcultosVistaPegado = [];
+}
+
+private ocultarTilesDebajoVistaPegado(inicioX: number, inicioY: number): void {
+  this.restaurarTilesVistaPegado();
+  for (let fila = 0; fila < this.seleccionCopiada.length; fila++) {
+    for (let columna = 0; columna < this.seleccionCopiada[fila].length; columna++) {
+      const x = inicioX + columna;
+      const y = inicioY + fila;
+      if (x < 0 || y < 0 || x >= this.columns || y >= this.rows) {
+        continue;
+      }
+      const tile = this.mapa.getTileAt(x, y, false, this.tablero);
+      if (tile !== null) {
+        tile.visible = false;
+        this.tilesOcultasVistaPegado.push(tile);
+      }
+      const portal = this.mapa.getTileAt(x, y, false, this.capaPortales);
+      if (portal !== null) {
+        portal.visible = false;
+        this.portalesOcultosVistaPegado.push(portal);
+      }
+    }
+  }
+}
+
+private getPortalState(): number[][] {
+  const state: number[][] = [];
+  for (let fila = 0; fila < this.rows; fila++) {
+    const savedRow: number[] = [];
+    for (let columna = 0; columna < this.columns; columna++) {
+      const portal = this.mapa.getTileAt(columna, fila, false, this.capaPortales);
+      if (portal === null) {
+        savedRow.push(-1);
+      } else {
+        savedRow.push(portal.index);
+      }
+    }
+    state.push(savedRow);
+  }
+  return state;
+}
+
+private getEditorState(): EstadoEditor {
+  return {
+    tablero: this.getBoardState(),
+    portales: this.getPortalState(),
+  };
+}
+
+private restorePortalState(state: number[][]): void {
+  this.capaPortales.fill(-1);
+  for (let fila = 0; fila < this.rows; fila++) {
+    for (let columna = 0; columna < this.columns; columna++) {
+      const portal = state[fila][columna];
+      if (portal !== -1) {
+        this.capaPortales.putTileAt(portal, columna, fila, true);
+      }
+    }
+  }
+}
+
+private restoreEditorState(state: EstadoEditor): void {
+  this.restoreBoardState(state.tablero);
+  this.restorePortalState(state.portales);
+}
+
+
+private matricesAreEqual(firstState: number[][], secondState: number[][]): boolean {
+  if (firstState.length !== secondState.length) {
+    return false;
+  }
+  for (let fila = 0; fila < firstState.length; fila++) {
+    if (firstState[fila].length !== secondState[fila].length) {
+      return false;
+    }
+    for (let columna = 0; columna < firstState[fila].length; columna++) {
+      if (firstState[fila][columna] !== secondState[fila][columna]) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
 }
