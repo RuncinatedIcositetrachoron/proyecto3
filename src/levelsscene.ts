@@ -107,7 +107,7 @@ private mostrarNiveles(): void {
     for (const nivel of niveles) {
         this.add.text(40, y, nivel.nombre, {fontSize: "18px", color: "#ffffff"}).setOrigin(0, 0.5);
         crearBoton(this, 300, y, 90, "Editar", () => {
-            this.scene.start("EditorScene", {nivelId: nivel.id});
+            this.scene.start("editor", {nivelId: nivel.id});
         });
         crearBoton(this, 410, y, 90, "Eliminar", () => {
             eliminarNivel(nivel.id);
