@@ -3,6 +3,7 @@ import Phaser from "phaser";
 interface EstadoEditor {
   tablero: number[][];
   portales: number[][];
+  links: number[][];
 }
 
 import {obtenerNivel, actualizarNivel, crearBoton} from "./niveles";
@@ -45,7 +46,23 @@ export class EditorScene extends Phaser.Scene {
     private sinHerramienta: number = -1;
     private selectTool: number  = 100;
     private pasteTool: number = 101;
+    private linkTool: number = 103;
     private tilesSinPortal: number[] = [2, 5, 6, 7, 8];
+    private tileJugador: number = 7;
+    private tileBandera: number = 6;
+
+    //LINKS
+
+    private links: number[][] = [];
+    private linkInicioX: number = -1;
+    private linkInicioY: number = -1;
+    private graficosLinks!: Phaser.GameObjects.Graphics;
+    private graficosLinkTemporal!: Phaser.GameObjects.Graphics;
+    private botonLink!: Phaser.GameObjects.Rectangle;
+    
+    private ultimoClickLinkX: number = -1;
+    private ultimoClickLinkY: number = -1;
+    private tiempoUltimoClickLink: number = 0;
 
     //PORTALES
 
@@ -62,6 +79,7 @@ export class EditorScene extends Phaser.Scene {
     private lastState: EstadoEditor = {
       tablero: [],
       portales: [],
+      links: [],
     };
     //INTERFAZ
 
@@ -72,6 +90,9 @@ export class EditorScene extends Phaser.Scene {
     private botonCopiar!: Phaser.GameObjects.Rectangle;
     private botonRedo!: Phaser.GameObjects.Rectangle;
     private botonUndo!: Phaser.GameObjects.Rectangle;
+    private botonPortal!: Phaser.GameObjects.Rectangle;
+    private botonGuardar!: Phaser.GameObjects.Rectangle;
+    private botonVolver!: Phaser.GameObjects.Rectangle;
 
     private tilesHotbar: number[] = [2, 3, 4, 5, 6, 7, 8];
     private casillasHotbar: Phaser.GameObjects.Rectangle[] = [];
@@ -90,6 +111,9 @@ export class EditorScene extends Phaser.Scene {
     private mouseX: number = -1;
     private mouseY: number = -1;
     private hoverCell!: Phaser.GameObjects.Rectangle;
+    private hoverTile!: Phaser.GameObjects.Image;
+    private tileOcultaHover: Phaser.Tilemaps.Tile | null = null;
+    private portalOcultoHover: Phaser.Tilemaps.Tile | null = null;
 
     private haySeleccion: boolean = false;
     private seleccionando: boolean = false;
@@ -129,9 +153,9 @@ export class EditorScene extends Phaser.Scene {
           this.board_height,
           this.cellsize,
           this.cellsize,
-          0x00ff00,
+          0x999999,
           1,
-          0xff0000,
+          0x666666,
           1,
         );
         this.hoverCell = this.add
@@ -140,12 +164,19 @@ export class EditorScene extends Phaser.Scene {
             this.board_offset_y + this.cellsize / 2,
             this.cellsize - 1,
             this.cellsize - 1,
-            0x0000ff,
-            0.5,
+            0x000000,
+            0.4,
           )
           .setVisible(false);
+      
+    this.hoverTile = this.add.image(0, 0, "editorTiles", 0)
+    .setDisplaySize(this.cellsize, this.cellsize)
+    .setAlpha(0.4)
+    .setDepth(5)
+    .setVisible(false);
+    this.hoverCell.setDepth(6);
           
-          crearBoton(
+          this.botonGuardar = crearBoton(
             this,
             100,
             500,
@@ -154,14 +185,17 @@ export class EditorScene extends Phaser.Scene {
             () => {
               this.guardarNivelActual();
             });
-
-            crearBoton(
+            
+            this.botonVolver = crearBoton(
               this,
               100,
               550,
               100,
               "Volver",
               () => {
+                if (!this.nivelValido()) {
+                  return;
+                }
                 this.scene.start("LevelsScene");
               });
 
@@ -169,6 +203,12 @@ export class EditorScene extends Phaser.Scene {
 
         this.input.on("pointermove", (mouse: Phaser.Input.Pointer) => {
           this.updateHoveredCell(mouse.worldX, mouse.worldY);
+          if (
+            this.herramienta === this.linkTool &&
+            this.linkInicioX !== -1
+          ) {
+            this.actualizarVistaLink();
+          }
           if (
             this.posibleArrastreSeleccion &&
             mouse.leftButtonDown() &&
@@ -205,10 +245,15 @@ export class EditorScene extends Phaser.Scene {
 
         this.input.on("pointerup", (mouse: Phaser.Input.Pointer) => {
           this.updateHoveredCell(mouse.worldX, mouse.worldY);
+          if (this.herramienta === this.linkTool) {
+            this.terminarLink();
+            this.saveIfChanged();
+            this.actualizarInterfaz();
+            return;
+          }
           this.saveIfChanged();
           this.actualizarInterfaz();
           this.actualizarHotbar();
-
           if (this.arrastrandoSeleccion) {
             if (this.puedePegarSeleccion()) {
               const altoSeleccion = this.seleccionCopiada.length;
@@ -355,6 +400,12 @@ export class EditorScene extends Phaser.Scene {
           this.capaVistaPortalesPegado.setAlpha(0.4);
           this.capaVistaPortalesPegado.setVisible(false);
 
+          this.graficosLinks = this.add.graphics();
+          this.graficosLinks.setDepth(7);
+
+          this.graficosLinkTemporal = this.add.graphics();
+          this.graficosLinkTemporal.setDepth(8);
+
           this.restaurarTilesVistaPegado(); 
 
             //RELLENADO INICIAL DEL TABLERO
@@ -370,31 +421,97 @@ export class EditorScene extends Phaser.Scene {
                 );
               }
             }
+            
+
+            //CARGADO DE NIVEL
+
             if (this.nivelId !== null) {
               const nivel = obtenerNivel(this.nivelId);
               if (nivel !== undefined) {
                 this.restoreBoardState(nivel.tablero);
+                if (nivel.portales !== undefined) {
+                  this.restorePortalState(nivel.portales);
+                }
+                this.links = [];
+                if (nivel.links !== undefined) {
+                  for (let i = 0; i < nivel.links.length; i++) {
+                    const link = nivel.links[i];
+                    this.links.push([
+                      link[0],
+                      link[1],
+                      link[2],
+                      link[3],
+                    ]);
+                  }
+                }
+                this.eliminarPortalesSinLink();
+                this.actualizarLinks();
               }
             }
 
+            if (
+              !this.existeTile(this.tileJugador) &&
+              !this.existeTile(this.tileBandera)
+            ) {
+              this.mapa.putTileAt(
+                this.tileJugador,
+                1,
+                1,
+                true,
+                this.tablero,
+              );
+            
+              this.mapa.putTileAt(
+                this.tileBandera,
+                this.columns - 2,
+                this.rows - 2,
+                true,
+                this.tablero,
+              );
+            }
+            
             this.tablero.setDepth(1);
             this.capaPortales.setDepth(2);
             this.capaVistaPegado.setDepth(3);
             this.capaVistaPortalesPegado.setDepth(4);
-            this.hoverCell.setDepth(5);
-        
+
             //EVENTOS DE CLICK
 
             this.input.on("pointerdown", (mouse: Phaser.Input.Pointer) => {
               if (mouse.button !== 0) {
-                  return;
+                return;
               }
+              this.updateHoveredCell(
+                mouse.worldX,
+                mouse.worldY,
+              );
+              if (this.mouseX === -1 || this.mouseY === -1) {
+                return;
+              }
+              
+              if (this.herramienta === this.linkTool) {
+                this.quitarSeleccion();
+                if (this.esDobleClickLink()) {
+                  this.cancelarLinkTemporal();
+                  const indiceLink = this.buscarLinkDePortal(
+                    this.mouseX,
+                    this.mouseY,
+                  );
+                  if (indiceLink !== -1) {
+                    this.links.splice(indiceLink, 1);
+                    this.dibujarLinks();
+                  }
+                  return;
+                }
+                this.iniciarLink(mouse);
+                return;
+              }
+
               if (this.herramienta === this.portalTool) {
                 this.quitarSeleccion();
                 this.usarPortal(mouse.worldX, mouse.worldY);
                 return;
               }
-              this.updateHoveredCell(mouse.worldX, mouse.worldY);
               if (this.mouseX === -1 || this.mouseY === -1) return;
               if (this.herramienta === this.selectTool && this.mouseDentroSeleccion()) {
                   this.posibleArrastreSeleccion = true;
@@ -482,8 +599,16 @@ export class EditorScene extends Phaser.Scene {
             if (this.haySeleccion) this.quitarSeleccion();
           }
 
+          if (tecla === "l") {
+            this.herramienta = this.linkTool;
+            this.actualizarInterfaz();
+            this.actualizarHotbar();
+          }
+
           if (tecla === "p") {
             this.herramienta = this.portalTool;
+            this.actualizarInterfaz();
+            this.actualizarHotbar();
           }
 
           if (control && tecla === "z" && !evento.shiftKey) {
@@ -517,6 +642,7 @@ export class EditorScene extends Phaser.Scene {
 
             this.lastState = this.getEditorState();
       }
+      
       private updateHoveredCell(pointerX: number, pointerY: number): void {
         const localX = pointerX - this.board_offset_x;
         const localY = pointerY - this.board_offset_y;
@@ -525,25 +651,51 @@ export class EditorScene extends Phaser.Scene {
           localX < this.board_width &&
           localY >= 0 &&
           localY < this.board_height;
-    
         if (!inside_board) {
           this.mouseX = -1;
           this.mouseY = -1;
+          this.restaurarTileHover();
           this.hoverCell.setVisible(false);
+          this.hoverTile.setVisible(false);
           return;
         }
         this.mouseX = Math.floor(localX / this.cellsize);
         this.mouseY = Math.floor(localY / this.cellsize);
-        const cell_center_x = this.board_offset_x + this.mouseX * this.cellsize + this.cellsize / 2;
-        const cell_center_y = this.board_offset_y + this.mouseY * this.cellsize + this.cellsize / 2;
+        const cell_center_x =
+          this.board_offset_x +
+          this.mouseX * this.cellsize +
+          this.cellsize / 2;
+        const cell_center_y =
+          this.board_offset_y +
+          this.mouseY * this.cellsize +
+          this.cellsize / 2;
         this.hoverCell.setPosition(cell_center_x, cell_center_y);
         this.hoverCell.setVisible(true);
+        this.actualizarHoverTile();
+      }
 
-    }
       private usarHerramienta(): void {
-        if (this.mouseX === -1 || this.mouseY === -1 || this.herramienta === this.selectTool || this.herramienta === this.pasteTool || this.herramienta === this.sinHerramienta || this.herramienta === this.portalTool) {
+        if (
+          this.mouseX === -1 ||
+          this.mouseY === -1 ||
+          this.herramienta === this.selectTool ||
+          this.herramienta === this.pasteTool ||
+          this.herramienta === this.sinHerramienta ||
+          this.herramienta === this.portalTool ||
+          this.herramienta === this.linkTool
+        ) {
           return;
-         }
+        }
+        
+        this.restaurarTileHover();
+        this.borrarPortalEn(this.mouseX, this.mouseY);
+
+        if (this.herramienta === this.tileJugador) {
+          this.borrarTileUnico(this.tileJugador);
+        }
+        if (this.herramienta === this.tileBandera) {
+          this.borrarTileUnico(this.tileBandera);
+        }
 
         if (this.herramienta === 0) {
           this.mapa.putTileAt(
@@ -553,22 +705,18 @@ export class EditorScene extends Phaser.Scene {
             true,
             this.tablero,
           );
-          this.mapa.removeTileAt(
-            this.mouseX,
-            this.mouseY,
-            true,
-            true,
-            this.capaPortales,
-          );
-        }else{
+        } else {
           this.mapa.putTileAt(
             this.herramienta,
             this.mouseX,
             this.mouseY,
             true,
             this.tablero,
-         )};
+          );
+        }
+        this.actualizarHoverTile();
       }
+
       private iniciarSeleccion(): void {
         if (this.mouseX === -1 || this.mouseY === -1) {
             return;
@@ -691,6 +839,29 @@ export class EditorScene extends Phaser.Scene {
         if ((this.herramienta !== this.pasteTool && !this.arrastrandoSeleccion) || this.seleccionCopiada.length === 0 || this.mouseX === -1 || this.mouseY === -1) {
           return;
         }
+
+//DETECCION DE TILES UNICOS (JUGADOR + BANDERA)
+
+let hayJugador = false;
+let hayBandera = false;
+
+for (let fila = 0; fila < this.seleccionCopiada.length; fila++) {
+  for (let columna = 0; columna < this.seleccionCopiada[fila].length; columna++) {
+    if (this.seleccionCopiada[fila][columna] === this.tileJugador) {
+      hayJugador = true;
+    }
+    if (this.seleccionCopiada[fila][columna] === this.tileBandera) {
+      hayBandera = true;
+    }
+  }
+}
+if (hayJugador) {
+  this.borrarTileUnico(this.tileJugador);
+}
+if (hayBandera) {
+  this.borrarTileUnico(this.tileBandera);
+}
+
         const altoSeleccion = this.seleccionCopiada.length;
         const anchoSeleccion = this.seleccionCopiada[0].length;
         const inicioX = this.mouseX - Math.floor((anchoSeleccion - 1) / 2);
@@ -864,7 +1035,8 @@ export class EditorScene extends Phaser.Scene {
   private statesAreEqual(firstState: EstadoEditor, secondState: EstadoEditor): boolean {
     return (
       this.matricesAreEqual(firstState.tablero, secondState.tablero) &&
-      this.matricesAreEqual(firstState.portales, secondState.portales)
+      this.matricesAreEqual(firstState.portales, secondState.portales) &&
+      this.matricesAreEqual(firstState.links, secondState.links)
     );
   }
 
@@ -929,6 +1101,7 @@ private obtenerContenidoSeleccion(): number[][] {
 }
 
 update(): void {
+  this.actualizarLinks();
   if (this.herramienta !== this.selectTool && this.rectanguloSeleccion.visible) {
     this.quitarSeleccion();
   }
@@ -941,6 +1114,9 @@ update(): void {
 }
 
 private guardarNivelActual(): void {
+  if (!this.nivelValido()) {
+    return;
+  }
   if (this.nivelId === null) {
     return;
   }
@@ -949,6 +1125,8 @@ private guardarNivelActual(): void {
     return;
   }
   nivel.tablero = this.getBoardState();
+  nivel.portales = this.getPortalState();
+  nivel.links = this.copiarLinks();
   actualizarNivel(nivel);
 }
 
@@ -973,6 +1151,7 @@ private actualizarInterfaz(): void {
       } else {
         this.botonPegar.setFillStyle(0x333333);
       }
+      this.actualizarHoverTile();
   }
 
   if (this.haySeleccion) {
@@ -1014,6 +1193,31 @@ private actualizarInterfaz(): void {
     this.botonRedo.setFillStyle(0x333333);
     this.botonRedo.setAlpha(1);
   }
+  if (this.herramienta === this.linkTool) {
+    this.botonLink.setFillStyle(0x6666aa);
+  } else {
+    this.botonLink.setFillStyle(0x333333);
+  }
+  if (this.herramienta === this.portalTool) {
+    this.botonPortal.setFillStyle(0x6666aa);
+  } else {
+    this.botonPortal.setFillStyle(0x333333);
+  }
+  if (this.nivelValido()) {
+    this.botonGuardar.setInteractive({useHandCursor: true});
+    this.botonVolver.setInteractive({useHandCursor: true});
+    this.botonGuardar.setFillStyle(0x333333);
+    this.botonVolver.setFillStyle(0x333333);
+    this.botonGuardar.setAlpha(1);
+    this.botonVolver.setAlpha(1);
+  } else {
+    this.botonGuardar.disableInteractive();
+    this.botonVolver.disableInteractive();
+    this.botonGuardar.setFillStyle(0x777777);
+    this.botonVolver.setFillStyle(0x777777);
+    this.botonGuardar.setAlpha(0.5);
+    this.botonVolver.setAlpha(0.5);
+  }
 }
 
 private crearInterfaz(): void {
@@ -1033,6 +1237,43 @@ this.botonSeleccionar = crearBoton(this, x, y, 100, "Seleccionar", () => {
   this.actualizarInterfaz();
   this.actualizarHotbar();
 });
+
+y += separacion;
+
+this.botonPortal = crearBoton(this, x, y, 100, "Portal", () => {
+  if (this.herramienta === this.portalTool) {
+    this.herramienta = this.sinHerramienta;
+  } else {
+    this.herramienta = this.portalTool;
+    this.cancelarLinkTemporal();
+    this.vistaPegado.setVisible(false);
+    this.capaVistaPegado.setVisible(false);
+    this.capaVistaPortalesPegado.setVisible(false);
+    this.restaurarTilesVistaPegado();
+    this.quitarSeleccion();
+  }
+  this.actualizarInterfaz();
+  this.actualizarHotbar();
+});
+
+y += separacion;
+
+this.botonLink = crearBoton(this, x, y, 100, "Link", () => {
+  if (this.herramienta === this.linkTool) {
+    this.herramienta = this.sinHerramienta;
+    this.cancelarLinkTemporal();
+  } else {
+    this.herramienta = this.linkTool;
+    this.vistaPegado.setVisible(false);
+    this.capaVistaPegado.setVisible(false);
+    this.capaVistaPortalesPegado.setVisible(false);
+    this.restaurarTilesVistaPegado();
+    this.quitarSeleccion();
+  }
+  this.actualizarInterfaz();
+  this.actualizarHotbar();
+});
+
   y += separacion;
   this.botonCopiar = crearBoton(this, x, y, 100, "Copiar", () => {
       this.copiarSeleccion();
@@ -1178,7 +1419,6 @@ private usarPortal(pointerX: number, pointerY: number): void {
     false,
     this.capaPortales,
   );
-
   if (portalActual !== null && portalActual.index === portal) {
     this.mapa.removeTileAt(
       this.mouseX,
@@ -1197,6 +1437,7 @@ private usarPortal(pointerX: number, pointerY: number): void {
     );
   }
 }
+   
 
 private puedeColocarPortal(columna: number, fila: number, portal: number): boolean {
   const tile = this.mapa.getTileAt(columna, fila, false, this.tablero);
@@ -1217,27 +1458,40 @@ private puedeColocarPortal(columna: number, fila: number, portal: number): boole
 //PORTALES CON HERRAMIENTAS
 
 private obtenerPortalesSeleccion(): number[][] {
-  if (this.seleccionIzquierda === -1 || this.seleccionDerecha === -1 || this.seleccionArriba === -1 || this.seleccionAbajo === -1) {
+  if (
+    this.seleccionIzquierda === -1 ||
+    this.seleccionDerecha === -1 ||
+    this.seleccionArriba === -1 ||
+    this.seleccionAbajo === -1
+  ) {
     return [];
   }
+
   const contenido: number[][] = [];
+
   for (let fila = this.seleccionArriba; fila <= this.seleccionAbajo; fila++) {
     const filaCopiada: number[] = [];
+
     for (let columna = this.seleccionIzquierda; columna <= this.seleccionDerecha; columna++) {
-      const portal = this.mapa.getTileAt(columna, fila, false, this.capaPortales);
+      const portal = this.mapa.getTileAt(
+        columna,
+        fila,
+        false,
+        this.capaPortales,
+      );
+
       if (portal === null) {
         filaCopiada.push(-1);
       } else {
         filaCopiada.push(portal.index);
       }
     }
+
     contenido.push(filaCopiada);
   }
+
   return contenido;
 }
-
-
-
 
 private actualizarTilesVistaPegado(inicioX: number, inicioY: number): void {
   this.capaVistaPegado.fill(-1);
@@ -1316,6 +1570,7 @@ private getEditorState(): EstadoEditor {
   return {
     tablero: this.getBoardState(),
     portales: this.getPortalState(),
+    links: this.copiarLinks(),
   };
 }
 
@@ -1334,6 +1589,18 @@ private restorePortalState(state: number[][]): void {
 private restoreEditorState(state: EstadoEditor): void {
   this.restoreBoardState(state.tablero);
   this.restorePortalState(state.portales);
+  this.links = [];
+  for (let i = 0; i < state.links.length; i++) {
+    const link = state.links[i];
+    this.links.push([
+      link[0],
+      link[1],
+      link[2],
+      link[3],
+    ]);
+  }
+  this.actualizarLinks();
+  this.dibujarLinks();
 }
 
 
@@ -1350,6 +1617,492 @@ private matricesAreEqual(firstState: number[][], secondState: number[][]): boole
         return false;
       }
     }
+  }
+  return true;
+}
+
+//links
+
+private centroCasilla(columna: number, fila: number): {x: number, y: number} {
+  return {
+    x: this.board_offset_x + columna * this.cellsize + this.cellsize / 2,
+    y: this.board_offset_y + fila * this.cellsize + this.cellsize / 2,
+  };
+}
+
+private hayPortalEn(columna: number, fila: number): boolean {
+  if (
+    columna < 0 ||
+    fila < 0 ||
+    columna >= this.columns ||
+    fila >= this.rows
+  ) {
+    return false;
+  }
+  const portal = this.mapa.getTileAt(
+    columna,
+    fila,
+    false,
+    this.capaPortales,
+  );
+  return portal !== null;
+}
+
+private buscarLinkDePortal(columna: number, fila: number): number {
+  for (let i = 0; i < this.links.length; i++) {
+    const link = this.links[i];
+
+    if (
+      (link[0] === columna && link[1] === fila) ||
+      (link[2] === columna && link[3] === fila)
+    ) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+private puedeCrearLink(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): boolean {
+  if (x1 === x2 && y1 === y2) {
+    return false;
+  }
+  if (!this.hayPortalEn(x1, y1)) {
+    return false;
+  }
+  if (!this.hayPortalEn(x2, y2)) {
+    return false;
+  }
+  const linkInicio = this.buscarLinkDePortal(x1, y1);
+  const linkFinal = this.buscarLinkDePortal(x2, y2);
+  let cantidadDespues = this.links.length;
+  if (linkInicio !== -1) {
+    cantidadDespues--;
+  }
+  if (linkFinal !== -1 && linkFinal !== linkInicio) {
+    cantidadDespues--;
+  }
+  cantidadDespues++;
+  if (cantidadDespues > 5) {
+    return false;
+  }
+  return true;
+}
+
+private dibujarLineaPunteada(
+  graficos: Phaser.GameObjects.Graphics,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  color: number,
+): void {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const distancia = Math.sqrt(dx * dx + dy * dy);
+  if (distancia === 0) {
+    return;
+  }
+  const direccionX = dx / distancia;
+  const direccionY = dy / distancia;
+  const largoLinea = 7;
+  const espacio = 5;
+  graficos.lineStyle(2, color, 1);
+  for (
+    let distanciaActual = 0;
+    distanciaActual < distancia;
+    distanciaActual += largoLinea + espacio
+  ) {
+    const final = Math.min(
+      distanciaActual + largoLinea,
+      distancia,
+    );
+    graficos.lineBetween(
+      x1 + direccionX * distanciaActual,
+      y1 + direccionY * distanciaActual,
+      x1 + direccionX * final,
+      y1 + direccionY * final,
+    );
+  }
+}
+
+private dibujarLinks(): void {
+  this.graficosLinks.clear();
+  for (let i = 0; i < this.links.length; i++) {
+    const link = this.links[i];
+    const inicio = this.centroCasilla(
+      link[0],
+      link[1],
+    );
+    const final = this.centroCasilla(
+      link[2],
+      link[3],
+    );
+    this.dibujarLink(
+      this.graficosLinks,
+      inicio.x,
+      inicio.y,
+      final.x,
+      final.y,
+      0x3399ff,
+    );
+  }
+}
+
+private iniciarLink(mouse: Phaser.Input.Pointer): void {
+  if (!this.hayPortalEn(this.mouseX, this.mouseY)) {
+    return;
+  }
+  this.linkInicioX = this.mouseX;
+  this.linkInicioY = this.mouseY;
+  this.actualizarVistaLink()
+}
+
+private actualizarVistaLink(): void {
+  this.graficosLinkTemporal.clear();
+  if (
+    this.linkInicioX === -1 ||
+    this.linkInicioY === -1 ||
+    this.mouseX === -1 ||
+    this.mouseY === -1
+  ) {
+    return;
+  }
+  const inicio = this.centroCasilla(
+    this.linkInicioX,
+    this.linkInicioY,
+  );
+  const final = this.centroCasilla(
+    this.mouseX,
+    this.mouseY,
+  );
+  let color = 0xff0000;
+  if (
+    this.puedeCrearLink(
+      this.linkInicioX,
+      this.linkInicioY,
+      this.mouseX,
+      this.mouseY,
+    )
+  ) {
+    color = 0x00ff00;
+  }
+  this.dibujarLink(
+    this.graficosLinkTemporal,
+    inicio.x,
+    inicio.y,
+    final.x,
+    final.y,
+    color,
+  );
+}
+
+private cancelarLinkTemporal(): void {
+  this.linkInicioX = -1;
+  this.linkInicioY = -1;
+  this.graficosLinkTemporal.clear();
+}
+
+private terminarLink(): void {
+  if (this.linkInicioX === -1 || this.linkInicioY === -1) {
+    return;
+  }
+  const inicioX = this.linkInicioX;
+  const inicioY = this.linkInicioY;
+  if (this.mouseX === inicioX && this.mouseY === inicioY) {
+    this.cancelarLinkTemporal();
+    return;
+  }
+  if (
+    this.mouseX !== -1 &&
+    this.mouseY !== -1 &&
+    this.puedeCrearLink(
+      inicioX,
+      inicioY,
+      this.mouseX,
+      this.mouseY,
+    )
+  ) {
+    const linkInicio = this.buscarLinkDePortal(
+      inicioX,
+      inicioY,
+    );
+    const linkFinal = this.buscarLinkDePortal(
+      this.mouseX,
+      this.mouseY,
+    );
+    if (
+      linkInicio !== -1 &&
+      linkFinal !== -1 &&
+      linkInicio !== linkFinal
+    ) {
+      const mayor = Math.max(linkInicio, linkFinal);
+      const menor = Math.min(linkInicio, linkFinal);
+      this.links.splice(mayor, 1);
+      this.links.splice(menor, 1);
+    } else if (linkInicio !== -1) {
+      this.links.splice(linkInicio, 1);
+    } else if (linkFinal !== -1) {
+      this.links.splice(linkFinal, 1);
+    }
+    this.links.push([
+      inicioX,
+      inicioY,
+      this.mouseX,
+      this.mouseY,
+    ]);
+  } else {
+    const linkExistente = this.buscarLinkDePortal(
+      inicioX,
+      inicioY,
+    );
+    if (linkExistente !== -1) {
+      this.links.splice(linkExistente, 1);
+    }
+  }
+  this.cancelarLinkTemporal();
+  this.dibujarLinks();
+}
+
+private actualizarLinks(): void {
+  const linksValidos: number[][] = [];
+
+  for (let i = 0; i < this.links.length; i++) {
+    const link = this.links[i];
+
+    const hayPortalInicio = this.hayPortalEn(
+      link[0],
+      link[1],
+    );
+
+    const hayPortalFinal = this.hayPortalEn(
+      link[2],
+      link[3],
+    );
+
+    if (hayPortalInicio && hayPortalFinal) {
+      linksValidos.push(link);
+    }
+  }
+
+  this.links = linksValidos;
+  this.dibujarLinks();
+}
+
+private dibujarLink(
+  graficos: Phaser.GameObjects.Graphics,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  color: number,
+): void {
+  this.dibujarLineaPunteada(
+    graficos,
+    x1,
+    y1,
+    x2,
+    y2,
+    color,
+  );
+  graficos.fillStyle(color, 1);
+  graficos.fillCircle(x1, y1, 4);
+  graficos.fillCircle(x2, y2, 4);
+}
+
+private copiarLinks(): number[][] {
+  const copia: number[][] = [];
+  for (let i = 0; i < this.links.length; i++) {
+    const link = this.links[i];
+    copia.push([
+      link[0],
+      link[1],
+      link[2],
+      link[3],
+    ]);
+  }
+  return copia;
+}
+
+private eliminarPortalesSinLink(): void {
+  for (let fila = 0; fila < this.rows; fila++) {
+    for (let columna = 0; columna < this.columns; columna++) {
+      const portal = this.mapa.getTileAt(
+        columna,
+        fila,
+        false,
+        this.capaPortales,
+      );
+      if (portal === null) {
+        continue;
+      }
+      if (this.buscarLinkDePortal(columna, fila) === -1) {
+        this.mapa.removeTileAt(
+          columna,
+          fila,
+          true,
+          true,
+          this.capaPortales,
+        );
+      }
+    }
+  }
+}
+
+private esDobleClickLink(): boolean {
+  const ahora = this.time.now;
+  const dobleClick =
+    this.mouseX === this.ultimoClickLinkX &&
+    this.mouseY === this.ultimoClickLinkY &&
+    ahora - this.tiempoUltimoClickLink < 300;
+  this.ultimoClickLinkX = this.mouseX;
+  this.ultimoClickLinkY = this.mouseY;
+  this.tiempoUltimoClickLink = ahora;
+  if (dobleClick) {
+    this.ultimoClickLinkX = -1;
+    this.ultimoClickLinkY = -1;
+    this.tiempoUltimoClickLink = 0;
+  }
+  return dobleClick;
+}
+
+private actualizarHoverTile(): void {
+  this.restaurarTileHover();
+  this.hoverCell.setFillStyle(0x000000, 0.4);
+  if (
+    !this.hoverCell.visible ||
+    this.mouseX === -1 ||
+    this.mouseY === -1
+  ) {
+    this.hoverTile.setVisible(false);
+    return;
+  }
+  if (this.herramienta === this.portalTool) {
+    const mouse = this.input.activePointer;
+    const portal = this.obtenerPortal(
+      mouse.worldX,
+      mouse.worldY,
+    );
+    if (!this.puedeColocarPortal(this.mouseX, this.mouseY, portal)) {
+      this.hoverCell.setFillStyle(0xff0000, 0.4);
+      this.hoverTile.setVisible(false);
+      return;
+    }
+    this.hoverCell.setFillStyle(0x000000, 0.4);
+    this.hoverTile
+      .setFrame(portal - 1)
+      .setPosition(this.hoverCell.x, this.hoverCell.y)
+      .setVisible(true);
+    return;
+  }
+  if (!this.tilesHotbar.includes(this.herramienta)) {
+    this.hoverTile.setVisible(false);
+    return;
+  }
+  const tileDebajo = this.mapa.getTileAt(
+    this.mouseX,
+    this.mouseY,
+    false,
+    this.tablero,
+  );
+  if (tileDebajo !== null) {
+    tileDebajo.visible = false;
+    this.tileOcultaHover = tileDebajo;
+  }
+  const portalDebajo = this.mapa.getTileAt(
+    this.mouseX,
+    this.mouseY,
+    false,
+    this.capaPortales,
+  );
+  if (portalDebajo !== null) {
+    portalDebajo.visible = false;
+    this.portalOcultoHover = portalDebajo;
+  }
+  this.hoverTile
+    .setFrame(this.herramienta - 1)
+    .setPosition(this.hoverCell.x, this.hoverCell.y)
+    .setVisible(true);
+}
+
+private restaurarTileHover(): void {
+  if (this.tileOcultaHover !== null) {
+    this.tileOcultaHover.visible = true;
+    this.tileOcultaHover = null;
+  }
+  if (this.portalOcultoHover !== null) {
+    this.portalOcultoHover.visible = true;
+    this.portalOcultoHover = null;
+  }
+}
+
+private borrarPortalEn(columna: number, fila: number): void {
+  const portal = this.mapa.getTileAt(columna, fila, false, this.capaPortales);
+  if (portal === null) {
+    return;
+  }
+  this.mapa.removeTileAt(columna, fila, true, true, this.capaPortales);
+  for (let i = this.links.length - 1; i >= 0; i--) {
+    const link = this.links[i];
+    if (
+      (link[0] === columna && link[1] === fila) ||
+      (link[2] === columna && link[3] === fila)
+    ) {
+      this.links.splice(i, 1);
+    }
+  }
+  this.dibujarLinks();
+}
+
+private borrarTileUnico(tileBuscada: number): void {
+  for (let fila = 0; fila < this.rows; fila++) {
+    for (let columna = 0; columna < this.columns; columna++) {
+      const tile = this.mapa.getTileAt(
+        columna,
+        fila,
+        false,
+        this.tablero,
+      );
+      if (tile !== null && tile.index === tileBuscada) {
+        this.mapa.putTileAt(
+          this.tileInvisible,
+          columna,
+          fila,
+          true,
+          this.tablero,
+        );
+      }
+    } 
+  }
+}
+private existeTile(tileBuscada: number): boolean {
+  for (let fila = 0; fila < this.rows; fila++) {
+    for (let columna = 0; columna < this.columns; columna++) {
+      const tile = this.mapa.getTileAt(
+        columna,
+        fila,
+        false,
+        this.tablero,
+      );
+      if (tile !== null && tile.index === tileBuscada) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+private nivelValido(): boolean {
+  if (!this.existeTile(this.tileJugador)) {
+    return false;
+  }
+  if (!this.existeTile(this.tileBandera)) {
+    return false;
   }
   return true;
 }
