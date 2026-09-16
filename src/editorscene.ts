@@ -57,7 +57,9 @@ export class EditorScene extends Phaser.Scene {
     private graficosLinks!: Phaser.GameObjects.Graphics;
     private graficosLinkTemporal!: Phaser.GameObjects.Graphics;
     private botonLink!: Phaser.GameObjects.Rectangle;
-    private ultimoLinkClickeado: number = -1;
+    
+    private ultimoClickLinkX: number = -1;
+    private ultimoClickLinkY: number = -1;
     private tiempoUltimoClickLink: number = 0;
 
     //PORTALES
@@ -86,6 +88,7 @@ export class EditorScene extends Phaser.Scene {
     private botonCopiar!: Phaser.GameObjects.Rectangle;
     private botonRedo!: Phaser.GameObjects.Rectangle;
     private botonUndo!: Phaser.GameObjects.Rectangle;
+    private botonPortal!: Phaser.GameObjects.Rectangle;
 
     private tilesHotbar: number[] = [2, 3, 4, 5, 6, 7, 8];
     private casillasHotbar: Phaser.GameObjects.Rectangle[] = [];
@@ -104,6 +107,7 @@ export class EditorScene extends Phaser.Scene {
     private mouseX: number = -1;
     private mouseY: number = -1;
     private hoverCell!: Phaser.GameObjects.Rectangle;
+    private hoverTile!: Phaser.GameObjects.Image;
 
     private haySeleccion: boolean = false;
     private seleccionando: boolean = false;
@@ -158,6 +162,13 @@ export class EditorScene extends Phaser.Scene {
             0.5,
           )
           .setVisible(false);
+      
+    this.hoverTile = this.add.image(0, 0, "editorTiles", 0)
+    .setDisplaySize(this.cellsize, this.cellsize)
+    .setAlpha(0.4)
+    .setDepth(5)
+    .setVisible(false);
+    this.hoverCell.setDepth(6);
           
           crearBoton(
             this,
@@ -432,8 +443,7 @@ export class EditorScene extends Phaser.Scene {
             this.capaPortales.setDepth(2);
             this.capaVistaPegado.setDepth(3);
             this.capaVistaPortalesPegado.setDepth(4);
-            this.hoverCell.setDepth(5);
-        
+
             //EVENTOS DE CLICK
 
             this.input.on("pointerdown", (mouse: Phaser.Input.Pointer) => {
@@ -447,11 +457,25 @@ export class EditorScene extends Phaser.Scene {
               if (this.mouseX === -1 || this.mouseY === -1) {
                 return;
               }
+              
               if (this.herramienta === this.linkTool) {
                 this.quitarSeleccion();
+                if (this.esDobleClickLink()) {
+                  this.cancelarLinkTemporal();
+                  const indiceLink = this.buscarLinkDePortal(
+                    this.mouseX,
+                    this.mouseY,
+                  );
+                  if (indiceLink !== -1) {
+                    this.links.splice(indiceLink, 1);
+                    this.dibujarLinks();
+                  }
+                  return;
+                }
                 this.iniciarLink(mouse);
                 return;
               }
+
               if (this.herramienta === this.portalTool) {
                 this.quitarSeleccion();
                 this.usarPortal(mouse.worldX, mouse.worldY);
@@ -604,6 +628,7 @@ export class EditorScene extends Phaser.Scene {
         const cell_center_y = this.board_offset_y + this.mouseY * this.cellsize + this.cellsize / 2;
         this.hoverCell.setPosition(cell_center_x, cell_center_y);
         this.hoverCell.setVisible(true);
+        this.actualizarHoverTile();
 
     }
       private usarHerramienta(): void {
@@ -1084,6 +1109,16 @@ private actualizarInterfaz(): void {
     this.botonRedo.setFillStyle(0x333333);
     this.botonRedo.setAlpha(1);
   }
+  if (this.herramienta === this.linkTool) {
+    this.botonLink.setFillStyle(0x6666aa);
+  } else {
+    this.botonLink.setFillStyle(0x333333);
+  }
+  if (this.herramienta === this.portalTool) {
+    this.botonPortal.setFillStyle(0x6666aa);
+  } else {
+    this.botonPortal.setFillStyle(0x333333);
+  }
 }
 
 private crearInterfaz(): void {
@@ -1103,6 +1138,43 @@ this.botonSeleccionar = crearBoton(this, x, y, 100, "Seleccionar", () => {
   this.actualizarInterfaz();
   this.actualizarHotbar();
 });
+
+y += separacion;
+
+this.botonPortal = crearBoton(this, x, y, 100, "Portal", () => {
+  if (this.herramienta === this.portalTool) {
+    this.herramienta = this.sinHerramienta;
+  } else {
+    this.herramienta = this.portalTool;
+    this.cancelarLinkTemporal();
+    this.vistaPegado.setVisible(false);
+    this.capaVistaPegado.setVisible(false);
+    this.capaVistaPortalesPegado.setVisible(false);
+    this.restaurarTilesVistaPegado();
+    this.quitarSeleccion();
+  }
+  this.actualizarInterfaz();
+  this.actualizarHotbar();
+});
+
+y += separacion;
+
+this.botonLink = crearBoton(this, x, y, 100, "Link", () => {
+  if (this.herramienta === this.linkTool) {
+    this.herramienta = this.sinHerramienta;
+    this.cancelarLinkTemporal();
+  } else {
+    this.herramienta = this.linkTool;
+    this.vistaPegado.setVisible(false);
+    this.capaVistaPegado.setVisible(false);
+    this.capaVistaPortalesPegado.setVisible(false);
+    this.restaurarTilesVistaPegado();
+    this.quitarSeleccion();
+  }
+  this.actualizarInterfaz();
+  this.actualizarHotbar();
+});
+
   y += separacion;
   this.botonCopiar = crearBoton(this, x, y, 100, "Copiar", () => {
       this.copiarSeleccion();
@@ -1781,6 +1853,34 @@ private eliminarPortalesSinLink(): void {
       }
     }
   }
+}
+
+private esDobleClickLink(): boolean {
+  const ahora = this.time.now;
+  const dobleClick =
+    this.mouseX === this.ultimoClickLinkX &&
+    this.mouseY === this.ultimoClickLinkY &&
+    ahora - this.tiempoUltimoClickLink < 300;
+  this.ultimoClickLinkX = this.mouseX;
+  this.ultimoClickLinkY = this.mouseY;
+  this.tiempoUltimoClickLink = ahora;
+  if (dobleClick) {
+    this.ultimoClickLinkX = -1;
+    this.ultimoClickLinkY = -1;
+    this.tiempoUltimoClickLink = 0;
+  }
+  return dobleClick;
+}
+
+private actualizarHoverTile(): void {
+  if (!this.hoverCell.visible || !this.tilesHotbar.includes(this.herramienta)) {
+      this.hoverTile.setVisible(false);
+      return;
+  }
+  this.hoverTile
+      .setFrame(this.herramienta - 1)
+      .setPosition(this.hoverCell.x, this.hoverCell.y)
+      .setVisible(true);
 }
 
 
