@@ -363,10 +363,12 @@ export class GameScene extends Phaser.Scene {
             this.tempstorage = entity;
             const newEntityX = entity.x + dx;
             const newEntityY = entity.y + dy;
+            const destinationPortal = this.getPortalAt(newEntityX, newEntityY, dir);
 
             if (entity.portal !== undefined && entity.portal === dir) {
                 const entry = entity;
                 const exit = this.findPair(entry.group, entry);
+                if (!exit) return false;
                 const savedPlayerX = player.x, savedPlayerY = player.y, savedPlayerDir = player.dir;
 
                 player.x = exit.x;
@@ -390,6 +392,18 @@ export class GameScene extends Phaser.Scene {
             if (this.getPortalAt(newEntityX, newEntityY, dir)) {
                 const entry = this.getPortalAt(newEntityX, newEntityY);
                 const exit = this.findPair(entry.group, entry);
+                if (!exit) {
+                    return false;
+                }
+                if (exit === entity) {
+                    entry.x = 1000; entry.y = 0;
+                    entry.sprite.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64);
+                    if (entry.sprite2) entry.sprite2.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64);
+                    entity.x = 1000; entity.y = 0;
+                    entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                    if (entity.sprite2) entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                } 
+                else {
                 const savedX = entity.x, savedY = entity.y, savedDir = entity.dir, savedPortal = entity.portal;
                 this.tempstorage = entity;
 
@@ -435,17 +449,168 @@ export class GameScene extends Phaser.Scene {
                     }
                     return false;
                 }
-            } else {
-                if (this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) {
-                    return false;
                 }
-                entity.x = newEntityX;
-                entity.y = newEntityY;
-                entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
-                if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);}
+            } else {
+                const otherEntity = this.getEntityAt(newEntityX, newEntityY);
+
+                // The portal is on the FRONT of the block being pushed.
+                // Therefore pushing the portal-block into another block
+                // is equivalent to pushing that block into this portal.
+                if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity) {
+                    const entry = entity;
+                    const exit = this.findPair(entry.group, entry);
+
+                    if (!exit) {
+                        return false;
+                    }
+
+                    // Same special case you already have:
+                    // one portal of the pair enters the other.
+                    if (exit === otherEntity) {
+                        entry.x = 1000;
+                        entry.y = 0;
+                        entry.sprite.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64);
+                        if (entry.sprite2) {
+                            entry.sprite2.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64);
+                        }
+
+                        otherEntity.x = 1000;
+                        otherEntity.y = 0;
+                        otherEntity.sprite.setPosition(this.offsetX + otherEntity.x * 64, this.offsetY + otherEntity.y * 64);
+                        if (otherEntity.sprite2) {
+                            otherEntity.sprite2.setPosition(this.offsetX + otherEntity.x * 64, this.offsetY + otherEntity.y * 64);
+                        }
+                    } else {
+                        const savedX = otherEntity.x;
+                        const savedY = otherEntity.y;
+                        const savedDir = otherEntity.dir;
+                        const savedPortal = otherEntity.portal;
+
+                        // Calculate where the block would come OUT of the exit portal
+                        let exitX = exit.x;
+                        let exitY = exit.y;
+
+                        switch(exit.portal) {
+                            case 0: exitY--; break;
+                            case 1: exitX++; break;
+                            case 2: exitY++; break;
+                            case 3: exitX--; break;
+                        }
+
+                        // If it would come out exactly where it started,
+                        // that square is about to be occupied by the portal-block.
+                        // Delete the block instead.
+                        if (exitX === savedX && exitY === savedY) {
+                            otherEntity.x = 1000;
+                            otherEntity.y = 0;
+                            otherEntity.sprite.setPosition(
+                                this.offsetX + otherEntity.x * 64,
+                                this.offsetY + otherEntity.y * 64
+                            );
+
+                            if (otherEntity.sprite2) {
+                                otherEntity.sprite2.setPosition(
+                                    this.offsetX + otherEntity.x * 64,
+                                    this.offsetY + otherEntity.y * 64
+                                );
+                            }
+                        } else {
+                            this.tempstorage = otherEntity;
+
+                            // Put the block on the exit portal
+                            otherEntity.x = exit.x;
+                            otherEntity.y = exit.y;
+
+                            otherEntity.dir = (((otherEntity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
+
+                            if (otherEntity.portal !== undefined) {
+                                otherEntity.portal = (((otherEntity.portal + (entry.portal - exit.portal)) % 4) + 4) % 4;
+                            }
+
+                            otherEntity.sprite.setPosition(
+                                this.offsetX + otherEntity.x * 64,
+                                this.offsetY + otherEntity.y * 64
+                            );
+
+                            if (otherEntity.sprite2) {
+                                otherEntity.sprite2.setPosition(
+                                    this.offsetX + otherEntity.x * 64,
+                                    this.offsetY + otherEntity.y * 64
+                                );
+
+                                switch(otherEntity.portal) {
+                                    case 0: otherEntity.sprite2.setTexture("tiles", Tile.PortalW).setScale(2); break;
+                                    case 1: otherEntity.sprite2.setTexture("tiles", Tile.PortalD).setScale(2); break;
+                                    case 2: otherEntity.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
+                                    case 3: otherEntity.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
+                                }
+                            }
+
+                            let done = false;
+
+                            switch(exit.portal) {
+                                case 0: done = this.updatePosition2(0, -1, 2); break;
+                                case 1: done = this.updatePosition2(1, 0, 3); break;
+                                case 2: done = this.updatePosition2(0, 1, 0); break;
+                                case 3: done = this.updatePosition2(-1, 0, 1); break;
+                            }
+
+                            if (!done) {
+                                otherEntity.x = savedX;
+                                otherEntity.y = savedY;
+                                otherEntity.dir = savedDir;
+                                otherEntity.portal = savedPortal;
+
+                                otherEntity.sprite.setPosition(
+                                    this.offsetX + otherEntity.x * 64,
+                                    this.offsetY + otherEntity.y * 64
+                                );
+
+                                if (otherEntity.sprite2) {
+                                    otherEntity.sprite2.setPosition(
+                                        this.offsetX + otherEntity.x * 64,
+                                        this.offsetY + otherEntity.y * 64
+                                    );
+
+                                    switch(otherEntity.portal) {
+                                        case 0: otherEntity.sprite2.setTexture("tiles", Tile.PortalW).setScale(2); break;
+                                        case 1: otherEntity.sprite2.setTexture("tiles", Tile.PortalD).setScale(2); break;
+                                        case 2: otherEntity.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
+                                        case 3: otherEntity.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
+                                    }
+                                }
+
+                                return false;
+                            }
+                        }
+
+                        // The other block disappeared through the portal,
+                        // so the portal-block itself can now advance one square.
+                        entry.x = newEntityX;
+                        entry.y = newEntityY;
+                        entry.sprite.setPosition(
+                            this.offsetX + entry.x * 64,
+                            this.offsetY + entry.y * 64
+                        );
+
+                        if (entry.sprite2) {
+                            entry.sprite2.setPosition(
+                                this.offsetX + entry.x * 64,
+                                this.offsetY + entry.y * 64
+                            );
+                        }
+                    }
+                } else {
+                    if (this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) {
+                        return false;
+                    }
+                    entity.x = newEntityX;
+                    entity.y = newEntityY;
+                    entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                    if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);}
+                }
             }
         }
-
         player.x = newX;
         player.y = newY;
         player.dir = dx !== 0 ? dx : dy;
