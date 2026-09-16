@@ -48,6 +48,8 @@ export class EditorScene extends Phaser.Scene {
     private pasteTool: number = 101;
     private linkTool: number = 103;
     private tilesSinPortal: number[] = [2, 5, 6, 7, 8];
+    private tileJugador: number = 7;
+    private tileBandera: number = 6;
 
     //LINKS
 
@@ -89,6 +91,8 @@ export class EditorScene extends Phaser.Scene {
     private botonRedo!: Phaser.GameObjects.Rectangle;
     private botonUndo!: Phaser.GameObjects.Rectangle;
     private botonPortal!: Phaser.GameObjects.Rectangle;
+    private botonGuardar!: Phaser.GameObjects.Rectangle;
+    private botonVolver!: Phaser.GameObjects.Rectangle;
 
     private tilesHotbar: number[] = [2, 3, 4, 5, 6, 7, 8];
     private casillasHotbar: Phaser.GameObjects.Rectangle[] = [];
@@ -108,6 +112,8 @@ export class EditorScene extends Phaser.Scene {
     private mouseY: number = -1;
     private hoverCell!: Phaser.GameObjects.Rectangle;
     private hoverTile!: Phaser.GameObjects.Image;
+    private tileOcultaHover: Phaser.Tilemaps.Tile | null = null;
+    private portalOcultoHover: Phaser.Tilemaps.Tile | null = null;
 
     private haySeleccion: boolean = false;
     private seleccionando: boolean = false;
@@ -147,9 +153,9 @@ export class EditorScene extends Phaser.Scene {
           this.board_height,
           this.cellsize,
           this.cellsize,
-          0x00ff00,
+          0x999999,
           1,
-          0xff0000,
+          0x666666,
           1,
         );
         this.hoverCell = this.add
@@ -158,8 +164,8 @@ export class EditorScene extends Phaser.Scene {
             this.board_offset_y + this.cellsize / 2,
             this.cellsize - 1,
             this.cellsize - 1,
-            0x0000ff,
-            0.5,
+            0x000000,
+            0.4,
           )
           .setVisible(false);
       
@@ -170,7 +176,7 @@ export class EditorScene extends Phaser.Scene {
     .setVisible(false);
     this.hoverCell.setDepth(6);
           
-          crearBoton(
+          this.botonGuardar = crearBoton(
             this,
             100,
             500,
@@ -179,14 +185,17 @@ export class EditorScene extends Phaser.Scene {
             () => {
               this.guardarNivelActual();
             });
-
-            crearBoton(
+            
+            this.botonVolver = crearBoton(
               this,
               100,
               550,
               100,
               "Volver",
               () => {
+                if (!this.nivelValido()) {
+                  return;
+                }
                 this.scene.start("LevelsScene");
               });
 
@@ -413,6 +422,7 @@ export class EditorScene extends Phaser.Scene {
               }
             }
             
+
             //CARGADO DE NIVEL
 
             if (this.nivelId !== null) {
@@ -437,6 +447,27 @@ export class EditorScene extends Phaser.Scene {
                 this.eliminarPortalesSinLink();
                 this.actualizarLinks();
               }
+            }
+
+            if (
+              !this.existeTile(this.tileJugador) &&
+              !this.existeTile(this.tileBandera)
+            ) {
+              this.mapa.putTileAt(
+                this.tileJugador,
+                1,
+                1,
+                true,
+                this.tablero,
+              );
+            
+              this.mapa.putTileAt(
+                this.tileBandera,
+                this.columns - 2,
+                this.rows - 2,
+                true,
+                this.tablero,
+              );
             }
             
             this.tablero.setDepth(1);
@@ -570,10 +601,14 @@ export class EditorScene extends Phaser.Scene {
 
           if (tecla === "l") {
             this.herramienta = this.linkTool;
+            this.actualizarInterfaz();
+            this.actualizarHotbar();
           }
 
           if (tecla === "p") {
             this.herramienta = this.portalTool;
+            this.actualizarInterfaz();
+            this.actualizarHotbar();
           }
 
           if (control && tecla === "z" && !evento.shiftKey) {
@@ -607,6 +642,7 @@ export class EditorScene extends Phaser.Scene {
 
             this.lastState = this.getEditorState();
       }
+      
       private updateHoveredCell(pointerX: number, pointerY: number): void {
         const localX = pointerX - this.board_offset_x;
         const localY = pointerY - this.board_offset_y;
@@ -615,26 +651,51 @@ export class EditorScene extends Phaser.Scene {
           localX < this.board_width &&
           localY >= 0 &&
           localY < this.board_height;
-    
         if (!inside_board) {
           this.mouseX = -1;
           this.mouseY = -1;
+          this.restaurarTileHover();
           this.hoverCell.setVisible(false);
+          this.hoverTile.setVisible(false);
           return;
         }
         this.mouseX = Math.floor(localX / this.cellsize);
         this.mouseY = Math.floor(localY / this.cellsize);
-        const cell_center_x = this.board_offset_x + this.mouseX * this.cellsize + this.cellsize / 2;
-        const cell_center_y = this.board_offset_y + this.mouseY * this.cellsize + this.cellsize / 2;
+        const cell_center_x =
+          this.board_offset_x +
+          this.mouseX * this.cellsize +
+          this.cellsize / 2;
+        const cell_center_y =
+          this.board_offset_y +
+          this.mouseY * this.cellsize +
+          this.cellsize / 2;
         this.hoverCell.setPosition(cell_center_x, cell_center_y);
         this.hoverCell.setVisible(true);
         this.actualizarHoverTile();
+      }
 
-    }
       private usarHerramienta(): void {
-        if (this.mouseX === -1 || this.mouseY === -1 || this.herramienta === this.selectTool || this.herramienta === this.pasteTool || this.herramienta === this.sinHerramienta || this.herramienta === this.portalTool || this.herramienta === this.linkTool) {
+        if (
+          this.mouseX === -1 ||
+          this.mouseY === -1 ||
+          this.herramienta === this.selectTool ||
+          this.herramienta === this.pasteTool ||
+          this.herramienta === this.sinHerramienta ||
+          this.herramienta === this.portalTool ||
+          this.herramienta === this.linkTool
+        ) {
           return;
-         }
+        }
+        
+        this.restaurarTileHover();
+        this.borrarPortalEn(this.mouseX, this.mouseY);
+
+        if (this.herramienta === this.tileJugador) {
+          this.borrarTileUnico(this.tileJugador);
+        }
+        if (this.herramienta === this.tileBandera) {
+          this.borrarTileUnico(this.tileBandera);
+        }
 
         if (this.herramienta === 0) {
           this.mapa.putTileAt(
@@ -644,22 +705,18 @@ export class EditorScene extends Phaser.Scene {
             true,
             this.tablero,
           );
-          this.mapa.removeTileAt(
-            this.mouseX,
-            this.mouseY,
-            true,
-            true,
-            this.capaPortales,
-          );
-        }else{
+        } else {
           this.mapa.putTileAt(
             this.herramienta,
             this.mouseX,
             this.mouseY,
             true,
             this.tablero,
-         )};
+          );
+        }
+        this.actualizarHoverTile();
       }
+
       private iniciarSeleccion(): void {
         if (this.mouseX === -1 || this.mouseY === -1) {
             return;
@@ -782,6 +839,29 @@ export class EditorScene extends Phaser.Scene {
         if ((this.herramienta !== this.pasteTool && !this.arrastrandoSeleccion) || this.seleccionCopiada.length === 0 || this.mouseX === -1 || this.mouseY === -1) {
           return;
         }
+
+//DETECCION DE TILES UNICOS (JUGADOR + BANDERA)
+
+let hayJugador = false;
+let hayBandera = false;
+
+for (let fila = 0; fila < this.seleccionCopiada.length; fila++) {
+  for (let columna = 0; columna < this.seleccionCopiada[fila].length; columna++) {
+    if (this.seleccionCopiada[fila][columna] === this.tileJugador) {
+      hayJugador = true;
+    }
+    if (this.seleccionCopiada[fila][columna] === this.tileBandera) {
+      hayBandera = true;
+    }
+  }
+}
+if (hayJugador) {
+  this.borrarTileUnico(this.tileJugador);
+}
+if (hayBandera) {
+  this.borrarTileUnico(this.tileBandera);
+}
+
         const altoSeleccion = this.seleccionCopiada.length;
         const anchoSeleccion = this.seleccionCopiada[0].length;
         const inicioX = this.mouseX - Math.floor((anchoSeleccion - 1) / 2);
@@ -1034,6 +1114,9 @@ update(): void {
 }
 
 private guardarNivelActual(): void {
+  if (!this.nivelValido()) {
+    return;
+  }
   if (this.nivelId === null) {
     return;
   }
@@ -1068,6 +1151,7 @@ private actualizarInterfaz(): void {
       } else {
         this.botonPegar.setFillStyle(0x333333);
       }
+      this.actualizarHoverTile();
   }
 
   if (this.haySeleccion) {
@@ -1118,6 +1202,21 @@ private actualizarInterfaz(): void {
     this.botonPortal.setFillStyle(0x6666aa);
   } else {
     this.botonPortal.setFillStyle(0x333333);
+  }
+  if (this.nivelValido()) {
+    this.botonGuardar.setInteractive({useHandCursor: true});
+    this.botonVolver.setInteractive({useHandCursor: true});
+    this.botonGuardar.setFillStyle(0x333333);
+    this.botonVolver.setFillStyle(0x333333);
+    this.botonGuardar.setAlpha(1);
+    this.botonVolver.setAlpha(1);
+  } else {
+    this.botonGuardar.disableInteractive();
+    this.botonVolver.disableInteractive();
+    this.botonGuardar.setFillStyle(0x777777);
+    this.botonVolver.setFillStyle(0x777777);
+    this.botonGuardar.setAlpha(0.5);
+    this.botonVolver.setAlpha(0.5);
   }
 }
 
@@ -1873,16 +1972,139 @@ private esDobleClickLink(): boolean {
 }
 
 private actualizarHoverTile(): void {
-  if (!this.hoverCell.visible || !this.tilesHotbar.includes(this.herramienta)) {
+  this.restaurarTileHover();
+  this.hoverCell.setFillStyle(0x000000, 0.4);
+  if (
+    !this.hoverCell.visible ||
+    this.mouseX === -1 ||
+    this.mouseY === -1
+  ) {
+    this.hoverTile.setVisible(false);
+    return;
+  }
+  if (this.herramienta === this.portalTool) {
+    const mouse = this.input.activePointer;
+    const portal = this.obtenerPortal(
+      mouse.worldX,
+      mouse.worldY,
+    );
+    if (!this.puedeColocarPortal(this.mouseX, this.mouseY, portal)) {
+      this.hoverCell.setFillStyle(0xff0000, 0.4);
       this.hoverTile.setVisible(false);
       return;
-  }
-  this.hoverTile
-      .setFrame(this.herramienta - 1)
+    }
+    this.hoverCell.setFillStyle(0x000000, 0.4);
+    this.hoverTile
+      .setFrame(portal - 1)
       .setPosition(this.hoverCell.x, this.hoverCell.y)
       .setVisible(true);
+    return;
+  }
+  if (!this.tilesHotbar.includes(this.herramienta)) {
+    this.hoverTile.setVisible(false);
+    return;
+  }
+  const tileDebajo = this.mapa.getTileAt(
+    this.mouseX,
+    this.mouseY,
+    false,
+    this.tablero,
+  );
+  if (tileDebajo !== null) {
+    tileDebajo.visible = false;
+    this.tileOcultaHover = tileDebajo;
+  }
+  const portalDebajo = this.mapa.getTileAt(
+    this.mouseX,
+    this.mouseY,
+    false,
+    this.capaPortales,
+  );
+  if (portalDebajo !== null) {
+    portalDebajo.visible = false;
+    this.portalOcultoHover = portalDebajo;
+  }
+  this.hoverTile
+    .setFrame(this.herramienta - 1)
+    .setPosition(this.hoverCell.x, this.hoverCell.y)
+    .setVisible(true);
 }
 
+private restaurarTileHover(): void {
+  if (this.tileOcultaHover !== null) {
+    this.tileOcultaHover.visible = true;
+    this.tileOcultaHover = null;
+  }
+  if (this.portalOcultoHover !== null) {
+    this.portalOcultoHover.visible = true;
+    this.portalOcultoHover = null;
+  }
+}
 
+private borrarPortalEn(columna: number, fila: number): void {
+  const portal = this.mapa.getTileAt(columna, fila, false, this.capaPortales);
+  if (portal === null) {
+    return;
+  }
+  this.mapa.removeTileAt(columna, fila, true, true, this.capaPortales);
+  for (let i = this.links.length - 1; i >= 0; i--) {
+    const link = this.links[i];
+    if (
+      (link[0] === columna && link[1] === fila) ||
+      (link[2] === columna && link[3] === fila)
+    ) {
+      this.links.splice(i, 1);
+    }
+  }
+  this.dibujarLinks();
+}
+
+private borrarTileUnico(tileBuscada: number): void {
+  for (let fila = 0; fila < this.rows; fila++) {
+    for (let columna = 0; columna < this.columns; columna++) {
+      const tile = this.mapa.getTileAt(
+        columna,
+        fila,
+        false,
+        this.tablero,
+      );
+      if (tile !== null && tile.index === tileBuscada) {
+        this.mapa.putTileAt(
+          this.tileInvisible,
+          columna,
+          fila,
+          true,
+          this.tablero,
+        );
+      }
+    } 
+  }
+}
+private existeTile(tileBuscada: number): boolean {
+  for (let fila = 0; fila < this.rows; fila++) {
+    for (let columna = 0; columna < this.columns; columna++) {
+      const tile = this.mapa.getTileAt(
+        columna,
+        fila,
+        false,
+        this.tablero,
+      );
+      if (tile !== null && tile.index === tileBuscada) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+private nivelValido(): boolean {
+  if (!this.existeTile(this.tileJugador)) {
+    return false;
+  }
+  if (!this.existeTile(this.tileBandera)) {
+    return false;
+  }
+  return true;
+}
 
 }
