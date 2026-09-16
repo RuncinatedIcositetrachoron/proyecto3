@@ -18,8 +18,8 @@ interface GameState {
         type: string;
         x: number;
         y: number;
-        dir: number;
-        portal: number;
+        dir?: number;
+        portal?: number;
     }[];
 }
 
@@ -65,14 +65,15 @@ const Tile = {
 export class GameScene extends Phaser.Scene {
     
     private levelNumber = 1;
-    private levelMode = 0;
+    //private levelMode = 0;
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
 
     private history: GameState[] = [];
     
-    private laser;
-    private newEmitterCreated = false;
+    private laser: any;
+    private emitterQueue: Entity[] = [];
+    private firedEmitters: Entity[] = [];
 
     private tempstorage: Entity | undefined;
 
@@ -99,7 +100,7 @@ export class GameScene extends Phaser.Scene {
 
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 
-    private staticRows;
+    private staticRows: any;
     
     private selected = 0;
     
@@ -154,7 +155,7 @@ export class GameScene extends Phaser.Scene {
         return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror");
     }
 
-    private findPair(group: number, exclude: Entity): Entity | undefined {
+    private findPair(group: number | undefined, exclude: Entity | undefined): Entity | undefined {
         return (this.entities.find(entity => entity.portal !== undefined && entity.group === group && entity !== exclude));
     }
     
@@ -172,17 +173,18 @@ export class GameScene extends Phaser.Scene {
 
         if(this.getPortalAt(nextX, nextY, this.opposite(dir))) {
             const entry = this.getPortalAt(nextX, nextY);
+            if (entry !== undefined) {
             const exit = this.findPair(entry.group, entry);
-            if (exit) {
-                this.setEmitting(exit, exit.portal);
-            }
+            if (exit) this.setEmitting(exit, exit.portal);
             return;
+            }
         }
         if (this.isWall(nextX, nextY) || (this.getEntityAt(nextX, nextY) && !this.getMirrorAt(nextX, nextY))) {
             return;
         }
         if (this.getMirrorAt(nextX, nextY)) {
             const mirror = this.getMirrorAt(nextX, nextY);
+            if (mirror){
             switch(dir) {
             case 0:
                 switch(mirror.dir) {
@@ -217,6 +219,7 @@ export class GameScene extends Phaser.Scene {
                 }   
                 return;
             }
+            }
         }
     
         if (dir === 0 || dir === 2) {
@@ -229,24 +232,35 @@ export class GameScene extends Phaser.Scene {
         this.addLaser(nextX, nextY, dir);
     }
 
-    private setEmitting(entity: Entity, dir:number) {
-        if (entity.emitting === undefined) {
-            this.newEmitterCreated = true;
-        }
+    private setEmitting(entity: Entity, dir: number | undefined) {
         entity.emitting = dir;
-    }
 
-    private raycast() {
-        const emitters = this.entities.filter(entity => entity.emitting !== undefined);
-        if (!emitters) {
-            return;
+        if (!this.emitterQueue.includes(entity) && !this.firedEmitters.includes(entity)) {
+            this.emitterQueue.push(entity);
         }
-        for (const emitter of emitters) {
-            this.addLaser(emitter.x, emitter.y, emitter.emitting);
+    }
+        
+    private raycast() {
+        while (this.emitterQueue.length > 0) {
+            const emitter = this.emitterQueue.shift();
+
+            if (!emitter) continue;
+            if (this.firedEmitters.includes(emitter)) continue;
+            if (emitter.emitting === undefined) continue;
+
+            this.firedEmitters.push(emitter);
+
+            this.addLaser(
+                emitter.x,
+                emitter.y,
+                emitter.emitting
+            );
         }
     }
 
     private laserFunction() {
+        this.emitterQueue = [];
+        this.firedEmitters = [];
         const mirrors = this.entities.filter(entity => entity.type === "mirror");
         if (mirrors) {
             for (const mirror of mirrors) {
@@ -260,7 +274,7 @@ export class GameScene extends Phaser.Scene {
         const emissors = this.entities.filter(entity => entity.type === "laserEmissor");
         if (emissors) {
             for (const emissor of emissors) {
-                emissor.emitting = emissor.dir;
+                this.setEmitting(emissor, emissor.dir);
                 switch(emissor.dir) {
                     case 0: emissor.sprite.setTexture("tiles", Tile.LaserEmissorW); break;
                     case 1: emissor.sprite.setTexture("tiles", Tile.LaserEmissorD); break;
@@ -275,17 +289,7 @@ export class GameScene extends Phaser.Scene {
                 portal.emitting = undefined;
             }
         }
-        let raycastAgain = true;
-        let passes = 0;
-
-        while (raycastAgain && passes < 100) {
-            this.newEmitterCreated = false;
-
-            this.raycast();
-
-            raycastAgain = this.newEmitterCreated;
-            passes++;
-        }
+        this.raycast();
     }
 
     private winConditionsMet(): boolean {
@@ -346,6 +350,7 @@ export class GameScene extends Phaser.Scene {
 
     private updatePosition(dx: number, dy: number, dir: number, origDx = dx, origDy = dy, origDir = dir): boolean {
         const player = this.entities.find(entity => entity.type === "player");
+        if (player !== undefined) {
         const newX = player.x + dx;
         const newY = player.y + dy;
 
@@ -355,7 +360,10 @@ export class GameScene extends Phaser.Scene {
             const entry = frontPortal;
             const exit = this.findPair(entry.group, entry);
             const savedPlayerX = player.x, savedPlayerY = player.y, savedPlayerDir = player.dir;
-
+            if (!exit){
+                console.log("ERROR: COULD NOT FIND EXIT PORTAL @ gamescene.ts; this.findPair unexpectedly returned undefined");
+                return false;
+            }
             player.x = exit.x;
             player.y = exit.y;
             player.dir = exit.portal;
@@ -413,8 +421,13 @@ export class GameScene extends Phaser.Scene {
             }
             if (this.getPortalAt(newEntityX, newEntityY, dir)) {
                 const entry = this.getPortalAt(newEntityX, newEntityY);
+                if (!entry){
+                    console.log("ERROR: I GENUINELY DON'T KNOW HOW YOU GOT HERE BUT A PORTAL STOPPED EXISTING BETWEEN 2 CONSECUTIVE LINES");
+                    return false;
+                }
                 const exit = this.findPair(entry.group, entry);
                 if (!exit) {
+                    console.log("ERROR: COULD NOT FIND EXIT PORTAL @ gamescene.ts; this.findPair unexpectedly returned undefined");
                     return false;
                 }
                 if (exit === entity) {
@@ -431,6 +444,18 @@ export class GameScene extends Phaser.Scene {
 
                 entity.x = exit.x;
                 entity.y = exit.y;
+                if (!entity.dir){
+                    console.log("ERROR: ENTITY UNEXPECTEDLY HAS NO DIR PROPERTY");
+                    return false;
+                }
+                if (!entry.portal){
+                    console.log("ERROR: YOUR PORTAL HAS NO PORTAL");
+                    return false;
+                }
+                if (!exit.portal){
+                    console.log("ERROR: YOUR PORTAL HAS NO PORTAL");
+                    return false;
+                }
                 entity.dir = (((entity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
                 if (entity.portal !== undefined) {
                     entity.portal = (((entity.portal + (entry.portal - exit.portal)) % 4) + 4) % 4;
@@ -475,9 +500,6 @@ export class GameScene extends Phaser.Scene {
             } else {
                 const otherEntity = this.getEntityAt(newEntityX, newEntityY);
 
-                // The portal is on the FRONT of the block being pushed.
-                // Therefore pushing the portal-block into another block
-                // is equivalent to pushing that block into this portal.
                 if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity) {
                     const entry = entity;
                     const exit = this.findPair(entry.group, entry);
@@ -486,8 +508,6 @@ export class GameScene extends Phaser.Scene {
                         return false;
                     }
 
-                    // Same special case you already have:
-                    // one portal of the pair enters the other.
                     if (exit === otherEntity) {
                         entry.x = 1000;
                         entry.y = 0;
@@ -508,7 +528,6 @@ export class GameScene extends Phaser.Scene {
                         const savedDir = otherEntity.dir;
                         const savedPortal = otherEntity.portal;
 
-                        // Calculate where the block would come OUT of the exit portal
                         let exitX = exit.x;
                         let exitY = exit.y;
 
@@ -519,9 +538,6 @@ export class GameScene extends Phaser.Scene {
                             case 3: exitX--; break;
                         }
 
-                        // If it would come out exactly where it started,
-                        // that square is about to be occupied by the portal-block.
-                        // Delete the block instead.
                         if (exitX === savedX && exitY === savedY) {
                             otherEntity.x = 1000;
                             otherEntity.y = 0;
@@ -539,10 +555,13 @@ export class GameScene extends Phaser.Scene {
                         } else {
                             this.tempstorage = otherEntity;
 
-                            // Put the block on the exit portal
                             otherEntity.x = exit.x;
                             otherEntity.y = exit.y;
 
+                            if (!otherEntity.dir || !entry.portal || !exit.portal) {
+                                console.log("ERROR: i don't know man. i don't know anymore. i'm sick of it.");
+                                return false;
+                            }
                             otherEntity.dir = (((otherEntity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
 
                             if (otherEntity.portal !== undefined) {
@@ -606,8 +625,6 @@ export class GameScene extends Phaser.Scene {
                             }
                         }
 
-                        // The other block disappeared through the portal,
-                        // so the portal-block itself can now advance one square.
                         entry.x = newEntityX;
                         entry.y = newEntityY;
                         entry.sprite.setPosition(
@@ -650,15 +667,30 @@ export class GameScene extends Phaser.Scene {
             this.scene.start("game", {level: this.levelNumber+1});
         }
         return true;
+        }
+        console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
+        return false;
     }
 
     private updatePosition2(dx: number, dy: number, dir: number): boolean {
+        if (!this.tempstorage) {
+            console.log("ERROR:TEMPSTORAGE IS UNEXPECTEDLY UNDEFINED. something has gone terribly wrong. ");
+            return false;
+        }
         const newX = this.tempstorage.x + dx;
         const newY = this.tempstorage.y + dy;
 
         if (this.getPortalAt(newX, newY, dir)) {
             const entry = this.getPortalAt(newX, newY);
+            if (!entry){
+                console.log("ERROR: I GENUINELY DON'T KNOW HOW YOU GOT HERE BUT A PORTAL STOPPED EXISTING BETWEEN 2 CONSECUTIVE LINES");
+                return false;
+            }
             const exit = this.findPair(entry.group, entry);
+            if (!exit) {
+                console.log("ERROR: COULD NOT FIND EXIT PORTAL @ gamescene.ts; this.findPair unexpectedly returned undefined");
+                return false;
+            }
             this.tempstorage.x = exit.x;
             this.tempstorage.y = exit.y;
             this.tempstorage.dir = exit.portal;
@@ -691,7 +723,7 @@ export class GameScene extends Phaser.Scene {
         return true;
     }
 
-    private animatePlayer(player: Entity, facing: number) {
+    private animatePlayer(player: Entity, facing: number | undefined) {
         let animation = "";
         switch(facing) {
             case 0: animation = "lindsey-up"; break;
@@ -1128,24 +1160,40 @@ export class GameScene extends Phaser.Scene {
         const player = this.entities.find(entity => entity.type === "player");
 
         if (direction === "left") {
+            if (!player) {
+                console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
+                return false;
+            }
             player.dir = 3;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(-1, 0, 1);
         }
 
         if (direction === "right") {
+            if (!player) {
+                console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
+                return false;
+            }
             player.dir = 1;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(1, 0, 3);
         }
 
         if (direction === "up") {
+            if (!player) {
+                console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
+                return false;
+            }
             player.dir = 0;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(0, -1, 2);
         }
 
         if (direction === "down") {
+            if (!player) {
+                console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
+                return false;
+            }
             player.dir = 2;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(0, 1, 0);
