@@ -18,8 +18,8 @@ interface GameState {
         type: string;
         x: number;
         y: number;
-        dir: number;
-        portal: number;
+        dir?: number;
+        portal?: number;
     }[];
 }
 
@@ -65,15 +65,20 @@ const Tile = {
 export class GameScene extends Phaser.Scene {
     
     private levelNumber = 1;
-    private levelMode = 0;
+    //private levelMode = 0;
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
 
     private history: GameState[] = [];
     
-    private laser;
+    private laser: any;
+    private emitterQueue: Entity[] = [];
+    private firedEmitters: Entity[] = [];
 
     private tempstorage: Entity | undefined;
+
+    private playerMoving = false;
+    private inputBuffer: string = "";
 
     init(data: { level: number, history: GameState[] }) {
         this.levelNumber = data.level;
@@ -95,11 +100,9 @@ export class GameScene extends Phaser.Scene {
 
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 
-    private staticRows;
+    private staticRows: any;
     
     private selected = 0;
-
-    private operationNumber = 0;
     
     private menuItems: Phaser.GameObjects.Text[] = [];
     private menuLabels: string[] = [];
@@ -114,13 +117,14 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    private opposite(dir: number): number {
+    private opposite(dir: number): number | undefined {
         switch(dir) {
             case 0: return 2;
             case 1: return 3;
             case 2: return 0;
             case 3: return 1;
         }
+        return undefined;
     }
 
     private isWall(x: number, y: number): boolean {
@@ -151,7 +155,7 @@ export class GameScene extends Phaser.Scene {
         return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror");
     }
 
-    private findPair(group: number, exclude: Entity): Entity | undefined {
+    private findPair(group: number | undefined, exclude: Entity | undefined): Entity | undefined {
         return (this.entities.find(entity => entity.portal !== undefined && entity.group === group && entity !== exclude));
     }
     
@@ -169,36 +173,39 @@ export class GameScene extends Phaser.Scene {
 
         if(this.getPortalAt(nextX, nextY, this.opposite(dir))) {
             const entry = this.getPortalAt(nextX, nextY);
+            if (entry !== undefined) {
             const exit = this.findPair(entry.group, entry);
-            exit.emitting = exit.portal;
+            if (exit) this.setEmitting(exit, exit.portal);
             return;
+            }
         }
         if (this.isWall(nextX, nextY) || (this.getEntityAt(nextX, nextY) && !this.getMirrorAt(nextX, nextY))) {
             return;
         }
         if (this.getMirrorAt(nextX, nextY)) {
             const mirror = this.getMirrorAt(nextX, nextY);
+            if (mirror){
             switch(dir) {
             case 0:
                 switch(mirror.dir) {
                     case 0: return;
                     case 1: return;
-                    case 2: mirror.emitting = 1; mirror.sprite.setTexture("tiles", Tile.MirrorRFront); break;
-                    case 3: mirror.emitting = 3; mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
+                    case 2: this.setEmitting(mirror, 1); mirror.sprite.setTexture("tiles", Tile.MirrorRFront); break;
+                    case 3: this.setEmitting(mirror, 3); mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
                 }
                 return;
             case 1:
                 switch(mirror.dir) {
-                    case 0: mirror.emitting = 0; mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
+                    case 0: this.setEmitting(mirror, 0); mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
                     case 1: return;
                     case 2: return;
-                    case 3: mirror.emitting = 2; mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
+                    case 3: this.setEmitting(mirror, 2); mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
                 }
                 return;
             case 2:
                 switch(mirror.dir) {
-                    case 0: mirror.emitting = 3; mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
-                    case 1: mirror.emitting = 1; mirror.sprite.setTexture("tiles", Tile.MirrorLBack); break;
+                    case 0: this.setEmitting(mirror, 3); mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
+                    case 1: this.setEmitting(mirror, 1); mirror.sprite.setTexture("tiles", Tile.MirrorLBack); break;
                     case 2: return;
                     case 3: return;
                 }
@@ -206,11 +213,12 @@ export class GameScene extends Phaser.Scene {
             case 3:
                 switch(mirror.dir) {
                     case 0: return;
-                    case 1: mirror.emitting = 0; mirror.sprite.setTexture("tiles", Tile.MirrorLBack);  break;
-                    case 2: mirror.emitting = 2; mirror.sprite.setTexture("tiles", Tile.MirrorRFront);  break;
+                    case 1: this.setEmitting(mirror, 0); mirror.sprite.setTexture("tiles", Tile.MirrorLBack);  break;
+                    case 2: this.setEmitting(mirror, 2); mirror.sprite.setTexture("tiles", Tile.MirrorRFront);  break;
                     case 3: return;
                 }   
                 return;
+            }
             }
         }
     
@@ -224,17 +232,35 @@ export class GameScene extends Phaser.Scene {
         this.addLaser(nextX, nextY, dir);
     }
 
-    private raycast() {
-        const emitters = this.entities.filter(entity => entity.emitting !== undefined);
-        if (!emitters) {
-            return;
+    private setEmitting(entity: Entity, dir: number | undefined) {
+        entity.emitting = dir;
+
+        if (!this.emitterQueue.includes(entity) && !this.firedEmitters.includes(entity)) {
+            this.emitterQueue.push(entity);
         }
-        for (const emitter of emitters) {
-            this.addLaser(emitter.x, emitter.y, emitter.emitting);
+    }
+        
+    private raycast() {
+        while (this.emitterQueue.length > 0) {
+            const emitter = this.emitterQueue.shift();
+
+            if (!emitter) continue;
+            if (this.firedEmitters.includes(emitter)) continue;
+            if (emitter.emitting === undefined) continue;
+
+            this.firedEmitters.push(emitter);
+
+            this.addLaser(
+                emitter.x,
+                emitter.y,
+                emitter.emitting
+            );
         }
     }
 
     private laserFunction() {
+        this.emitterQueue = [];
+        this.firedEmitters = [];
         const mirrors = this.entities.filter(entity => entity.type === "mirror");
         if (mirrors) {
             for (const mirror of mirrors) {
@@ -248,7 +274,7 @@ export class GameScene extends Phaser.Scene {
         const emissors = this.entities.filter(entity => entity.type === "laserEmissor");
         if (emissors) {
             for (const emissor of emissors) {
-                emissor.emitting = emissor.dir;
+                this.setEmitting(emissor, emissor.dir);
                 switch(emissor.dir) {
                     case 0: emissor.sprite.setTexture("tiles", Tile.LaserEmissorW); break;
                     case 1: emissor.sprite.setTexture("tiles", Tile.LaserEmissorD); break;
@@ -263,7 +289,6 @@ export class GameScene extends Phaser.Scene {
                 portal.emitting = undefined;
             }
         }
-        this.raycast();
         this.raycast();
     }
 
@@ -323,76 +348,142 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    private updatePosition(dx: number, dy: number, dir: number) { // main movement function, is a mess
+    private updatePosition(dx: number, dy: number, dir: number, origDx = dx, origDy = dy, origDir = dir): boolean {
         const player = this.entities.find(entity => entity.type === "player");
+        if (player !== undefined) {
         const newX = player.x + dx;
         const newY = player.y + dy;
 
-        if (this.getPortalAt(newX, newY, dir)) {
-            const entry = this.getPortalAt(newX, newY);
+        const frontPortal = this.getPortalAt(newX, newY, dir);
+
+        if (frontPortal && !frontPortal.pushable) {
+            const entry = frontPortal;
             const exit = this.findPair(entry.group, entry);
+            const savedPlayerX = player.x, savedPlayerY = player.y, savedPlayerDir = player.dir;
+            if (!exit){
+                console.log("ERROR: COULD NOT FIND EXIT PORTAL @ gamescene.ts; this.findPair unexpectedly returned undefined");
+                return false;
+            }
             player.x = exit.x;
             player.y = exit.y;
             player.dir = exit.portal;
             player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
+
+            let success = false;
             switch(exit.portal) {
-                case 0:
-                    this.operationNumber = 1;
-                    this.updatePosition(0, -1, 2);
-                    break;
-                case 1:
-                    this.operationNumber = 1;
-                    this.updatePosition(1, 0, 3);
-                    break;
-                case 2:
-                    this.operationNumber = 1;
-                    this.updatePosition(0, 1, 0);
-                    break;
-                case 3:
-                    this.operationNumber = 1;
-                    this.updatePosition(-1, 0, 1);
-                    break;
+                case 0: success = this.updatePosition(0, -1, 2, origDx, origDy, origDir); break;
+                case 1: success = this.updatePosition(1, 0, 3, origDx, origDy, origDir); break;
+                case 2: success = this.updatePosition(0, 1, 0, origDx, origDy, origDir); break;
+                case 3: success = this.updatePosition(-1, 0, 1, origDx, origDy, origDir); break;
             }
+
+            if (!success) {
+                player.x = savedPlayerX; player.y = savedPlayerY; player.dir = savedPlayerDir;
+                player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
+                return false;
+            }
+            return true;
         }
-        else {
-            if (this.isWall(newX, newY) && this.operationNumber == 0) {
-                return;
-            } 
-            else if (this.isWall(newX, newY) && this.operationNumber == 1){
-                this.operationNumber = 0;
-                const state = this.history.pop();
-                if (!state) {
-                    return;
-                }   
-                for (let i = 0; i < this.entities.length; i++) {
-                    const entity = this.entities[i];
-                    const oldEntity = state.entities[i];
-                    entity.x = oldEntity.x;
-                    entity.y = oldEntity.y;
-                    entity.dir = oldEntity.dir;
-                    entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
-                    if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);}
+
+        if (this.isWall(newX, newY)) {
+            return false;
+        }
+
+        const entity = this.getEntityAt(newX, newY);
+        if (entity) {
+            this.tempstorage = entity;
+            const newEntityX = entity.x + dx;
+            const newEntityY = entity.y + dy;
+
+            if (entity.portal !== undefined && entity.portal === dir) {
+                const entry = entity;
+                const exit = this.findPair(entry.group, entry);
+                if (!exit) return false;
+                const savedPlayerX = player.x, savedPlayerY = player.y, savedPlayerDir = player.dir;
+
+                player.x = exit.x;
+                player.y = exit.y;
+                player.dir = exit.portal;
+                player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
+
+                let teleportSucceeded = false;
+                switch(exit.portal) {
+                    case 0: teleportSucceeded = this.updatePosition(0, -1, 2, origDx, origDy, origDir); break;
+                    case 1: teleportSucceeded = this.updatePosition(1, 0, 3, origDx, origDy, origDir); break;
+                    case 2: teleportSucceeded = this.updatePosition(0, 1, 0, origDx, origDy, origDir); break;
+                    case 3: teleportSucceeded = this.updatePosition(-1, 0, 1, origDx, origDy, origDir); break;
                 }
-                for (const laser of this.lasers) {
-                    laser.destroy();
-                }
-                this.laserFunction();
-                return;
+                if (teleportSucceeded) return true;
+
+                player.x = savedPlayerX; player.y = savedPlayerY; player.dir = savedPlayerDir;
+                player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
+
             }
-            const entity = this.getEntityAt(newX, newY);
-            if (entity) {
+            if (this.getPortalAt(newEntityX, newEntityY, dir)) {
+                const entry = this.getPortalAt(newEntityX, newEntityY);
+                if (!entry){
+                    console.log("ERROR: I GENUINELY DON'T KNOW HOW YOU GOT HERE BUT A PORTAL STOPPED EXISTING BETWEEN 2 CONSECUTIVE LINES");
+                    return false;
+                }
+                const exit = this.findPair(entry.group, entry);
+                if (!exit) {
+                    console.log("ERROR: COULD NOT FIND EXIT PORTAL @ gamescene.ts; this.findPair unexpectedly returned undefined");
+                    return false;
+                }
+                if (exit === entity) {
+                    entry.x = 1000; entry.y = 0;
+                    entry.sprite.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64);
+                    if (entry.sprite2) entry.sprite2.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64);
+                    entity.x = 1000; entity.y = 0;
+                    entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                    if (entity.sprite2) entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                } 
+                else {
+                const savedX = entity.x, savedY = entity.y, savedDir = entity.dir, savedPortal = entity.portal;
                 this.tempstorage = entity;
-                const newEntityX = entity.x + dx;
-                const newEntityY = entity.y + dy;
-                if (this.getPortalAt(newEntityX, newEntityY, dir)) {
-                    const entry= this.getPortalAt(newEntityX, newEntityY);
-                    const exit = this.findPair(entry.group, entry);
-                    entity.x = exit.x;
-                    entity.y = exit.y;
-                    entity.dir = (((entity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
-                    if (entity.portal !== undefined) {
-                        entity.portal = (((entity.portal + (entry.portal - exit.portal)) % 4) + 4) % 4;
+
+                entity.x = exit.x;
+                entity.y = exit.y;
+                if (!entity.dir){
+                    console.log("ERROR: ENTITY UNEXPECTEDLY HAS NO DIR PROPERTY");
+                    return false;
+                }
+                if (!entry.portal){
+                    console.log("ERROR: YOUR PORTAL HAS NO PORTAL");
+                    return false;
+                }
+                if (!exit.portal){
+                    console.log("ERROR: YOUR PORTAL HAS NO PORTAL");
+                    return false;
+                }
+                entity.dir = (((entity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
+                if (entity.portal !== undefined) {
+                    entity.portal = (((entity.portal + (entry.portal - exit.portal)) % 4) + 4) % 4;
+                }
+                entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                if (entity.sprite2) {
+                    entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                    switch(entity.portal) {
+                        case 0: entity.sprite2.setTexture("tiles", Tile.PortalW).setScale(2); break;
+                        case 1: entity.sprite2.setTexture("tiles", Tile.PortalD).setScale(2); break;
+                        case 2: entity.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
+                        case 3: entity.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
                     }
+                }
+
+                let done = false;
+                switch(exit.portal) {
+                    case 0: done = this.updatePosition2(0, -1, 2); break;
+                    case 1: done = this.updatePosition2(1, 0, 3); break;
+                    case 2: done = this.updatePosition2(0, 1, 0); break;
+                    case 3: done = this.updatePosition2(-1, 0, 1); break;
+                }
+
+                if (!done) {
+                    entity.x = savedX;
+                    entity.y = savedY;
+                    entity.dir = savedDir;
+                    entity.portal = savedPortal;
                     entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
                     if (entity.sprite2) {
                         entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
@@ -403,50 +494,154 @@ export class GameScene extends Phaser.Scene {
                             case 3: entity.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
                         }
                     }
-                    let done = false;
-                    switch(exit.portal) {
-                        case 0:
-                            this.operationNumber = 1;
-                            done = this.updatePosition2(0, -1, 2);
-                            break;
-                        case 1:
-                            this.operationNumber = 1;
-                            done = this.updatePosition2(1, 0, 3);
-                            break;
-                        case 2:
-                            this.operationNumber = 1;
-                            done = this.updatePosition2(0, 1, 0);
-                            break;
-                        case 3:
-                            this.operationNumber = 1;
-                            done = this.updatePosition2(-1, 0, 1);
-                            break;
+                    return false;
+                }
+                }
+            } else {
+                const otherEntity = this.getEntityAt(newEntityX, newEntityY);
+
+                if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity) {
+                    const entry = entity;
+                    const exit = this.findPair(entry.group, entry);
+
+                    if (!exit) {
+                        return false;
                     }
-                    if (!done) {
-                        return;
+
+                    if (exit === otherEntity) {
+                        entry.x = 1000;
+                        entry.y = 0;
+                        entry.sprite.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64);
+                        if (entry.sprite2) {
+                            entry.sprite2.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64);
+                        }
+
+                        otherEntity.x = 1000;
+                        otherEntity.y = 0;
+                        otherEntity.sprite.setPosition(this.offsetX + otherEntity.x * 64, this.offsetY + otherEntity.y * 64);
+                        if (otherEntity.sprite2) {
+                            otherEntity.sprite2.setPosition(this.offsetX + otherEntity.x * 64, this.offsetY + otherEntity.y * 64);
+                        }
+                    } else {
+                        const savedX = otherEntity.x;
+                        const savedY = otherEntity.y;
+                        const savedDir = otherEntity.dir;
+                        const savedPortal = otherEntity.portal;
+
+                        let exitX = exit.x;
+                        let exitY = exit.y;
+
+                        switch(exit.portal) {
+                            case 0: exitY--; break;
+                            case 1: exitX++; break;
+                            case 2: exitY++; break;
+                            case 3: exitX--; break;
+                        }
+
+                        if (exitX === savedX && exitY === savedY) {
+                            otherEntity.x = 1000;
+                            otherEntity.y = 0;
+                            otherEntity.sprite.setPosition(
+                                this.offsetX + otherEntity.x * 64,
+                                this.offsetY + otherEntity.y * 64
+                            );
+
+                            if (otherEntity.sprite2) {
+                                otherEntity.sprite2.setPosition(
+                                    this.offsetX + otherEntity.x * 64,
+                                    this.offsetY + otherEntity.y * 64
+                                );
+                            }
+                        } else {
+                            this.tempstorage = otherEntity;
+
+                            otherEntity.x = exit.x;
+                            otherEntity.y = exit.y;
+
+                            if (!otherEntity.dir || !entry.portal || !exit.portal) {
+                                console.log("ERROR: i don't know man. i don't know anymore. i'm sick of it.");
+                                return false;
+                            }
+                            otherEntity.dir = (((otherEntity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
+
+                            if (otherEntity.portal !== undefined) {
+                                otherEntity.portal = (((otherEntity.portal + (entry.portal - exit.portal)) % 4) + 4) % 4;
+                            }
+
+                            otherEntity.sprite.setPosition(
+                                this.offsetX + otherEntity.x * 64,
+                                this.offsetY + otherEntity.y * 64
+                            );
+
+                            if (otherEntity.sprite2) {
+                                otherEntity.sprite2.setPosition(
+                                    this.offsetX + otherEntity.x * 64,
+                                    this.offsetY + otherEntity.y * 64
+                                );
+
+                                switch(otherEntity.portal) {
+                                    case 0: otherEntity.sprite2.setTexture("tiles", Tile.PortalW).setScale(2); break;
+                                    case 1: otherEntity.sprite2.setTexture("tiles", Tile.PortalD).setScale(2); break;
+                                    case 2: otherEntity.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
+                                    case 3: otherEntity.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
+                                }
+                            }
+
+                            let done = false;
+
+                            switch(exit.portal) {
+                                case 0: done = this.updatePosition2(0, -1, 2); break;
+                                case 1: done = this.updatePosition2(1, 0, 3); break;
+                                case 2: done = this.updatePosition2(0, 1, 0); break;
+                                case 3: done = this.updatePosition2(-1, 0, 1); break;
+                            }
+
+                            if (!done) {
+                                otherEntity.x = savedX;
+                                otherEntity.y = savedY;
+                                otherEntity.dir = savedDir;
+                                otherEntity.portal = savedPortal;
+
+                                otherEntity.sprite.setPosition(
+                                    this.offsetX + otherEntity.x * 64,
+                                    this.offsetY + otherEntity.y * 64
+                                );
+
+                                if (otherEntity.sprite2) {
+                                    otherEntity.sprite2.setPosition(
+                                        this.offsetX + otherEntity.x * 64,
+                                        this.offsetY + otherEntity.y * 64
+                                    );
+
+                                    switch(otherEntity.portal) {
+                                        case 0: otherEntity.sprite2.setTexture("tiles", Tile.PortalW).setScale(2); break;
+                                        case 1: otherEntity.sprite2.setTexture("tiles", Tile.PortalD).setScale(2); break;
+                                        case 2: otherEntity.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
+                                        case 3: otherEntity.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
+                                    }
+                                }
+
+                                return false;
+                            }
+                        }
+
+                        entry.x = newEntityX;
+                        entry.y = newEntityY;
+                        entry.sprite.setPosition(
+                            this.offsetX + entry.x * 64,
+                            this.offsetY + entry.y * 64
+                        );
+
+                        if (entry.sprite2) {
+                            entry.sprite2.setPosition(
+                                this.offsetX + entry.x * 64,
+                                this.offsetY + entry.y * 64
+                            );
+                        }
                     }
                 } else {
-                    if ((this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) && this.operationNumber == 0) {
-                        return;
-                    }
-                    else if ((this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) && this.operationNumber == 1) {
-                        this.operationNumber = 0;
-                        const state = this.history.pop();
-                        for (let i = 0; i < this.entities.length; i++) {
-                            const entity = this.entities[i];
-                            const oldEntity = state.entities[i];
-                            entity.x = oldEntity.x;
-                            entity.y = oldEntity.y;
-                            entity.dir = oldEntity.dir;
-                            entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
-                            if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);}
-
-                        }
-                        for (const laser of this.lasers) {
-                            laser.destroy();
-                        }
-                        this.laserFunction();
-                        return;
+                    if (this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) {
+                        return false;
                     }
                     entity.x = newEntityX;
                     entity.y = newEntityY;
@@ -454,67 +649,62 @@ export class GameScene extends Phaser.Scene {
                     if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);}
                 }
             }
-            player.x = newX;
-            player.y = newY;
-            player.dir = dx !== 0 ? dx : dy;
-            player.sprite.setTexture("lindsey", this.opposite(dir)).setScale(4).setDepth(10);
-            player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
-
-            const flag = this.entities.find(entity => entity.type === "flag");
-
-            if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
-                this.entities = [];
-                for (const laser of this.lasers) {
-                    laser.destroy();
-                }
-                this.lasers = [];
-                this.scene.start("game", {level: this.levelNumber+1});
-            }
         }
+        player.x = newX;
+        player.y = newY;
+        player.dir = dx !== 0 ? dx : dy;
+
+        const facing = this.opposite(dir);
+        player.sprite.setScale(4).setDepth(10);
+        this.animatePlayer(player, facing);
+
+
+        const flag = this.entities.find(entity => entity.type === "flag");
+        if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
+            this.entities = [];
+            for (const laser of this.lasers) laser.destroy();
+            this.lasers = [];
+            this.scene.start("game", {level: this.levelNumber+1});
+        }
+        return true;
+        }
+        console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
+        return false;
     }
 
-    private updatePosition2(dx: number, dy: number, dir: number): boolean{ // box & portal auxiliary function
+    private updatePosition2(dx: number, dy: number, dir: number): boolean {
+        if (!this.tempstorage) {
+            console.log("ERROR:TEMPSTORAGE IS UNEXPECTEDLY UNDEFINED. something has gone terribly wrong. ");
+            return false;
+        }
         const newX = this.tempstorage.x + dx;
         const newY = this.tempstorage.y + dy;
 
         if (this.getPortalAt(newX, newY, dir)) {
             const entry = this.getPortalAt(newX, newY);
+            if (!entry){
+                console.log("ERROR: I GENUINELY DON'T KNOW HOW YOU GOT HERE BUT A PORTAL STOPPED EXISTING BETWEEN 2 CONSECUTIVE LINES");
+                return false;
+            }
             const exit = this.findPair(entry.group, entry);
+            if (!exit) {
+                console.log("ERROR: COULD NOT FIND EXIT PORTAL @ gamescene.ts; this.findPair unexpectedly returned undefined");
+                return false;
+            }
             this.tempstorage.x = exit.x;
             this.tempstorage.y = exit.y;
             this.tempstorage.dir = exit.portal;
             this.tempstorage.sprite.setPosition(this.offsetX + this.tempstorage.x * 64, this.offsetY + this.tempstorage.y * 64);
             switch(exit.portal) {
-                case 0:
-                    return this.updatePosition2(0, -1, 2);
-                case 1:
-                    return this.updatePosition2(1, 0, 3);
-                case 2:
-                    return this.updatePosition2(0, 1, 0);
-                case 3:
-                    return this.updatePosition2(-1, 0, 1);
+                case 0: return this.updatePosition2(0, -1, 2);
+                case 1: return this.updatePosition2(1, 0, 3);
+                case 2: return this.updatePosition2(0, 1, 0);
+                case 3: return this.updatePosition2(-1, 0, 1);
             }
-            return;
+            return true;
         }
 
-        if (this.isWall(newX, newY)|| this.getEntityAt(newX, newY)) {
-            this.operationNumber = 0;
-            const state = this.history.pop();
-            if (!state) {
-                return;
-            }   
-            for (let i = 0; i < this.entities.length; i++) {
-                const entity = this.entities[i];
-                const oldEntity = state.entities[i];
-                entity.x = oldEntity.x;
-                entity.y = oldEntity.y;
-                entity.dir = oldEntity.dir;
-                entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
-            }
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.laserFunction();
+        if (this.isWall(newX, newY) || this.getEntityAt(newX, newY)) {
             return false;
         }
 
@@ -529,8 +719,34 @@ export class GameScene extends Phaser.Scene {
                 case 2: this.tempstorage.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
                 case 3: this.tempstorage.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
             }
-        }
+        }   
         return true;
+    }
+
+    private animatePlayer(player: Entity, facing: number | undefined) {
+        let animation = "";
+        switch(facing) {
+            case 0: animation = "lindsey-up"; break;
+            case 1: animation = "lindsey-right"; break;
+            case 2: animation = "lindsey-down"; break;
+            case 3: animation = "lindsey-left"; break;
+        }
+
+        this.playerMoving = true;
+        player.sprite.play(animation);
+
+        this.tweens.add({
+            targets: player.sprite,
+            x: this.offsetX + player.x * 64,
+            y: this.offsetY + player.y * 64 - this.playeroffsetY,
+            duration: 250,
+            ease: "Linear",
+            onComplete: () => {
+                player.sprite.stop();
+                player.sprite.setTexture("lindsey", facing);
+                this.playerMoving = false;
+            }
+        });
     }
 
     constructor() {
@@ -557,6 +773,69 @@ export class GameScene extends Phaser.Scene {
         this.entities = [];
         this.history = [];
         this.lasers = [];
+
+        if (!this.anims.exists("lindsey-up")) {
+            this.anims.create({
+                key: "lindsey-up",
+                frames: [
+                    { key: "lindsey", frame: 0 },
+                    { key: "lindsey", frame: 4 },
+                    { key: "lindsey", frame: 8 },
+                    { key: "lindsey", frame: 12 },
+                    { key: "lindsey", frame: 16 },
+                    { key: "lindsey", frame: 20 },
+                    { key: "lindsey", frame: 24 },
+                    { key: "lindsey", frame: 28 }
+                ],
+                frameRate: 16,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindsey-right",
+                frames: [
+                    { key: "lindsey", frame: 1 },
+                    { key: "lindsey", frame: 5 },
+                    { key: "lindsey", frame: 9 },
+                    { key: "lindsey", frame: 13 },
+                    { key: "lindsey", frame: 17 },
+                    { key: "lindsey", frame: 21 },
+                    { key: "lindsey", frame: 25 },
+                    { key: "lindsey", frame: 29 }
+                ],
+                frameRate: 16,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindsey-down",
+                frames: [
+                    { key: "lindsey", frame: 2 },
+                    { key: "lindsey", frame: 6 },
+                    { key: "lindsey", frame: 10 },
+                    { key: "lindsey", frame: 14 },
+                    { key: "lindsey", frame: 18 },
+                    { key: "lindsey", frame: 22 },
+                    { key: "lindsey", frame: 26 },
+                    { key: "lindsey", frame: 30 }
+                ],
+                frameRate: 16,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindsey-left",
+                frames: [
+                    { key: "lindsey", frame: 3 },
+                    { key: "lindsey", frame: 7 },
+                    { key: "lindsey", frame: 11 },
+                    { key: "lindsey", frame: 15 },
+                    { key: "lindsey", frame: 19 },
+                    { key: "lindsey", frame: 23 },
+                    { key: "lindsey", frame: 27 },
+                    { key: "lindsey", frame: 31 }
+                ],
+                frameRate: 16,
+                repeat: -1
+            });
+        }
 
         this.qKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
         this.rKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
@@ -877,7 +1156,88 @@ export class GameScene extends Phaser.Scene {
     //INPUT HANDLING STARTS HERE//
     //////////////////////////////
 
+    private doMovement(direction: string) {
+        const player = this.entities.find(entity => entity.type === "player");
+
+        if (direction === "left") {
+            if (!player) {
+                console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
+                return false;
+            }
+            player.dir = 3;
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
+            this.updatePosition(-1, 0, 1);
+        }
+
+        if (direction === "right") {
+            if (!player) {
+                console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
+                return false;
+            }
+            player.dir = 1;
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
+            this.updatePosition(1, 0, 3);
+        }
+
+        if (direction === "up") {
+            if (!player) {
+                console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
+                return false;
+            }
+            player.dir = 0;
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
+            this.updatePosition(0, -1, 2);
+        }
+
+        if (direction === "down") {
+            if (!player) {
+                console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
+                return false;
+            }
+            player.dir = 2;
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
+            this.updatePosition(0, 1, 0);
+        }
+
+        for (const laser of this.lasers) {
+            laser.destroy();
+        }
+
+        this.lasers = [];
+        this.laserFunction();
+        this.flagCheck();
+    }
+
     update() {
+        if (this.playerMoving) {
+            if (this.menuup == 0 && this.inputBuffer === "") {
+                if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
+                    this.inputBuffer = "left";
+                }
+
+                else if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
+                    this.inputBuffer = "right";
+                }
+
+                else if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
+                    this.inputBuffer ="up";
+                }
+
+                else if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
+                    this.inputBuffer = "down";
+                }
+            }
+            return;
+        }
+
+        if (this.inputBuffer !== "") {
+            const direction = this.inputBuffer;
+            this.inputBuffer = "";
+
+            this.doMovement(direction);
+            return;
+        }
+
         if (this.menuup == 1) {
             if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
                 this.selected = (this.selected - 1 + this.menuItems.length) % this.menuItems.length;
@@ -912,68 +1272,27 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.left!) && this.menuup == 0) {
-            const player = this.entities.find(entity => entity.type === "player");
-            player.dir = 3;
-            this.operationNumber = 0;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
-            });
-            this.updatePosition(-1, 0, 1);
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.lasers = [];
-            this.laserFunction();
-            this.flagCheck();
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
+            this.doMovement("left");
+            return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.right!) && this.menuup == 0) {
-            const player = this.entities.find(entity => entity.type === "player");
-            player.dir = 1;
-            this.operationNumber = 0;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
-            });
-            this.updatePosition(1, 0, 3);
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.lasers = [];
-            this.laserFunction();
-            this.flagCheck();
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
+            this.doMovement("right");
+            return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.up!) && this.menuup == 0) {
-            const player = this.entities.find(entity => entity.type === "player");
-            player.dir = 0;
-            this.operationNumber = 0;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
-            });
-            this.updatePosition(0, -1, 2);
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.lasers = [];
-            this.laserFunction();
-            this.flagCheck();
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
+            this.doMovement("up");
+            return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.down!) && this.menuup == 0) {
-            const player = this.entities.find(entity => entity.type === "player");
-            player.dir = 2;
-            this.operationNumber = 0;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
-            }); 
-            this.updatePosition(0, 1, 0);
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.lasers = [];
-            this.laserFunction();
-            this.flagCheck();
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
+            this.doMovement("down");
+            return;
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.rKey) && this.menuup == 0) {
-            this.operationNumber = 0;
             this.entities = [];
             for (const laser of this.lasers) {
                 laser.destroy();
@@ -983,7 +1302,6 @@ export class GameScene extends Phaser.Scene {
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.qKey) && this.menuup == 0) {
-            this.operationNumber = 0;
             this.entities = [];
             for (const laser of this.lasers) {
                 laser.destroy();
@@ -992,15 +1310,13 @@ export class GameScene extends Phaser.Scene {
             this.scene.start("game", {level: this.levelNumber+1});
         }
         if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.menuup == 0) {
-            this.operationNumber = 0;
             this.menuup = 1;
             this.selected = 0;
             this.menuOverlay.setVisible(true);
             for (const item of this.menuItems) item.setVisible(true);
             this.updateMenu();
         }
-        if (Phaser.Input.Keyboard.JustDown(this.zKey) && this.menuup == 0) {
-            this.operationNumber = 0;
+        if (Phaser.Input.Keyboard.JustDown(this.zKey) && this.menuup == 0) {7
             const state = this.history.pop();
             if (!state) {
                 return;
