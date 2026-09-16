@@ -72,8 +72,12 @@ export class GameScene extends Phaser.Scene {
     private history: GameState[] = [];
     
     private laser;
+    private newEmitterCreated = false;
 
     private tempstorage: Entity | undefined;
+
+    private playerMoving = false;
+    private inputBuffer: string = "";
 
     init(data: { level: number, history: GameState[] }) {
         this.levelNumber = data.level;
@@ -112,13 +116,14 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    private opposite(dir: number): number {
+    private opposite(dir: number): number | undefined {
         switch(dir) {
             case 0: return 2;
             case 1: return 3;
             case 2: return 0;
             case 3: return 1;
         }
+        return undefined;
     }
 
     private isWall(x: number, y: number): boolean {
@@ -168,7 +173,9 @@ export class GameScene extends Phaser.Scene {
         if(this.getPortalAt(nextX, nextY, this.opposite(dir))) {
             const entry = this.getPortalAt(nextX, nextY);
             const exit = this.findPair(entry.group, entry);
-            exit.emitting = exit.portal;
+            if (exit) {
+                this.setEmitting(exit, exit.portal);
+            }
             return;
         }
         if (this.isWall(nextX, nextY) || (this.getEntityAt(nextX, nextY) && !this.getMirrorAt(nextX, nextY))) {
@@ -181,22 +188,22 @@ export class GameScene extends Phaser.Scene {
                 switch(mirror.dir) {
                     case 0: return;
                     case 1: return;
-                    case 2: mirror.emitting = 1; mirror.sprite.setTexture("tiles", Tile.MirrorRFront); break;
-                    case 3: mirror.emitting = 3; mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
+                    case 2: this.setEmitting(mirror, 1); mirror.sprite.setTexture("tiles", Tile.MirrorRFront); break;
+                    case 3: this.setEmitting(mirror, 3); mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
                 }
                 return;
             case 1:
                 switch(mirror.dir) {
-                    case 0: mirror.emitting = 0; mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
+                    case 0: this.setEmitting(mirror, 0); mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
                     case 1: return;
                     case 2: return;
-                    case 3: mirror.emitting = 2; mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
+                    case 3: this.setEmitting(mirror, 2); mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
                 }
                 return;
             case 2:
                 switch(mirror.dir) {
-                    case 0: mirror.emitting = 3; mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
-                    case 1: mirror.emitting = 1; mirror.sprite.setTexture("tiles", Tile.MirrorLBack); break;
+                    case 0: this.setEmitting(mirror, 3); mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
+                    case 1: this.setEmitting(mirror, 1); mirror.sprite.setTexture("tiles", Tile.MirrorLBack); break;
                     case 2: return;
                     case 3: return;
                 }
@@ -204,8 +211,8 @@ export class GameScene extends Phaser.Scene {
             case 3:
                 switch(mirror.dir) {
                     case 0: return;
-                    case 1: mirror.emitting = 0; mirror.sprite.setTexture("tiles", Tile.MirrorLBack);  break;
-                    case 2: mirror.emitting = 2; mirror.sprite.setTexture("tiles", Tile.MirrorRFront);  break;
+                    case 1: this.setEmitting(mirror, 0); mirror.sprite.setTexture("tiles", Tile.MirrorLBack);  break;
+                    case 2: this.setEmitting(mirror, 2); mirror.sprite.setTexture("tiles", Tile.MirrorRFront);  break;
                     case 3: return;
                 }   
                 return;
@@ -220,6 +227,13 @@ export class GameScene extends Phaser.Scene {
         }
         this.lasers.push(this.laser);
         this.addLaser(nextX, nextY, dir);
+    }
+
+    private setEmitting(entity: Entity, dir:number) {
+        if (entity.emitting === undefined) {
+            this.newEmitterCreated = true;
+        }
+        entity.emitting = dir;
     }
 
     private raycast() {
@@ -261,8 +275,17 @@ export class GameScene extends Phaser.Scene {
                 portal.emitting = undefined;
             }
         }
-        this.raycast();
-        this.raycast();
+        let raycastAgain = true;
+        let passes = 0;
+
+        while (raycastAgain && passes < 100) {
+            this.newEmitterCreated = false;
+
+            this.raycast();
+
+            raycastAgain = this.newEmitterCreated;
+            passes++;
+        }
     }
 
     private winConditionsMet(): boolean {
@@ -363,7 +386,6 @@ export class GameScene extends Phaser.Scene {
             this.tempstorage = entity;
             const newEntityX = entity.x + dx;
             const newEntityY = entity.y + dy;
-            const destinationPortal = this.getPortalAt(newEntityX, newEntityY, dir);
 
             if (entity.portal !== undefined && entity.portal === dir) {
                 const entry = entity;
@@ -614,8 +636,11 @@ export class GameScene extends Phaser.Scene {
         player.x = newX;
         player.y = newY;
         player.dir = dx !== 0 ? dx : dy;
-        player.sprite.setTexture("lindsey", this.opposite(dir)).setScale(4).setDepth(10);
-        player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
+
+        const facing = this.opposite(dir);
+        player.sprite.setScale(4).setDepth(10);
+        this.animatePlayer(player, facing);
+
 
         const flag = this.entities.find(entity => entity.type === "flag");
         if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
@@ -666,6 +691,32 @@ export class GameScene extends Phaser.Scene {
         return true;
     }
 
+    private animatePlayer(player: Entity, facing: number) {
+        let animation = "";
+        switch(facing) {
+            case 0: animation = "lindsey-up"; break;
+            case 1: animation = "lindsey-right"; break;
+            case 2: animation = "lindsey-down"; break;
+            case 3: animation = "lindsey-left"; break;
+        }
+
+        this.playerMoving = true;
+        player.sprite.play(animation);
+
+        this.tweens.add({
+            targets: player.sprite,
+            x: this.offsetX + player.x * 64,
+            y: this.offsetY + player.y * 64 - this.playeroffsetY,
+            duration: 250,
+            ease: "Linear",
+            onComplete: () => {
+                player.sprite.stop();
+                player.sprite.setTexture("lindsey", facing);
+                this.playerMoving = false;
+            }
+        });
+    }
+
     constructor() {
         super("game");
     }
@@ -690,6 +741,69 @@ export class GameScene extends Phaser.Scene {
         this.entities = [];
         this.history = [];
         this.lasers = [];
+
+        if (!this.anims.exists("lindsey-up")) {
+            this.anims.create({
+                key: "lindsey-up",
+                frames: [
+                    { key: "lindsey", frame: 0 },
+                    { key: "lindsey", frame: 4 },
+                    { key: "lindsey", frame: 8 },
+                    { key: "lindsey", frame: 12 },
+                    { key: "lindsey", frame: 16 },
+                    { key: "lindsey", frame: 20 },
+                    { key: "lindsey", frame: 24 },
+                    { key: "lindsey", frame: 28 }
+                ],
+                frameRate: 16,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindsey-right",
+                frames: [
+                    { key: "lindsey", frame: 1 },
+                    { key: "lindsey", frame: 5 },
+                    { key: "lindsey", frame: 9 },
+                    { key: "lindsey", frame: 13 },
+                    { key: "lindsey", frame: 17 },
+                    { key: "lindsey", frame: 21 },
+                    { key: "lindsey", frame: 25 },
+                    { key: "lindsey", frame: 29 }
+                ],
+                frameRate: 16,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindsey-down",
+                frames: [
+                    { key: "lindsey", frame: 2 },
+                    { key: "lindsey", frame: 6 },
+                    { key: "lindsey", frame: 10 },
+                    { key: "lindsey", frame: 14 },
+                    { key: "lindsey", frame: 18 },
+                    { key: "lindsey", frame: 22 },
+                    { key: "lindsey", frame: 26 },
+                    { key: "lindsey", frame: 30 }
+                ],
+                frameRate: 16,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindsey-left",
+                frames: [
+                    { key: "lindsey", frame: 3 },
+                    { key: "lindsey", frame: 7 },
+                    { key: "lindsey", frame: 11 },
+                    { key: "lindsey", frame: 15 },
+                    { key: "lindsey", frame: 19 },
+                    { key: "lindsey", frame: 23 },
+                    { key: "lindsey", frame: 27 },
+                    { key: "lindsey", frame: 31 }
+                ],
+                frameRate: 16,
+                repeat: -1
+            });
+        }
 
         this.qKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
         this.rKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
@@ -1010,7 +1124,72 @@ export class GameScene extends Phaser.Scene {
     //INPUT HANDLING STARTS HERE//
     //////////////////////////////
 
+    private doMovement(direction: string) {
+        const player = this.entities.find(entity => entity.type === "player");
+
+        if (direction === "left") {
+            player.dir = 3;
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
+            this.updatePosition(-1, 0, 1);
+        }
+
+        if (direction === "right") {
+            player.dir = 1;
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
+            this.updatePosition(1, 0, 3);
+        }
+
+        if (direction === "up") {
+            player.dir = 0;
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
+            this.updatePosition(0, -1, 2);
+        }
+
+        if (direction === "down") {
+            player.dir = 2;
+            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
+            this.updatePosition(0, 1, 0);
+        }
+
+        for (const laser of this.lasers) {
+            laser.destroy();
+        }
+
+        this.lasers = [];
+        this.laserFunction();
+        this.flagCheck();
+    }
+
     update() {
+        if (this.playerMoving) {
+            if (this.menuup == 0 && this.inputBuffer === "") {
+                if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
+                    this.inputBuffer = "left";
+                }
+
+                else if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
+                    this.inputBuffer = "right";
+                }
+
+                else if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
+                    this.inputBuffer ="up";
+                }
+
+                else if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
+                    this.inputBuffer = "down";
+                }
+            }
+            return;
+        }
+
+        if (this.inputBuffer !== "") {
+            const direction = this.inputBuffer;
+            this.inputBuffer = "";
+
+            this.doMovement(direction);
+            return;
+        }
+
         if (this.menuup == 1) {
             if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
                 this.selected = (this.selected - 1 + this.menuItems.length) % this.menuItems.length;
@@ -1045,60 +1224,24 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.left!) && this.menuup == 0) {
-            const player = this.entities.find(entity => entity.type === "player");
-            player.dir = 3;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
-            });
-            this.updatePosition(-1, 0, 1);
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.lasers = [];
-            this.laserFunction();
-            this.flagCheck();
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
+            this.doMovement("left");
+            return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.right!) && this.menuup == 0) {
-            const player = this.entities.find(entity => entity.type === "player");
-            player.dir = 1;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
-            });
-            this.updatePosition(1, 0, 3);
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.lasers = [];
-            this.laserFunction();
-            this.flagCheck();
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
+            this.doMovement("right");
+            return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.up!) && this.menuup == 0) {
-            const player = this.entities.find(entity => entity.type === "player");
-            player.dir = 0;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
-            });
-            this.updatePosition(0, -1, 2);
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.lasers = [];
-            this.laserFunction();
-            this.flagCheck();
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
+            this.doMovement("up");
+            return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.down!) && this.menuup == 0) {
-            const player = this.entities.find(entity => entity.type === "player");
-            player.dir = 2;
-            this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
-            }); 
-            this.updatePosition(0, 1, 0);
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.lasers = [];
-            this.laserFunction();
-            this.flagCheck();
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
+            this.doMovement("down");
+            return;
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.rKey) && this.menuup == 0) {
