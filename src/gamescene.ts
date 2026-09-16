@@ -98,8 +98,6 @@ export class GameScene extends Phaser.Scene {
     private staticRows;
     
     private selected = 0;
-
-    private operationNumber = 0;
     
     private menuItems: Phaser.GameObjects.Text[] = [];
     private menuLabels: string[] = [];
@@ -323,76 +321,108 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    private updatePosition(dx: number, dy: number, dir: number) { // main movement function, is a mess
+    private updatePosition(dx: number, dy: number, dir: number, origDx = dx, origDy = dy, origDir = dir): boolean {
         const player = this.entities.find(entity => entity.type === "player");
         const newX = player.x + dx;
         const newY = player.y + dy;
 
-        if (this.getPortalAt(newX, newY, dir)) {
-            const entry = this.getPortalAt(newX, newY);
+        const frontPortal = this.getPortalAt(newX, newY, dir);
+
+        if (frontPortal && !frontPortal.pushable) {
+            const entry = frontPortal;
             const exit = this.findPair(entry.group, entry);
+            const savedPlayerX = player.x, savedPlayerY = player.y, savedPlayerDir = player.dir;
+
             player.x = exit.x;
             player.y = exit.y;
             player.dir = exit.portal;
             player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
+
+            let success = false;
             switch(exit.portal) {
-                case 0:
-                    this.operationNumber = 1;
-                    this.updatePosition(0, -1, 2);
-                    break;
-                case 1:
-                    this.operationNumber = 1;
-                    this.updatePosition(1, 0, 3);
-                    break;
-                case 2:
-                    this.operationNumber = 1;
-                    this.updatePosition(0, 1, 0);
-                    break;
-                case 3:
-                    this.operationNumber = 1;
-                    this.updatePosition(-1, 0, 1);
-                    break;
+                case 0: success = this.updatePosition(0, -1, 2, origDx, origDy, origDir); break;
+                case 1: success = this.updatePosition(1, 0, 3, origDx, origDy, origDir); break;
+                case 2: success = this.updatePosition(0, 1, 0, origDx, origDy, origDir); break;
+                case 3: success = this.updatePosition(-1, 0, 1, origDx, origDy, origDir); break;
             }
+
+            if (!success) {
+                player.x = savedPlayerX; player.y = savedPlayerY; player.dir = savedPlayerDir;
+                player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
+                return false;
+            }
+            return true;
         }
-        else {
-            if (this.isWall(newX, newY) && this.operationNumber == 0) {
-                return;
-            } 
-            else if (this.isWall(newX, newY) && this.operationNumber == 1){
-                this.operationNumber = 0;
-                const state = this.history.pop();
-                if (!state) {
-                    return;
-                }   
-                for (let i = 0; i < this.entities.length; i++) {
-                    const entity = this.entities[i];
-                    const oldEntity = state.entities[i];
-                    entity.x = oldEntity.x;
-                    entity.y = oldEntity.y;
-                    entity.dir = oldEntity.dir;
-                    entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
-                    if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);}
+
+        if (this.isWall(newX, newY)) {
+            return false;
+        }
+
+        const entity = this.getEntityAt(newX, newY);
+        if (entity) {
+            this.tempstorage = entity;
+            const newEntityX = entity.x + dx;
+            const newEntityY = entity.y + dy;
+
+            if (entity.portal !== undefined && entity.portal === dir) {
+                const entry = entity;
+                const exit = this.findPair(entry.group, entry);
+                const savedPlayerX = player.x, savedPlayerY = player.y, savedPlayerDir = player.dir;
+
+                player.x = exit.x;
+                player.y = exit.y;
+                player.dir = exit.portal;
+                player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
+
+                let teleportSucceeded = false;
+                switch(exit.portal) {
+                    case 0: teleportSucceeded = this.updatePosition(0, -1, 2, origDx, origDy, origDir); break;
+                    case 1: teleportSucceeded = this.updatePosition(1, 0, 3, origDx, origDy, origDir); break;
+                    case 2: teleportSucceeded = this.updatePosition(0, 1, 0, origDx, origDy, origDir); break;
+                    case 3: teleportSucceeded = this.updatePosition(-1, 0, 1, origDx, origDy, origDir); break;
                 }
-                for (const laser of this.lasers) {
-                    laser.destroy();
-                }
-                this.laserFunction();
-                return;
+                if (teleportSucceeded) return true;
+
+                player.x = savedPlayerX; player.y = savedPlayerY; player.dir = savedPlayerDir;
+                player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
+
             }
-            const entity = this.getEntityAt(newX, newY);
-            if (entity) {
+            if (this.getPortalAt(newEntityX, newEntityY, dir)) {
+                const entry = this.getPortalAt(newEntityX, newEntityY);
+                const exit = this.findPair(entry.group, entry);
+                const savedX = entity.x, savedY = entity.y, savedDir = entity.dir, savedPortal = entity.portal;
                 this.tempstorage = entity;
-                const newEntityX = entity.x + dx;
-                const newEntityY = entity.y + dy;
-                if (this.getPortalAt(newEntityX, newEntityY, dir)) {
-                    const entry= this.getPortalAt(newEntityX, newEntityY);
-                    const exit = this.findPair(entry.group, entry);
-                    entity.x = exit.x;
-                    entity.y = exit.y;
-                    entity.dir = (((entity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
-                    if (entity.portal !== undefined) {
-                        entity.portal = (((entity.portal + (entry.portal - exit.portal)) % 4) + 4) % 4;
+
+                entity.x = exit.x;
+                entity.y = exit.y;
+                entity.dir = (((entity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
+                if (entity.portal !== undefined) {
+                    entity.portal = (((entity.portal + (entry.portal - exit.portal)) % 4) + 4) % 4;
+                }
+                entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                if (entity.sprite2) {
+                    entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                    switch(entity.portal) {
+                        case 0: entity.sprite2.setTexture("tiles", Tile.PortalW).setScale(2); break;
+                        case 1: entity.sprite2.setTexture("tiles", Tile.PortalD).setScale(2); break;
+                        case 2: entity.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
+                        case 3: entity.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
                     }
+                }
+
+                let done = false;
+                switch(exit.portal) {
+                    case 0: done = this.updatePosition2(0, -1, 2); break;
+                    case 1: done = this.updatePosition2(1, 0, 3); break;
+                    case 2: done = this.updatePosition2(0, 1, 0); break;
+                    case 3: done = this.updatePosition2(-1, 0, 1); break;
+                }
+
+                if (!done) {
+                    entity.x = savedX;
+                    entity.y = savedY;
+                    entity.dir = savedDir;
+                    entity.portal = savedPortal;
                     entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
                     if (entity.sprite2) {
                         entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
@@ -403,77 +433,36 @@ export class GameScene extends Phaser.Scene {
                             case 3: entity.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
                         }
                     }
-                    let done = false;
-                    switch(exit.portal) {
-                        case 0:
-                            this.operationNumber = 1;
-                            done = this.updatePosition2(0, -1, 2);
-                            break;
-                        case 1:
-                            this.operationNumber = 1;
-                            done = this.updatePosition2(1, 0, 3);
-                            break;
-                        case 2:
-                            this.operationNumber = 1;
-                            done = this.updatePosition2(0, 1, 0);
-                            break;
-                        case 3:
-                            this.operationNumber = 1;
-                            done = this.updatePosition2(-1, 0, 1);
-                            break;
-                    }
-                    if (!done) {
-                        return;
-                    }
-                } else {
-                    if ((this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) && this.operationNumber == 0) {
-                        return;
-                    }
-                    else if ((this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) && this.operationNumber == 1) {
-                        this.operationNumber = 0;
-                        const state = this.history.pop();
-                        for (let i = 0; i < this.entities.length; i++) {
-                            const entity = this.entities[i];
-                            const oldEntity = state.entities[i];
-                            entity.x = oldEntity.x;
-                            entity.y = oldEntity.y;
-                            entity.dir = oldEntity.dir;
-                            entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
-                            if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);}
-
-                        }
-                        for (const laser of this.lasers) {
-                            laser.destroy();
-                        }
-                        this.laserFunction();
-                        return;
-                    }
-                    entity.x = newEntityX;
-                    entity.y = newEntityY;
-                    entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
-                    if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);}
+                    return false;
                 }
-            }
-            player.x = newX;
-            player.y = newY;
-            player.dir = dx !== 0 ? dx : dy;
-            player.sprite.setTexture("lindsey", this.opposite(dir)).setScale(4).setDepth(10);
-            player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
-
-            const flag = this.entities.find(entity => entity.type === "flag");
-
-            if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
-                this.entities = [];
-                for (const laser of this.lasers) {
-                    laser.destroy();
+            } else {
+                if (this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) {
+                    return false;
                 }
-                this.lasers = [];
-                this.scene.start("game", {level: this.levelNumber+1});
+                entity.x = newEntityX;
+                entity.y = newEntityY;
+                entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
+                if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);}
             }
         }
+
+        player.x = newX;
+        player.y = newY;
+        player.dir = dx !== 0 ? dx : dy;
+        player.sprite.setTexture("lindsey", this.opposite(dir)).setScale(4).setDepth(10);
+        player.sprite.setPosition(this.offsetX + player.x * 64, this.offsetY + player.y * 64 - this.playeroffsetY);
+
+        const flag = this.entities.find(entity => entity.type === "flag");
+        if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
+            this.entities = [];
+            for (const laser of this.lasers) laser.destroy();
+            this.lasers = [];
+            this.scene.start("game", {level: this.levelNumber+1});
+        }
+        return true;
     }
 
-    private updatePosition2(dx: number, dy: number, dir: number): boolean{ // box & portal auxiliary function
+    private updatePosition2(dx: number, dy: number, dir: number): boolean {
         const newX = this.tempstorage.x + dx;
         const newY = this.tempstorage.y + dy;
 
@@ -485,36 +474,15 @@ export class GameScene extends Phaser.Scene {
             this.tempstorage.dir = exit.portal;
             this.tempstorage.sprite.setPosition(this.offsetX + this.tempstorage.x * 64, this.offsetY + this.tempstorage.y * 64);
             switch(exit.portal) {
-                case 0:
-                    return this.updatePosition2(0, -1, 2);
-                case 1:
-                    return this.updatePosition2(1, 0, 3);
-                case 2:
-                    return this.updatePosition2(0, 1, 0);
-                case 3:
-                    return this.updatePosition2(-1, 0, 1);
+                case 0: return this.updatePosition2(0, -1, 2);
+                case 1: return this.updatePosition2(1, 0, 3);
+                case 2: return this.updatePosition2(0, 1, 0);
+                case 3: return this.updatePosition2(-1, 0, 1);
             }
-            return;
+            return true;
         }
 
-        if (this.isWall(newX, newY)|| this.getEntityAt(newX, newY)) {
-            this.operationNumber = 0;
-            const state = this.history.pop();
-            if (!state) {
-                return;
-            }   
-            for (let i = 0; i < this.entities.length; i++) {
-                const entity = this.entities[i];
-                const oldEntity = state.entities[i];
-                entity.x = oldEntity.x;
-                entity.y = oldEntity.y;
-                entity.dir = oldEntity.dir;
-                entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
-            }
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.laserFunction();
+        if (this.isWall(newX, newY) || this.getEntityAt(newX, newY)) {
             return false;
         }
 
@@ -529,7 +497,7 @@ export class GameScene extends Phaser.Scene {
                 case 2: this.tempstorage.sprite2.setTexture("tiles", Tile.PortalS).setScale(2); break;
                 case 3: this.tempstorage.sprite2.setTexture("tiles", Tile.PortalA).setScale(2); break;
             }
-        }
+        }   
         return true;
     }
 
@@ -915,7 +883,6 @@ export class GameScene extends Phaser.Scene {
         if (Phaser.Input.Keyboard.JustDown(this.cursors.left!) && this.menuup == 0) {
             const player = this.entities.find(entity => entity.type === "player");
             player.dir = 3;
-            this.operationNumber = 0;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
             });
             this.updatePosition(-1, 0, 1);
@@ -930,7 +897,6 @@ export class GameScene extends Phaser.Scene {
         if (Phaser.Input.Keyboard.JustDown(this.cursors.right!) && this.menuup == 0) {
             const player = this.entities.find(entity => entity.type === "player");
             player.dir = 1;
-            this.operationNumber = 0;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
             });
             this.updatePosition(1, 0, 3);
@@ -945,7 +911,6 @@ export class GameScene extends Phaser.Scene {
         if (Phaser.Input.Keyboard.JustDown(this.cursors.up!) && this.menuup == 0) {
             const player = this.entities.find(entity => entity.type === "player");
             player.dir = 0;
-            this.operationNumber = 0;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
             });
             this.updatePosition(0, -1, 2);
@@ -960,7 +925,6 @@ export class GameScene extends Phaser.Scene {
         if (Phaser.Input.Keyboard.JustDown(this.cursors.down!) && this.menuup == 0) {
             const player = this.entities.find(entity => entity.type === "player");
             player.dir = 2;
-            this.operationNumber = 0;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))
             }); 
             this.updatePosition(0, 1, 0);
@@ -973,7 +937,6 @@ export class GameScene extends Phaser.Scene {
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.rKey) && this.menuup == 0) {
-            this.operationNumber = 0;
             this.entities = [];
             for (const laser of this.lasers) {
                 laser.destroy();
@@ -983,7 +946,6 @@ export class GameScene extends Phaser.Scene {
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.qKey) && this.menuup == 0) {
-            this.operationNumber = 0;
             this.entities = [];
             for (const laser of this.lasers) {
                 laser.destroy();
@@ -992,15 +954,13 @@ export class GameScene extends Phaser.Scene {
             this.scene.start("game", {level: this.levelNumber+1});
         }
         if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.menuup == 0) {
-            this.operationNumber = 0;
             this.menuup = 1;
             this.selected = 0;
             this.menuOverlay.setVisible(true);
             for (const item of this.menuItems) item.setVisible(true);
             this.updateMenu();
         }
-        if (Phaser.Input.Keyboard.JustDown(this.zKey) && this.menuup == 0) {
-            this.operationNumber = 0;
+        if (Phaser.Input.Keyboard.JustDown(this.zKey) && this.menuup == 0) {7
             const state = this.history.pop();
             if (!state) {
                 return;
