@@ -28,6 +28,8 @@ export class EditorScene extends Phaser.Scene {
     private columns: number = 16;
     private rows: number = 10;
     private cellsize: number = 32;
+    private tileGraphicSize: number = 160;
+    private tileScale: number = this.cellsize / this.tileGraphicSize;
     private board_offset_x: number = 32;
     private board_offset_y: number = 32;
     private board_width: number = this.columns * this.cellsize;
@@ -94,7 +96,21 @@ export class EditorScene extends Phaser.Scene {
     private botonGuardar!: Phaser.GameObjects.Rectangle;
     private botonVolver!: Phaser.GameObjects.Rectangle;
 
-    private tilesHotbar: number[] = [2, 3, 4, 5, 6, 7, 8];
+
+    //HOTBAR
+
+
+    private tilesHotbar: number[] = [6,9,11,13,14,15,16];
+    private imagenesHotbar: Phaser.GameObjects.Image[] = [];
+    private objetosSubHotbar: Phaser.GameObjects.GameObject[] = [];
+    private subHotbarAbierta: number = -1;
+
+  private variantesTiles: number[][] = [
+    [6, 7, 8],
+    [9, 10],
+    [11, 12],
+  ];
+   
     private casillasHotbar: Phaser.GameObjects.Rectangle[] = [];
     private casillaGoma!: Phaser.GameObjects.Rectangle;
 
@@ -137,13 +153,18 @@ export class EditorScene extends Phaser.Scene {
     private herramienta: number = 1;
 
     preload(): void {
-      this.load.spritesheet("editorTiles", "assets/placeholders.png", {
-        frameWidth: this.cellsize,
-        frameHeight: this.cellsize,
+      this.load.spritesheet("editorTiles", "./tileset.png", {
+        frameWidth: this.tileGraphicSize,
+        frameHeight: this.tileGraphicSize,
       });
     }
 
     create(): void {
+
+        if (this.input.mouse !== null) {
+          this.input.mouse.disableContextMenu();
+        }
+
         const boardCenterX = this.board_offset_x + this.board_width / 2;
         const boardCenterY = this.board_offset_y + this.board_height / 2;
         this.add.grid(
@@ -320,8 +341,8 @@ export class EditorScene extends Phaser.Scene {
           this.mapa = this.make.tilemap({
             width: this.columns,
             height: this.rows,
-            tileWidth: this.cellsize,
-            tileHeight: this.cellsize,
+            tileWidth: this.tileGraphicSize,
+            tileHeight: this.tileGraphicSize,
           });
 
           //CREADO DEL TILESET
@@ -329,8 +350,8 @@ export class EditorScene extends Phaser.Scene {
           const conjuntoTiles = this.mapa.addTilesetImage(
             "gameTiles",
             "editorTiles",
-            this.cellsize,
-            this.cellsize,
+            this.tileGraphicSize,
+            this.tileGraphicSize,
             0,
             0,
             1
@@ -407,6 +428,11 @@ export class EditorScene extends Phaser.Scene {
           this.graficosLinkTemporal.setDepth(8);
 
           this.restaurarTilesVistaPegado(); 
+
+          this.tablero.setScale(this.tileScale);
+          this.capaPortales.setScale(this.tileScale);
+          this.capaVistaPegado.setScale(this.tileScale);
+          this.capaVistaPortalesPegado.setScale(this.tileScale);
 
             //RELLENADO INICIAL DEL TABLERO
 
@@ -1316,50 +1342,98 @@ this.botonPegar = crearBoton(this, x, y, 100, "Pegar", () => {
 
 private crearHotbar(): void {
   this.casillasHotbar = [];
+  this.imagenesHotbar = [];
   const y = 390;
   const tamaño = 42;
   const separacion = 48;
   let x = 55;
-
   for (let i = 0; i < this.tilesHotbar.length; i++) {
-    const tile = this.tilesHotbar[i];
-    const casilla = this.add.rectangle(x, y, tamaño, tamaño, 0x333333);
-    casilla.setStrokeStyle(2, 0xffffff)
-    casilla.setInteractive({ useHandCursor: true });
-    casilla.on("pointerdown", () => {
-      if (this.herramienta === tile) {
+    const casillaX = x;
+    const casilla = this.add.rectangle(
+      casillaX,
+      y,
+      tamaño,
+      tamaño,
+      0x333333,
+    );
+    casilla.setStrokeStyle(2, 0xffffff);
+    casilla.setInteractive({useHandCursor: true});
+    const grafico = this.obtenerGraficoTile(
+      this.tilesHotbar[i],
+    );
+    const imagen = this.add.image(
+      casillaX,
+      y,
+      "editorTiles",
+      0,
+    );
+    if (grafico !== null) {
+      imagen
+        .setTexture(
+          grafico.textura,
+          grafico.frame,
+        )
+        .setDisplaySize(
+          this.cellsize,
+          this.cellsize,
+        );
+    }
+    casilla.on(
+      "pointerdown",
+      (pointer: Phaser.Input.Pointer) => {
+        if (pointer.button === 2) {
+          this.abrirSubHotbar(i, casillaX, y);
+          return;
+        }
+        this.cerrarSubHotbar();
+        const tileActual = this.tilesHotbar[i];
+        if (this.herramienta === tileActual) {
+          this.herramienta = this.sinHerramienta;
+        } else {
+          this.herramienta = tileActual;
+          this.vistaPegado.setVisible(false);
+          this.capaVistaPegado.setVisible(false);
+          this.capaVistaPortalesPegado.setVisible(false);
+          this.restaurarTilesVistaPegado();
+        }
+
+        this.actualizarInterfaz();
+        this.actualizarHotbar();
+        this.actualizarHoverTile();
+      },
+    );
+    this.casillasHotbar.push(casilla);
+    this.imagenesHotbar.push(imagen);
+    x += separacion;
+  }
+
+  x += separacion;
+
+  //BOTON DE GOME
+
+  this.casillaGoma = crearBoton(
+    this,
+    x,
+    y,
+    70,
+    "Goma",
+    () => {
+      if (this.herramienta === 0) {
         this.herramienta = this.sinHerramienta;
       } else {
-        this.herramienta = tile;
+        this.herramienta = 0;
         this.vistaPegado.setVisible(false);
         this.capaVistaPegado.setVisible(false);
         this.capaVistaPortalesPegado.setVisible(false);
         this.restaurarTilesVistaPegado();
       }
+      this.cerrarSubHotbar();
       this.actualizarInterfaz();
       this.actualizarHotbar();
-    });
-    this.add.image(x, y, "editorTiles", tile - 1);
-    this.casillasHotbar.push(casilla);
-    x += separacion;
-  }
-  x+= separacion;
-  this.casillaGoma = crearBoton(this, x, y, 70, "Goma", () => {
-    if (this.herramienta === 0) {
-      this.herramienta = this.sinHerramienta;
-    } else {
-      this.herramienta = 0;
-      this.vistaPegado.setVisible(false);
-      this.capaVistaPegado.setVisible(false);
-      this.capaVistaPortalesPegado.setVisible(false);
-      this.restaurarTilesVistaPegado();
-    }
-    this.actualizarInterfaz();
-    this.actualizarHotbar();
-    }
+    },
   );
 }
-
+  
 private actualizarHotbar(): void {
   for (let i = 0; i < this.casillasHotbar.length; i++) {
     if (this.herramienta === this.tilesHotbar[i]) {
@@ -2105,6 +2179,123 @@ private nivelValido(): boolean {
     return false;
   }
   return true;
+}
+
+private obtenerVariantes(tile: number): number[] | null {
+  for (let i = 0; i < this.variantesTiles.length; i++) {
+    if (this.variantesTiles[i].includes(tile)) {
+      return this.variantesTiles[i];
+    }
+  }
+  return null;
+}
+
+private obtenerIndiceHotbar(tile: number): number {
+  const variantes = this.obtenerVariantes(tile);
+  for (let i = 0; i < this.tilesHotbar.length; i++) {
+    if (variantes === null) {
+      if (this.tilesHotbar[i] === tile) {
+        return i;
+      }
+    } else {
+      if (variantes.includes(this.tilesHotbar[i])) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+private obtenerGraficoTile(tile: number): {textura: string, frame: number} | null {
+  return {textura: "editorTiles", frame: tile};
+}
+
+private actualizarImagenHotbar(indice: number): void {
+  const tile = this.tilesHotbar[indice];
+  const grafico = this.obtenerGraficoTile(tile);
+  if (grafico === null) {
+    return;
+  }
+  this.imagenesHotbar[indice].setTexture(grafico.textura, grafico.frame);
+  this.imagenesHotbar[indice].setDisplaySize(this.cellsize, this.cellsize);
+}
+
+//SUBHOTBAR
+
+private cerrarSubHotbar(): void {
+  for (let i = 0; i < this.objetosSubHotbar.length; i++) {
+    this.objetosSubHotbar[i].destroy();
+  }
+  this.objetosSubHotbar = [];
+  this.subHotbarAbierta = -1;
+}
+
+private abrirSubHotbar(
+  indiceHotbar: number,
+  centroX: number,
+  centroY: number,
+): void {
+  const tile = this.tilesHotbar[indiceHotbar];
+  const variantes = this.obtenerVariantes(tile);
+  if (variantes === null) {
+    return;
+  }
+  if (this.subHotbarAbierta === indiceHotbar) {
+    this.cerrarSubHotbar();
+    return;
+  }
+  this.cerrarSubHotbar();
+  this.subHotbarAbierta = indiceHotbar;
+  const tamaño = 42;
+  const separacion = 48;
+  const y = centroY - 52;
+  let x = centroX - ((variantes.length - 1) * separacion) / 2;
+  for (let i = 0; i < variantes.length; i++) {
+    const variante = variantes[i];
+    const casilla = this.add.rectangle(
+      x,
+      y,
+      tamaño,
+      tamaño,
+      0x333333,
+    );
+    casilla.setStrokeStyle(2, 0xffffff);
+    casilla.setDepth(20);
+    casilla.setInteractive({useHandCursor: true});
+    if (this.herramienta === variante) {
+      casilla.setFillStyle(0x6666aa);
+    }
+    const grafico = this.obtenerGraficoTile(variante);
+    if (grafico !== null) {
+      const imagen = this.add.image(
+        x,
+        y,
+        grafico.textura,
+        grafico.frame,
+      );
+      imagen.setDisplaySize(
+        this.cellsize,
+        this.cellsize,
+      );
+      imagen.setDepth(30);
+      this.objetosSubHotbar.push(imagen);
+    }
+    casilla.on("pointerdown", () => {
+      this.tilesHotbar[indiceHotbar] = variante;
+      this.herramienta = variante;
+      this.actualizarImagenHotbar(indiceHotbar);
+      this.cerrarSubHotbar();
+      this.vistaPegado.setVisible(false);
+      this.capaVistaPegado.setVisible(false);
+      this.capaVistaPortalesPegado.setVisible(false);
+      this.restaurarTilesVistaPegado();
+      this.actualizarInterfaz();
+      this.actualizarHotbar();
+      this.actualizarHoverTile();
+    });
+    this.objetosSubHotbar.push(casilla);
+    x += separacion;
+  }
 }
 
 }
