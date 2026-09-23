@@ -98,8 +98,8 @@ export class EditorScene extends Phaser.Scene {
       //TRIMINO
       [
         [0, 0, 29],
-        [0, 1, 30],
-        [1, 1, 31]
+        [-1, 0, 30],
+        [0, 1, 31]
       ]
     ];
 
