@@ -9,13 +9,43 @@ interface EstadoEditor {
 import {obtenerNivel, actualizarNivel, crearBoton} from "./niveles";
 
 export class EditorScene extends Phaser.Scene {
-  init(data: { nivelId?: string }): void {
-    if (data.nivelId !== undefined) {
-      this.nivelId = data.nivelId;
-    } else {
-      this.nivelId = null;
-    }
+  init(data: { nivelId?: string } = {}): void {
+  if (data.nivelId !== undefined) {
+    this.nivelId = data.nivelId;
+  } else {
+    this.nivelId = null;
   }
+
+  this.estadoGuardado = null;
+  this.popupSalida = null;
+  this.bloquearMouseHastaSoltar = false;
+  this.puedeGuardarAnterior = false;
+  this.nivelValidoAnterior = false;
+
+  this.undoHistory = [];
+  this.redoHistory = [];
+  this.links = [];
+  this.botonesInterfaz = [];
+  this.objetosSubHotbar = [];
+  this.subHotbarAbierta = -1;
+
+  this.haySeleccion = false;
+  this.seleccionando = false;
+  this.arrastrandoSeleccion = false;
+  this.posibleArrastreSeleccion = false;
+  this.portapapelesArrastre = null;
+  this.portapapelesPortalesArrastre = null;
+
+  this.tilesOcultasVistaPegado = [];
+  this.portalesOcultosVistaPegado = [];
+  this.tileOcultaHover = null;
+  this.portalOcultoHover = null;
+
+  this.linkInicioX = -1;
+  this.linkInicioY = -1;
+  this.mouseX = -1;
+  this.mouseY = -1;
+}
 
   constructor() {
         super("editor");
@@ -28,10 +58,18 @@ export class EditorScene extends Phaser.Scene {
     private columns: number = 16;
     private rows: number = 10;
     private cellsize: number = 32;
+    private tileGraphicSize: number = 160;
+    private tileScale: number = this.cellsize / this.tileGraphicSize;
     private board_offset_x: number = 32;
     private board_offset_y: number = 32;
     private board_width: number = this.columns * this.cellsize;
     private board_height: number = this.rows * this.cellsize;
+
+    private estadoGuardado: EstadoEditor | null = null;
+    private popupSalida: Phaser.GameObjects.Container | null = null;
+    private bloquearMouseHastaSoltar: boolean = false;
+    private puedeGuardarAnterior: boolean = false;
+    private nivelValidoAnterior: boolean = false;
 
     //ARRASTRE
 
@@ -93,8 +131,22 @@ export class EditorScene extends Phaser.Scene {
     private botonPortal!: Phaser.GameObjects.Rectangle;
     private botonGuardar!: Phaser.GameObjects.Rectangle;
     private botonVolver!: Phaser.GameObjects.Rectangle;
+    private botonesInterfaz: Phaser.GameObjects.Rectangle[] = [];
 
-    private tilesHotbar: number[] = [2, 3, 4, 5, 6, 7, 8];
+    //HOTBAR
+
+
+    private tilesHotbar: number[] = [6,9,11,13,14,15,16];
+    private imagenesHotbar: Phaser.GameObjects.Image[] = [];
+    private objetosSubHotbar: Phaser.GameObjects.GameObject[] = [];
+    private subHotbarAbierta: number = -1;
+
+  private variantesTiles: number[][] = [
+    [6, 7, 8],
+    [9, 10],
+    [11, 12],
+  ];
+   
     private casillasHotbar: Phaser.GameObjects.Rectangle[] = [];
     private casillaGoma!: Phaser.GameObjects.Rectangle;
 
@@ -137,13 +189,18 @@ export class EditorScene extends Phaser.Scene {
     private herramienta: number = 1;
 
     preload(): void {
-      this.load.spritesheet("editorTiles", "assets/placeholders.png", {
-        frameWidth: this.cellsize,
-        frameHeight: this.cellsize,
+      this.load.spritesheet("editorTiles", "./tileset.png", {
+        frameWidth: this.tileGraphicSize,
+        frameHeight: this.tileGraphicSize,
       });
     }
 
     create(): void {
+
+        if (this.input.mouse !== null) {
+          this.input.mouse.disableContextMenu();
+        }
+
         const boardCenterX = this.board_offset_x + this.board_width / 2;
         const boardCenterY = this.board_offset_y + this.board_height / 2;
         this.add.grid(
@@ -186,23 +243,24 @@ export class EditorScene extends Phaser.Scene {
               this.guardarNivelActual();
             });
             
-            this.botonVolver = crearBoton(
-              this,
-              100,
-              550,
-              100,
-              "Volver",
+           this.botonVolver = crearBoton(
+              this, 100, 550, 100, "Volver",
               () => {
-                if (!this.nivelValido()) {
-                  return;
-                }
-                this.scene.start("LevelsScene");
-              });
+                this.solicitarSalida();
+            });
 
         //EVENTOS DEL MOUSE
 
         this.input.on("pointermove", (mouse: Phaser.Input.Pointer) => {
+          if (this.popupSalida !== null || this.bloquearMouseHastaSoltar) {
+            return;
+          }
+          this.actualizarInterfaz();
+          this.actualizarHotbar();
           this.updateHoveredCell(mouse.worldX, mouse.worldY);
+          if (this.clickEnHotbar) {
+          return;
+          }
           if (
             this.herramienta === this.linkTool &&
             this.linkInicioX !== -1
@@ -244,6 +302,15 @@ export class EditorScene extends Phaser.Scene {
         });
 
         this.input.on("pointerup", (mouse: Phaser.Input.Pointer) => {
+          if (this.popupSalida !== null) return;
+          if (this.bloquearMouseHastaSoltar) {
+            this.bloquearMouseHastaSoltar = false;
+            return;
+          }
+          if (this.clickEnHotbar) {
+          this.clickEnHotbar = false;
+          return;
+          }
           this.updateHoveredCell(mouse.worldX, mouse.worldY);
           if (this.herramienta === this.linkTool) {
             this.terminarLink();
@@ -320,8 +387,8 @@ export class EditorScene extends Phaser.Scene {
           this.mapa = this.make.tilemap({
             width: this.columns,
             height: this.rows,
-            tileWidth: this.cellsize,
-            tileHeight: this.cellsize,
+            tileWidth: this.tileGraphicSize,
+            tileHeight: this.tileGraphicSize,
           });
 
           //CREADO DEL TILESET
@@ -329,8 +396,8 @@ export class EditorScene extends Phaser.Scene {
           const conjuntoTiles = this.mapa.addTilesetImage(
             "gameTiles",
             "editorTiles",
-            this.cellsize,
-            this.cellsize,
+            this.tileGraphicSize,
+            this.tileGraphicSize,
             0,
             0,
             1
@@ -408,6 +475,11 @@ export class EditorScene extends Phaser.Scene {
 
           this.restaurarTilesVistaPegado(); 
 
+          this.tablero.setScale(this.tileScale);
+          this.capaPortales.setScale(this.tileScale);
+          this.capaVistaPegado.setScale(this.tileScale);
+          this.capaVistaPortalesPegado.setScale(this.tileScale);
+
             //RELLENADO INICIAL DEL TABLERO
 
             for (let fila = 0; fila < this.rows; fila++) {
@@ -436,14 +508,10 @@ export class EditorScene extends Phaser.Scene {
                 if (nivel.links !== undefined) {
                   for (let i = 0; i < nivel.links.length; i++) {
                     const link = nivel.links[i];
-                    this.links.push([
-                      link[0],
-                      link[1],
-                      link[2],
-                      link[3],
-                    ]);
+                    this.links.push([link[0], link[1], link[2], link[3]]);
                   }
                 }
+                this.estadoGuardado = this.getEditorState();
                 this.eliminarPortalesSinLink();
                 this.actualizarLinks();
               }
@@ -477,10 +545,21 @@ export class EditorScene extends Phaser.Scene {
 
             //EVENTOS DE CLICK
 
+            this.input.on("pointerupoutside", () => {
+              this.bloquearMouseHastaSoltar = false;
+              this.clickEnHotbar = false;
+            });
+
             this.input.on("pointerdown", (mouse: Phaser.Input.Pointer) => {
+              if (this.popupSalida !== null || this.bloquearMouseHastaSoltar) {
+                return;
+              }
+              this.cerrarSubHotbar();
+              this.clickEnHotbar = false;
               if (mouse.button !== 0) {
                 return;
               }
+              this.clickEnHotbar = false;
               this.updateHoveredCell(
                 mouse.worldX,
                 mouse.worldY,
@@ -549,79 +628,87 @@ export class EditorScene extends Phaser.Scene {
             .setDepth(6)
             .setVisible(false);
 
-        //EVENTOS DE TECLADO
 
-        this.input.keyboard?.on("keydown", (evento: KeyboardEvent) => {
-          const tecla = evento.key.toLowerCase();
-          const control = evento.ctrlKey || evento.metaKey;
+              //EVENTOS DE TECLADO
 
-          if (control && tecla === "c") {
-            evento.preventDefault();
-            if (this.haySeleccion) this.copiarSeleccion();
-          }
-          if (control && tecla === "v") {
-            evento.preventDefault();
-            if (this.seleccionCopiada.length === 0) return;
-            if (this.herramienta === this.pasteTool) {
-              this.herramienta = this.sinHerramienta;
-              this.vistaPegado.setVisible(false);
-              this.capaVistaPegado.setVisible(false);
-              this.capaVistaPortalesPegado.setVisible(false);
-              this.restaurarTilesVistaPegado();
-            } else {
-              this.herramienta = this.pasteTool;
-              this.actualizarVistaPegado();
-            }
-            this.actualizarInterfaz();
-            this.actualizarHotbar();
-          }
-
-          if (tecla === "s") {
-            if (this.herramienta === this.selectTool) this.herramienta = this.sinHerramienta;
-            else {
-              this.herramienta = this.selectTool;
-              this.vistaPegado.setVisible(false);
-              this.capaVistaPegado.setVisible(false);
-              this.capaVistaPortalesPegado.setVisible(false);
-              this.restaurarTilesVistaPegado();
-            }
-            this.actualizarInterfaz();
-            this.actualizarHotbar();
-          }
-
-          if (tecla === "delete" || tecla === "backspace") {
-            if (!this.haySeleccion) return;
-            this.borrarSeleccion();
-            this.saveIfChanged();
-          }
-
-          if (tecla === "escape") {
-            if (this.haySeleccion) this.quitarSeleccion();
-          }
-
-          if (tecla === "l") {
-            this.herramienta = this.linkTool;
-            this.actualizarInterfaz();
-            this.actualizarHotbar();
-          }
-
-          if (tecla === "p") {
-            this.herramienta = this.portalTool;
-            this.actualizarInterfaz();
-            this.actualizarHotbar();
-          }
-
-          if (control && tecla === "z" && !evento.shiftKey) {
-            evento.preventDefault();
-            this.undo();
-          }
-
-          if ((control && tecla === "y") || (control && evento.shiftKey && tecla === "z")) {
-            evento.preventDefault();
-            this.redo();
-          }
-
-          });
+              const alTeclado = (evento: KeyboardEvent) => {
+              if (this.popupSalida !== null) {
+                if (evento.key === "Escape") {
+                  evento.preventDefault();
+                  this.cerrarPopupSalida();
+                }
+                return;
+              }
+              const tecla = evento.key.toLowerCase();
+              const control = evento.ctrlKey || evento.metaKey;
+              if (control && tecla === "c") {
+                evento.preventDefault();
+                if (this.haySeleccion) this.copiarSeleccion();
+              }
+              if (control && tecla === "v") {
+                evento.preventDefault();
+                if (this.seleccionCopiada.length === 0) return;
+                if (this.herramienta === this.pasteTool) {
+                  this.herramienta = this.sinHerramienta;
+                  this.vistaPegado.setVisible(false);
+                  this.capaVistaPegado.setVisible(false);
+                  this.capaVistaPortalesPegado.setVisible(false);
+                  this.restaurarTilesVistaPegado();
+                } else {
+                  this.herramienta = this.pasteTool;
+                  this.actualizarVistaPegado();
+                }
+                this.actualizarInterfaz();
+                this.actualizarHotbar();
+              }
+              if (tecla === "s") {
+                if (this.herramienta === this.selectTool) {
+                  this.herramienta = this.sinHerramienta;
+                } else {
+                  this.herramienta = this.selectTool;
+                  this.vistaPegado.setVisible(false);
+                  this.capaVistaPegado.setVisible(false);
+                  this.capaVistaPortalesPegado.setVisible(false);
+                  this.restaurarTilesVistaPegado();
+                }
+                this.actualizarInterfaz();
+                this.actualizarHotbar();
+              }
+              if (tecla === "delete" || tecla === "backspace") {
+                if (this.haySeleccion === false) return;
+                this.borrarSeleccion();
+                this.saveIfChanged();
+              }
+              if (tecla === "escape") {
+                if (this.haySeleccion) this.quitarSeleccion();
+              }
+              if (tecla === "l") {
+                this.herramienta = this.linkTool;
+                this.actualizarInterfaz();
+                this.actualizarHotbar();
+              }
+              if (tecla === "p") {
+                this.herramienta = this.portalTool;
+                this.actualizarInterfaz();
+                this.actualizarHotbar();
+              }
+              if (control && tecla === "z" && evento.shiftKey === false) {
+                evento.preventDefault();
+                this.undo();
+              }
+              if (
+                (control && tecla === "y") ||
+                (control && evento.shiftKey && tecla === "z")
+              ) {
+                evento.preventDefault();
+                this.redo();
+              }
+            };
+            this.input.keyboard?.on("keydown", alTeclado);
+            this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+              this.input.keyboard?.off("keydown", alTeclado);
+              this.popupSalida = null;
+            });
 
             this.vistaPegado = this.add.rectangle(0, 0, 1, 1);
             this.vistaPegado.setOrigin(0);
@@ -633,16 +720,34 @@ export class EditorScene extends Phaser.Scene {
             this.restaurarTilesVistaPegado();
             this.vistaPegado.setDepth(10);
 
+            if (this.estadoGuardado === null) {
+              this.estadoGuardado = this.getEditorState();
+            }
             this.crearInterfaz();
             this.crearHotbar();
+            this.crearFondoPanel([...this.casillasHotbar, this.casillaGoma]);
+            this.crearFondoPanel([
+              this.botonSeleccionar,
+              this.botonPortal,
+              this.botonLink,
+              this.botonCopiar,
+              this.botonPegar,
+              this.botonBorrar,
+              this.botonDeseleccionar,
+              this.botonUndo,
+              this.botonRedo
+            ]);
+            this.clickEnHotbar = false;
+            for (let i = 0; i < this.casillasHotbar.length; i++) {
+              this.configurarZonaHotbar(this.casillasHotbar[i], () => this.herramienta === this.tilesHotbar[i])};
+              this.configurarZonaHotbar(this.casillaGoma, () => this.herramienta === 0);
+            
+              this.herramienta = this.sinHerramienta;
+              this.actualizarInterfaz();
+              this.actualizarHotbar();
+              this.lastState = this.getEditorState();
+            }
           
-            this.herramienta = this.sinHerramienta;
-            this.actualizarInterfaz();
-            this.actualizarHotbar();
-
-            this.lastState = this.getEditorState();
-      }
-      
       private updateHoveredCell(pointerX: number, pointerY: number): void {
         const localX = pointerX - this.board_offset_x;
         const localY = pointerY - this.board_offset_y;
@@ -1042,18 +1147,14 @@ if (hayBandera) {
 
   private saveIfChanged(): void {
     const currentState = this.getEditorState();
-  
-    if (this.statesAreEqual(this.lastState, currentState)) {
-      return;
-    }
-  
+    if (this.statesAreEqual(this.lastState, currentState)) return;
     this.undoHistory.push(this.lastState);
     this.redoHistory = [];
     this.lastState = currentState;
-  
     if (this.undoHistory.length > 100) {
       this.undoHistory.shift();
     }
+    this.actualizarInterfaz();
   }
   
 
@@ -1093,6 +1194,9 @@ private obtenerContenidoSeleccion(): number[][] {
         true,
         this.tablero,
       );
+      if (tileEncontrada === null){
+        continue;
+      }
       filaCopiada.push(tileEncontrada.index);
     }
     contenido.push(filaCopiada);
@@ -1101,11 +1205,27 @@ private obtenerContenidoSeleccion(): number[][] {
 }
 
 update(): void {
+  if (this.popupSalida !== null) return;
   this.actualizarLinks();
-  if (this.herramienta !== this.selectTool && this.rectanguloSeleccion.visible) {
+  const valido = this.nivelValido();
+  const puedeGuardar = valido && this.hayCambiosSinGuardar();
+  if (
+    valido !== this.nivelValidoAnterior ||
+    puedeGuardar !== this.puedeGuardarAnterior
+  ) {
+    this.actualizarInterfaz();
+  }
+  if (
+    this.herramienta !== this.selectTool &&
+    this.rectanguloSeleccion.visible
+  ) {
     this.quitarSeleccion();
   }
-  if (this.herramienta !== this.pasteTool && !this.arrastrandoSeleccion && this.vistaPegado.visible) {
+  if (
+    this.herramienta !== this.pasteTool &&
+    this.arrastrandoSeleccion === false &&
+    this.vistaPegado.visible
+  ) {
     this.vistaPegado.setVisible(false);
     this.capaVistaPegado.setVisible(false);
     this.capaVistaPortalesPegado.setVisible(false);
@@ -1113,8 +1233,108 @@ update(): void {
   }
 }
 
+private hayCambiosSinGuardar(): boolean {
+  if (this.estadoGuardado === null) return false;
+  return this.statesAreEqual(
+    this.estadoGuardado,
+    this.getEditorState()
+  ) === false;
+}
+
+private solicitarSalida(): void {
+  if (
+    this.popupSalida !== null ||
+    this.nivelValido() === false
+  ) {
+    return;
+  }
+  if (this.hayCambiosSinGuardar() === false) {
+    this.scene.start("LevelsScene");
+    return;
+  }
+  this.cerrarSubHotbar();
+  this.cancelarLinkTemporal();
+  this.restaurarTileHover();
+  this.hoverTile.setVisible(false);
+  this.hoverCell.setVisible(false);
+  this.vistaPegado.setVisible(false);
+  this.capaVistaPegado.setVisible(false);
+  this.capaVistaPortalesPegado.setVisible(false);
+  this.restaurarTilesVistaPegado();
+  for (const boton of this.botonesInterfaz) {
+    boton.emit("ocultarTooltip");
+  }
+  const centroX = this.scale.width / 2;
+  const centroY = this.scale.height / 2;
+  const contenedor = this.add.container(0, 0);
+  contenedor.setDepth(2000);
+  this.popupSalida = contenedor;
+  const cantidadAnterior = this.children.list.length;
+  const fondoOscuro = this.add.rectangle(
+    centroX, centroY,
+    this.scale.width, this.scale.height,
+    0x000000, 0.65,
+  );
+  fondoOscuro.setInteractive();
+  const panel = this.add.rectangle(
+    centroX, centroY, 520, 220, 0x303653,
+  );
+  panel.setStrokeStyle(3, 0xcbdbfc);
+  const titulo = this.add.text(
+    centroX, centroY - 70, "Cambios sin guardar",
+    {
+      fontFamily: "Fuente",
+      fontSize: "20px",
+      color: "#ffd166",
+      resolution: 1,
+    },
+  );
+  titulo.setOrigin(0.5);
+  const mensaje = this.add.text(
+    centroX, centroY - 15,
+    "Tenés cambios sin guardar.\nSeguro que querés salir?",
+    {
+      fontFamily: "Fuente",
+      fontSize: "16px",
+      color: "#cbdbfc",
+      align: "center",
+      lineSpacing: 8,
+      resolution: 1,
+    },
+  );
+  mensaje.setOrigin(0.5);
+  crearBoton(
+    this, centroX - 135, centroY + 65, 150, "Cancelar",
+    () => {
+      this.cerrarPopupSalida();
+    },
+  );
+  crearBoton(
+    this, centroX + 100, centroY + 65, 260, "Salir sin guardar",
+    () => {
+      this.scene.start("LevelsScene");
+    },
+  );
+  const nuevos: Phaser.GameObjects.GameObject[] = [];
+  for (let i = cantidadAnterior; i < this.children.list.length; i++) {
+    nuevos.push(this.children.list[i]);
+  }
+  contenedor.add(nuevos);
+}
+
+private cerrarPopupSalida(): void {
+  if (this.popupSalida === null) return;
+  this.popupSalida.destroy(true);
+  this.popupSalida = null;
+  this.bloquearMouseHastaSoltar = this.input.activePointer.isDown;
+  this.actualizarInterfaz();
+}
+
 private guardarNivelActual(): void {
-  if (!this.nivelValido()) {
+  if (
+    this.nivelValido() === false ||
+    this.hayCambiosSinGuardar() === false
+  ) {
     return;
   }
   if (this.nivelId === null) {
@@ -1128,101 +1348,123 @@ private guardarNivelActual(): void {
   nivel.portales = this.getPortalState();
   nivel.links = this.copiarLinks();
   actualizarNivel(nivel);
+  this.estadoGuardado = this.getEditorState();
+  this.actualizarInterfaz();
 }
 
 //INTERFAZ
 
 private actualizarInterfaz(): void {
-  if (this.herramienta === this.selectTool){
-    this.botonSeleccionar.setFillStyle(0x6666aa);
+  const colorNormal = 0xcbdbfc;
+  const colorSeleccionado = 0xffd166;
+  const colorDesactivado = 0x999999;
+  if (this.herramienta === this.selectTool) {
+    this.botonSeleccionar.setFillStyle(colorSeleccionado);
   } else {
-    this.botonSeleccionar.setFillStyle(0x333333);
+    this.botonSeleccionar.setFillStyle(colorNormal);
   }
-
   if (this.seleccionCopiada.length === 0 || this.arrastrandoSeleccion) {
-      this.botonPegar.disableInteractive();
-      this.botonPegar.setFillStyle(0x777777);
-      this.botonPegar.setAlpha(0.5);
+    this.botonPegar.disableInteractive();
+    this.botonPegar.setFillStyle(colorDesactivado);
+    this.botonPegar.setAlpha(1);
   } else {
-      this.botonPegar.setInteractive({ useHandCursor: true });
-      this.botonPegar.setAlpha(1);
-      if (this.herramienta === this.pasteTool) {
-        this.botonPegar.setFillStyle(0x6666aa);
-      } else {
-        this.botonPegar.setFillStyle(0x333333);
-      }
-      this.actualizarHoverTile();
+    this.botonPegar.setInteractive({ useHandCursor: true });
+    this.botonPegar.setAlpha(1);
+    if (this.herramienta === this.pasteTool) {
+      this.botonPegar.setFillStyle(colorSeleccionado);
+    } else {
+      this.botonPegar.setFillStyle(colorNormal);
+    }
+    this.actualizarHoverTile();
   }
-
   if (this.haySeleccion) {
-      this.botonBorrar.setInteractive({ useHandCursor: true });
-      this.botonDeseleccionar.setInteractive({ useHandCursor: true });
-      this.botonCopiar.setInteractive({ useHandCursor: true });
-      this.botonBorrar.setFillStyle(0x333333);
-      this.botonDeseleccionar.setFillStyle(0x333333);
-      this.botonCopiar.setFillStyle(0x333333);
-      this.botonBorrar.setAlpha(1);
-      this.botonDeseleccionar.setAlpha(1);
-      this.botonCopiar.setAlpha(1);
+    this.botonBorrar.setInteractive({ useHandCursor: true });
+    this.botonDeseleccionar.setInteractive({ useHandCursor: true });
+    this.botonCopiar.setInteractive({ useHandCursor: true });
+    this.botonBorrar.setFillStyle(colorNormal);
+    this.botonDeseleccionar.setFillStyle(colorNormal);
+    this.botonCopiar.setFillStyle(colorNormal);
+    this.botonBorrar.setAlpha(1);
+    this.botonDeseleccionar.setAlpha(1);
+    this.botonCopiar.setAlpha(1);
   } else {
-      this.botonBorrar.disableInteractive();
-      this.botonDeseleccionar.disableInteractive();
-      this.botonCopiar.disableInteractive();
-      this.botonBorrar.setFillStyle(0x777777);
-      this.botonDeseleccionar.setFillStyle(0x777777);
-      this.botonCopiar.setFillStyle(0x777777);
-      this.botonBorrar.setAlpha(0.5);
-      this.botonDeseleccionar.setAlpha(0.5);
-      this.botonCopiar.setAlpha(0.5);
+    this.botonBorrar.disableInteractive();
+    this.botonDeseleccionar.disableInteractive();
+    this.botonCopiar.disableInteractive();
+    this.botonBorrar.setFillStyle(colorDesactivado);
+    this.botonDeseleccionar.setFillStyle(colorDesactivado);
+    this.botonCopiar.setFillStyle(colorDesactivado);
+    this.botonBorrar.setAlpha(1);
+    this.botonDeseleccionar.setAlpha(1);
+    this.botonCopiar.setAlpha(1);
   }
   if (this.undoHistory.length === 0) {
     this.botonUndo.disableInteractive();
-    this.botonUndo.setFillStyle(0x777777);
-    this.botonUndo.setAlpha(0.5);
+    this.botonUndo.setFillStyle(colorDesactivado);
+    this.botonUndo.setAlpha(1);
   } else {
     this.botonUndo.setInteractive({ useHandCursor: true });
-    this.botonUndo.setFillStyle(0x333333);
+    this.botonUndo.setFillStyle(colorNormal);
     this.botonUndo.setAlpha(1);
   }
   if (this.redoHistory.length === 0) {
     this.botonRedo.disableInteractive();
-    this.botonRedo.setFillStyle(0x777777);
-    this.botonRedo.setAlpha(0.5);
+    this.botonRedo.setFillStyle(colorDesactivado);
+    this.botonRedo.setAlpha(1);
   } else {
     this.botonRedo.setInteractive({ useHandCursor: true });
-    this.botonRedo.setFillStyle(0x333333);
+    this.botonRedo.setFillStyle(colorNormal);
     this.botonRedo.setAlpha(1);
   }
   if (this.herramienta === this.linkTool) {
-    this.botonLink.setFillStyle(0x6666aa);
+    this.botonLink.setFillStyle(colorSeleccionado);
   } else {
-    this.botonLink.setFillStyle(0x333333);
+    this.botonLink.setFillStyle(colorNormal);
   }
   if (this.herramienta === this.portalTool) {
-    this.botonPortal.setFillStyle(0x6666aa);
+    this.botonPortal.setFillStyle(colorSeleccionado);
   } else {
-    this.botonPortal.setFillStyle(0x333333);
+    this.botonPortal.setFillStyle(colorNormal);
   }
-  if (this.nivelValido()) {
-    this.botonGuardar.setInteractive({useHandCursor: true});
-    this.botonVolver.setInteractive({useHandCursor: true});
-    this.botonGuardar.setFillStyle(0x333333);
-    this.botonVolver.setFillStyle(0x333333);
-    this.botonGuardar.setAlpha(1);
-    this.botonVolver.setAlpha(1);
+  const valido = this.nivelValido();
+  const puedeGuardar = valido && this.hayCambiosSinGuardar();
+  this.nivelValidoAnterior = valido;
+  this.puedeGuardarAnterior = puedeGuardar;
+  if (puedeGuardar) {
+    this.botonGuardar.setInteractive({ useHandCursor: true });
+    this.botonGuardar.setFillStyle(colorNormal);
   } else {
     this.botonGuardar.disableInteractive();
+    this.botonGuardar.setFillStyle(colorDesactivado);
+  }
+  if (valido) {
+    this.botonVolver.setInteractive({ useHandCursor: true });
+    this.botonVolver.setFillStyle(colorNormal);
+  } else {
     this.botonVolver.disableInteractive();
-    this.botonGuardar.setFillStyle(0x777777);
-    this.botonVolver.setFillStyle(0x777777);
-    this.botonGuardar.setAlpha(0.5);
-    this.botonVolver.setAlpha(0.5);
+    this.botonVolver.setFillStyle(colorDesactivado);
+  }
+  this.botonGuardar.setAlpha(1);
+  this.botonVolver.setAlpha(1);
+  for (const boton of this.botonesInterfaz) {
+    if (boton.input && boton.input.enabled) {
+      if (boton.getData("hoverInterfaz") === true) {
+        if (boton.fillColor === colorSeleccionado) {
+          boton.setFillStyle(0xd9ad4f);
+        } else {
+          boton.setFillStyle(0x95add6);
+        }
+      }
+    } else {
+      boton.setData("hoverInterfaz", false);
+      boton.emit("ocultarTooltip");
+    }
   }
 }
 
 private crearInterfaz(): void {
   let y = 60;
-  const x = 600;
+  const x = 700;
   const separacion = 60;
 this.botonSeleccionar = crearBoton(this, x, y, 100, "Seleccionar", () => {
   if (this.herramienta === this.selectTool) {
@@ -1308,7 +1550,37 @@ this.botonPegar = crearBoton(this, x, y, 100, "Pegar", () => {
   y += separacion;
   this.botonUndo = crearBoton(this, x, y, 100, "Undo", () => this.undo());
   y += separacion;
+
   this.botonRedo = crearBoton(this, x, y, 100, "Redo", () => this.redo());
+
+  this.botonSeleccionar.setData("atajo", "S");
+  this.botonPortal.setData("atajo", "P");
+  this.botonLink.setData("atajo", "L");
+  this.botonCopiar.setData("atajo", "Ctrl/Cmd + C");
+  this.botonPegar.setData("atajo", "Ctrl/Cmd + V");
+  this.botonDeseleccionar.setData("atajo", "Esc");
+  this.botonBorrar.setData("atajo", "Delete / Backspace");
+  this.botonUndo.setData("atajo", "Ctrl/Cmd + Z");
+  this.botonRedo.setData("atajo", "Ctrl/Cmd + Y");
+  
+  this.botonesInterfaz = [
+  this.botonSeleccionar, this.botonPortal, this.botonLink,
+  this.botonCopiar, this.botonPegar, this.botonBorrar,
+  this.botonDeseleccionar, this.botonUndo, this.botonRedo,
+  this.botonGuardar, this.botonVolver
+  ];
+  for (const boton of this.botonesInterfaz) {
+    boton.setData("hoverInterfaz", false);
+    boton.on("pointerover", () => {
+      boton.setData("hoverInterfaz", true);
+      this.actualizarInterfaz();
+    });
+    boton.on("pointerout", () => {
+      boton.setData("hoverInterfaz", false);
+      this.actualizarInterfaz();
+    });
+  }
+
   this.actualizarInterfaz();
 }
 
@@ -1316,64 +1588,106 @@ this.botonPegar = crearBoton(this, x, y, 100, "Pegar", () => {
 
 private crearHotbar(): void {
   this.casillasHotbar = [];
+  this.imagenesHotbar = [];
   const y = 390;
   const tamaño = 42;
   const separacion = 48;
   let x = 55;
-
   for (let i = 0; i < this.tilesHotbar.length; i++) {
-    const tile = this.tilesHotbar[i];
-    const casilla = this.add.rectangle(x, y, tamaño, tamaño, 0x333333);
-    casilla.setStrokeStyle(2, 0xffffff)
-    casilla.setInteractive({ useHandCursor: true });
-    casilla.on("pointerdown", () => {
-      if (this.herramienta === tile) {
+    const casillaX = x;
+    const casilla = this.add.rectangle(
+      casillaX,
+      y,
+      tamaño,
+      tamaño,
+      0x333333,
+    );
+    casilla.setStrokeStyle(2, 0xffffff);
+    casilla.setInteractive({useHandCursor: true});
+    const grafico = this.obtenerGraficoTile(
+      this.tilesHotbar[i],
+    );
+    const imagen = this.add.image(
+      casillaX,
+      y,
+      "editorTiles",
+      0,
+    );
+    if (grafico !== null) {
+      imagen
+        .setTexture(
+          grafico.textura,
+          grafico.frame,
+        )
+        .setDisplaySize(
+          this.cellsize,
+          this.cellsize,
+        );
+    }
+    casilla.on(
+      "pointerdown",
+      (pointer: Phaser.Input.Pointer) => {
+        if (pointer.button === 2) {
+          this.abrirSubHotbar(i, casillaX, y);
+          return;
+        }
+        this.cerrarSubHotbar();
+        const tileActual = this.tilesHotbar[i];
+        if (this.herramienta === tileActual) {
+          this.herramienta = this.sinHerramienta;
+        } else {
+          this.herramienta = tileActual;
+          this.vistaPegado.setVisible(false);
+          this.capaVistaPegado.setVisible(false);
+          this.capaVistaPortalesPegado.setVisible(false);
+          this.restaurarTilesVistaPegado();
+        }
+
+        this.actualizarInterfaz();
+        this.actualizarHotbar();
+        this.actualizarHoverTile();
+      },
+    );
+    this.casillasHotbar.push(casilla);
+    this.imagenesHotbar.push(imagen);
+    x += separacion;
+  }
+
+  x += separacion;
+
+  //BOTON DE GOME
+
+  this.casillaGoma = crearBoton(
+    this,
+    x,
+    y,
+    70,
+    "Goma",
+    () => {
+      if (this.herramienta === 0) {
         this.herramienta = this.sinHerramienta;
       } else {
-        this.herramienta = tile;
+        this.herramienta = 0;
         this.vistaPegado.setVisible(false);
         this.capaVistaPegado.setVisible(false);
         this.capaVistaPortalesPegado.setVisible(false);
         this.restaurarTilesVistaPegado();
       }
+      this.cerrarSubHotbar();
       this.actualizarInterfaz();
       this.actualizarHotbar();
-    });
-    this.add.image(x, y, "editorTiles", tile - 1);
-    this.casillasHotbar.push(casilla);
-    x += separacion;
-  }
-  x+= separacion;
-  this.casillaGoma = crearBoton(this, x, y, 70, "Goma", () => {
-    if (this.herramienta === 0) {
-      this.herramienta = this.sinHerramienta;
-    } else {
-      this.herramienta = 0;
-      this.vistaPegado.setVisible(false);
-      this.capaVistaPegado.setVisible(false);
-      this.capaVistaPortalesPegado.setVisible(false);
-      this.restaurarTilesVistaPegado();
-    }
-    this.actualizarInterfaz();
-    this.actualizarHotbar();
-    }
+    },
   );
 }
-
+  
 private actualizarHotbar(): void {
   for (let i = 0; i < this.casillasHotbar.length; i++) {
-    if (this.herramienta === this.tilesHotbar[i]) {
-      this.casillasHotbar[i].setFillStyle(0x6666aa);
-    } else {
-      this.casillasHotbar[i].setFillStyle(0x333333);
-    }
+    this.pintarCasillaHotbar(
+      this.casillasHotbar[i],
+      this.herramienta === this.tilesHotbar[i]
+    );
   }
-
-  if (this.herramienta === 0) {
-    this.casillaGoma.setFillStyle(0x6666aa);
-  } else {
-    this.casillaGoma.setFillStyle(0x333333);
-  }
+  this.pintarCasillaHotbar(this.casillaGoma, this.herramienta === 0);
 }
 
 
@@ -2106,5 +2420,187 @@ private nivelValido(): boolean {
   }
   return true;
 }
+
+private obtenerVariantes(tile: number): number[] | null {
+  for (let i = 0; i < this.variantesTiles.length; i++) {
+    if (this.variantesTiles[i].includes(tile)) {
+      return this.variantesTiles[i];
+    }
+  }
+  return null;
+}
+
+private obtenerIndiceHotbar(tile: number): number {
+  const variantes = this.obtenerVariantes(tile);
+  for (let i = 0; i < this.tilesHotbar.length; i++) {
+    if (variantes === null) {
+      if (this.tilesHotbar[i] === tile) {
+        return i;
+      }
+    } else {
+      if (variantes.includes(this.tilesHotbar[i])) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+private obtenerGraficoTile(tile: number): {textura: string, frame: number} | null {
+  return {textura: "editorTiles", frame: tile};
+}
+
+private actualizarImagenHotbar(indice: number): void {
+  const tile = this.tilesHotbar[indice];
+  const grafico = this.obtenerGraficoTile(tile);
+  if (grafico === null) {
+    return;
+  }
+  this.imagenesHotbar[indice].setTexture(grafico.textura, grafico.frame);
+  this.imagenesHotbar[indice].setDisplaySize(this.cellsize, this.cellsize);
+}
+
+//SUBHOTBAR
+
+private cerrarSubHotbar(): void {
+  for (let i = 0; i < this.objetosSubHotbar.length; i++) {
+    this.objetosSubHotbar[i].destroy();
+  }
+  this.objetosSubHotbar = [];
+  this.subHotbarAbierta = -1;
+}
+
+private abrirSubHotbar(indiceHotbar: number, centroX: number, centroY: number): void {
+  const tile = this.tilesHotbar[indiceHotbar];
+  const variantes = this.obtenerVariantes(tile);
+  if (variantes === null || variantes.length === 0) {
+    return;
+  }
+  if (this.subHotbarAbierta === indiceHotbar) {
+    this.cerrarSubHotbar();
+    return;
+  }
+  this.cerrarSubHotbar();
+  this.subHotbarAbierta = indiceHotbar;
+  const tamaño = 42;
+  const separacion = 48;
+  const margen = 8;
+  const yFinal = centroY - 66;
+  let y = yFinal - (variantes.length - 1) * separacion;
+  const alto = tamaño + (variantes.length - 1) * separacion;
+  const fondo = this.add.rectangle(
+    centroX,
+    (y + yFinal) / 2,
+    tamaño + margen * 2,
+    alto + margen * 2,
+    0x303653
+  );
+  fondo.setStrokeStyle(3, 0x171a2e);
+  fondo.setDepth(19);
+  fondo.setInteractive();
+  this.configurarZonaHotbar(fondo);
+  this.objetosSubHotbar.push(fondo);
+  for (let i = 0; i < variantes.length; i++) {
+    const variante = variantes[i];
+    const casilla = this.add.rectangle(centroX, y, tamaño, tamaño, 0x999999);
+    casilla.setStrokeStyle(2, 0x222034);
+    casilla.setDepth(20);
+    casilla.setInteractive({ useHandCursor: true });
+    this.configurarZonaHotbar(casilla, () => this.herramienta === variante);
+    const grafico = this.obtenerGraficoTile(variante);
+    if (grafico !== null) {
+      const imagen = this.add.image(centroX, y, grafico.textura, grafico.frame);
+      imagen.setDisplaySize(this.cellsize, this.cellsize);
+      imagen.setDepth(30);
+      this.objetosSubHotbar.push(imagen);
+    }
+    casilla.on("pointerdown", () => {
+      this.tilesHotbar[indiceHotbar] = variante;
+      this.herramienta = variante;
+      this.actualizarImagenHotbar(indiceHotbar);
+      this.cerrarSubHotbar();
+      this.vistaPegado.setVisible(false);
+      this.capaVistaPegado.setVisible(false);
+      this.capaVistaPortalesPegado.setVisible(false);
+      this.restaurarTilesVistaPegado();
+      this.actualizarInterfaz();
+      this.actualizarHotbar();
+      this.actualizarHoverTile();
+    });
+    this.objetosSubHotbar.push(casilla);
+    y += separacion;
+  }
+}
+
+private clickEnHotbar: boolean = false;
+
+private pintarCasillaHotbar(casilla: Phaser.GameObjects.Rectangle, seleccionada: boolean): void {
+  let color = 0x999999;
+  if (seleccionada) {
+    color = 0xffd166;
+  }
+  if (casilla.getData("hoverHotbar") === true) {
+    if (seleccionada) {
+      color = 0xd9ad4f;
+    } else {
+      color = 0x777f91;
+    }
+  }
+  casilla.setFillStyle(color);
+}
+
+private configurarZonaHotbar(zona: Phaser.GameObjects.Rectangle, seleccionada?: () => boolean): void {
+  zona.on("pointerdown", (mouse: Phaser.Input.Pointer, _x: number, _y: number, evento: Phaser.Types.Input.EventData) => {
+  this.updateHoveredCell(mouse.worldX, mouse.worldY);
+  this.clickEnHotbar = true;
+  evento.stopPropagation();
+});
+zona.on("pointermove", (mouse: Phaser.Input.Pointer, _x: number, _y: number, evento: Phaser.Types.Input.EventData) => {
+  this.updateHoveredCell(mouse.worldX, mouse.worldY);
+  evento.stopPropagation();
+});
+  if (seleccionada === undefined) {
+    return;
+  }
+  zona.setData("hoverHotbar", false);
+  zona.on("pointerover", () => {
+    zona.setData("hoverHotbar", true);
+    this.pintarCasillaHotbar(zona, seleccionada());
+  });
+  zona.on("pointerout", () => {
+    zona.setData("hoverHotbar", false);
+    this.pintarCasillaHotbar(zona, seleccionada());
+  });
+  this.pintarCasillaHotbar(zona, seleccionada());
+}
+
+private crearFondoPanel(elementos: Phaser.GameObjects.Rectangle[]): void {
+  if (elementos.length === 0) {
+    return;
+  }
+  const margen = 20;
+  const primero = elementos[0].getBounds();
+  let izquierda = primero.left;
+  let derecha = primero.right;
+  let arriba = primero.top;
+  let abajo = primero.bottom;
+  for (let i = 1; i < elementos.length; i++) {
+    const limites = elementos[i].getBounds();
+    izquierda = Math.min(izquierda, limites.left);
+    derecha = Math.max(derecha, limites.right);
+    arriba = Math.min(arriba, limites.top);
+    abajo = Math.max(abajo, limites.bottom);
+  }
+  const fondo = this.add.rectangle(
+    (izquierda + derecha) / 2,
+    (arriba + abajo) / 2,
+    derecha - izquierda + margen * 2,
+    abajo - arriba + margen * 2,
+    0x303653
+  );
+  fondo.setStrokeStyle(3, 0x171a2e);
+  fondo.setDepth(-1);
+}
+
 
 }
