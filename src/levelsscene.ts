@@ -22,10 +22,9 @@ import { NORMAL, VERDE, ROJO } from "./interfazDemo";
 
 export class LevelsScene extends Phaser.Scene {
 
-  ordenInvertido = false;
   busqueda = "";
   paginaActual = 0;
-  nivelesPorPagina = 5;
+  nivelesPorPagina = 4;
 
   objetosLista: Phaser.GameObjects.GameObject[] = [];
 
@@ -35,34 +34,13 @@ export class LevelsScene extends Phaser.Scene {
 
   finalizarNombre: ((guardar: boolean) => void) | null = null;
 
-  ultimaPublicacion = new Map<string, number>();
-
   constructor() {
     super("LevelsScene");
   }
 
-  init(data: {
-    ordenInvertido?: boolean;
-    busqueda?: string;
-    pagina?: number;
-  } = {}) {
-
-    if (data.ordenInvertido !== undefined) {
-      this.ordenInvertido = data.ordenInvertido;
-    } else {
-      this.ordenInvertido = false;
-    }
-
-    if (data.busqueda !== undefined) {
-      this.busqueda = data.busqueda;
-    }
-
-    if (data.pagina !== undefined) {
-      this.paginaActual = data.pagina;
-    } else {
-      this.paginaActual = 0;
-    }
-
+  init() {
+    this.busqueda = "";
+    this.paginaActual = 0;
     this.objetosLista = [];
     this.botonAnterior = null;
     this.botonSiguiente = null;
@@ -93,46 +71,189 @@ export class LevelsScene extends Phaser.Scene {
 
     fondo.setFillStyle(color);
 
-    fondo.on(
-      "pointerover",
-      () => {
-        fondo.setAlpha(0.8);
-      }
-    );
+    fondo.on("pointerover", () => {
+      fondo.setAlpha(0.8);
+    });
 
-    fondo.on(
-      "pointerout",
-      () => {
-        fondo.setAlpha(1);
-      }
-    );
+    fondo.on("pointerout", () => {
+      fondo.setAlpha(1);
+    });
 
     return fondo;
   }
 
+  crearTab(
+    x: number,
+    y: number,
+    ancho: number,
+    alto: number,
+    texto: string,
+    color: number,
+    colorHover: number,
+    activa: boolean,
+    accion: () => void
+  ) {
+
+    const grafico = this.add.graphics();
+
+    const izquierda = x - ancho / 2;
+    const derecha = x + ancho / 2;
+    const arriba = y - alto / 2;
+    const abajo = y + alto / 2;
+
+    const dibujar = (colorActual: number) => {
+
+      grafico.clear();
+
+      grafico.fillStyle(colorActual);
+      grafico.fillRect(
+        izquierda,
+        arriba,
+        ancho,
+        alto
+      );
+
+      grafico.lineStyle(
+        4,
+        0x171a2e
+      );
+
+      grafico.beginPath();
+
+      grafico.moveTo(
+        izquierda,
+        abajo
+      );
+
+      grafico.lineTo(
+        izquierda,
+        arriba
+      );
+
+      grafico.lineTo(
+        derecha,
+        arriba
+      );
+
+      grafico.lineTo(
+        derecha,
+        abajo
+      );
+
+      grafico.strokePath();
+    };
+
+    dibujar(color);
+
+    const zona = this.add.zone(
+      x,
+      y,
+      ancho,
+      alto
+    );
+
+    zona.setInteractive({
+      useHandCursor: true
+    });
+
+    const textoTab = this.add.text(
+      x,
+      y,
+      texto,
+      {
+        fontFamily: "Fuente",
+        fontSize: "16px",
+        color: "#222034"
+      }
+    );
+
+    textoTab.setOrigin(0.5);
+
+    zona.on("pointerover", () => {
+
+      if (activa === false) {
+        dibujar(colorHover);
+      }
+    });
+
+    zona.on("pointerout", () => {
+
+      if (activa === false) {
+        dibujar(color);
+      }
+    });
+
+    zona.on("pointerdown", () => {
+
+      if (activa === false) {
+        accion();
+      }
+    });
+  }
+
   create() {
 
-    if (!demo.usuarioActual) {
+    if (demo.usuarioActual === undefined || demo.usuarioActual === null) {
       this.scene.start("usuariosDemo");
       return;
     }
 
     this.add.text(
       400,
-      30,
-      "LEVELS",
+      25,
+      "MIS NIVELES",
       {
         fontFamily: "Fuente",
         fontSize: "26px",
-        color: "#ffffff"
+        color: "#cbdbfc"
       }
-    ).setOrigin(0.5);
+    ).setOrigin(0.5, 0);
+
+    this.crearTab(
+      230,
+      103,
+      340,
+      54,
+      "Mis niveles",
+      0x9ccc65,
+      0xb0d782,
+      true,
+      () => {}
+    );
+
+    this.crearTab(
+      570,
+      108,
+      340,
+      44,
+      "Crear nivel",
+      0x73994b,
+      0xb0d782,
+      false,
+      () => {
+
+        this.cerrarNombre(true);
+
+        const nivel = crearNivel(10, 16);
+
+        if (nivel === undefined || nivel === null) {
+          return;
+        }
+
+        this.scene.start(
+          "editor",
+          {
+            nivelId: nivel.id
+          }
+        );
+      }
+    );
 
     this.add.rectangle(
       400,
-      300,
-      680,
-      480,
+      345,
+      720,
+      430,
       0x171a2e
     ).setStrokeStyle(
       4,
@@ -141,9 +262,9 @@ export class LevelsScene extends Phaser.Scene {
 
     const campo = crearCampoTexto(
       this,
-      72,
-      105,
-      499,
+      60,
+      170,
+      680,
       "Buscar nivel...",
       MAX_BUSQUEDA,
       (valor) => {
@@ -190,35 +311,10 @@ export class LevelsScene extends Phaser.Scene {
       }
     );
 
-    this.boton(
-      653,
-      105,
-      140,
-      "Crear Nivel",
-      () => {
-
-        this.cerrarNombre(true);
-
-        const nivel = crearNivel(10, 16);
-
-        if (!nivel) {
-          return;
-        }
-
-        this.scene.start(
-          "editor",
-          {
-            nivelId: nivel.id
-          }
-        );
-      },
-      VERDE
-    );
-
     this.botonAnterior = this.boton(
-      159,
-      495,
-      170,
+      150,
+      520,
+      180,
       "Anterior",
       () => {
 
@@ -234,21 +330,21 @@ export class LevelsScene extends Phaser.Scene {
 
     this.textoPagina = this.add.text(
       400,
-      495,
+      520,
       "",
       {
         fontFamily: "Fuente",
         fontSize: "16px",
-        color: "#ffffff"
+        color: "#cbdbfc"
       }
     );
 
     this.textoPagina.setOrigin(0.5);
 
     this.botonSiguiente = this.boton(
-      638,
-      495,
-      170,
+      650,
+      520,
+      180,
       "Siguiente",
       () => {
 
@@ -290,8 +386,7 @@ export class LevelsScene extends Phaser.Scene {
     color = NORMAL
   ) {
 
-    const cantidadAnterior =
-      this.children.list.length;
+    const cantidadAnterior = this.children.list.length;
 
     this.boton(
       x,
@@ -318,7 +413,7 @@ export class LevelsScene extends Phaser.Scene {
     activo: boolean
   ) {
 
-    if (!boton) {
+    if (boton === null) {
       return;
     }
 
@@ -344,31 +439,37 @@ export class LevelsScene extends Phaser.Scene {
 
     this.cerrarNombre(true);
 
-    for (const objeto of this.objetosLista) {
-      objeto.destroy();
+    for (let i = 0; i < this.objetosLista.length; i++) {
+
+      const objeto = this.objetosLista[i];
+
+      if (objeto.scene) {
+        objeto.disableInteractive();
+        objeto.destroy();
+      }
     }
 
     this.objetosLista = [];
 
     let niveles = obtenerNiveles();
 
-    if (this.ordenInvertido) {
-      niveles.reverse();
-    }
-
-    const consulta =
-      this.normalizarBusqueda(this.busqueda);
+    const consulta = this.normalizarBusqueda(
+      this.busqueda
+    );
 
     if (consulta !== "") {
 
       const encontrados = [];
 
-      for (const nivel of niveles) {
+      for (let i = 0; i < niveles.length; i++) {
 
-        const nombre =
-          this.normalizarBusqueda(nivel.nombre);
+        const nivel = niveles[i];
 
-        if (nombre.includes(consulta)) {
+        const nombre = this.normalizarBusqueda(
+          nivel.nombre
+        );
+
+        if (nombre.indexOf(consulta) !== -1) {
           encontrados.push(nivel);
         }
       }
@@ -376,11 +477,9 @@ export class LevelsScene extends Phaser.Scene {
       niveles = encontrados;
     }
 
-    let totalPaginas =
-      Math.ceil(
-        niveles.length /
-        this.nivelesPorPagina
-      );
+    let totalPaginas = Math.ceil(
+      niveles.length / this.nivelesPorPagina
+    );
 
     if (totalPaginas === 0) {
       totalPaginas = 1;
@@ -391,8 +490,7 @@ export class LevelsScene extends Phaser.Scene {
     }
 
     if (this.paginaActual >= totalPaginas) {
-      this.paginaActual =
-        totalPaginas - 1;
+      this.paginaActual = totalPaginas - 1;
     }
 
     const inicio =
@@ -407,26 +505,11 @@ export class LevelsScene extends Phaser.Scene {
       fin = niveles.length;
     }
 
-    let y = 172;
+    let y = 230;
 
     for (let i = inicio; i < fin; i++) {
 
       const nivel = niveles[i];
-
-      const tarjeta = this.add.rectangle(
-        400,
-        y,
-        656,
-        56,
-        0x303653
-      );
-
-      tarjeta.setStrokeStyle(
-        2,
-        0x4b5275
-      );
-
-      this.objetosLista.push(tarjeta);
 
       const nombre = this.add.text(
         80,
@@ -434,7 +517,7 @@ export class LevelsScene extends Phaser.Scene {
         nivel.nombre,
         {
           fontFamily: "Fuente",
-          fontSize: "16px",
+          fontSize: "18px",
           color: "#ffffff"
         }
       );
@@ -471,76 +554,26 @@ export class LevelsScene extends Phaser.Scene {
         "pointerdown",
         () => {
 
-          const actual =
-            obtenerNivel(nivel.id);
+          const actual = obtenerNivel(
+            nivel.id
+          );
 
-          if (actual) {
-
-            this.editarNombre(
-              nivel.id,
-              actual.nombre,
-              nombre
-            );
+          if (actual === undefined || actual === null) {
+            return;
           }
+
+          this.editarNombre(
+            nivel.id,
+            actual.nombre,
+            nombre
+          );
         }
       );
 
       this.objetosLista.push(nombre);
 
-      const usuario =
-        demo.usuarioActual;
-
-      let publicacion = undefined;
-
-      if (usuario) {
-
-        for (const actual of demo.niveles) {
-
-          if (
-            actual.id === Number(nivel.id) &&
-            actual.autorId === usuario.id
-          ) {
-            publicacion = actual;
-            break;
-          }
-        }
-      }
-
-      const clave =
-        usuario.id + "-" + nivel.id;
-
-      if (
-        publicacion &&
-        publicacion.publicado &&
-        !this.ultimaPublicacion.has(clave)
-      ) {
-        this.ultimaPublicacion.set(
-          clave,
-          nivel.ultimaModificacion
-        );
-      }
-
-      let textoPublicar = "Publicar";
-
-      if (
-        publicacion &&
-        publicacion.publicado
-      ) {
-
-        const ultima =
-          this.ultimaPublicacion.get(clave);
-
-        if (
-          ultima !== nivel.ultimaModificacion
-        ) {
-          textoPublicar = "Actualizar";
-        } else {
-          textoPublicar = "Despublicar";
-        }
-      }
-
       this.botonLista(
-        349,
+        390,
         y,
         90,
         "Editar",
@@ -559,29 +592,26 @@ export class LevelsScene extends Phaser.Scene {
       );
 
       this.botonLista(
-        456,
+        490,
         y,
         90,
-        "Eliminar",
+        "Test",
         () => {
 
           this.cerrarNombre(true);
 
-          if (publicacion) {
-            publicacion.publicado = false;
-          }
-
-          this.ultimaPublicacion.delete(clave);
-
-          eliminarNivel(nivel.id);
-
-          this.mostrarNiveles();
+          this.scene.start(
+            "game",
+            {
+              nivelId: nivel.id
+            }
+          );
         },
-        ROJO
+        VERDE
       );
 
       this.botonLista(
-        563,
+        590,
         y,
         90,
         "Duplicar",
@@ -596,110 +626,34 @@ export class LevelsScene extends Phaser.Scene {
         0xb39ddb
       );
 
-      let colorPublicar = VERDE;
-
-      if (textoPublicar === "Actualizar") {
-        colorPublicar = 0xe6c56a;
-      }
-
-      if (textoPublicar === "Despublicar") {
-        colorPublicar = ROJO;
-      }
-
       this.botonLista(
-        670,
+        690,
         y,
         90,
-        textoPublicar,
+        "Eliminar",
         () => {
 
-          const usuario =
-            demo.usuarioActual;
+          this.cerrarNombre(true);
 
-          if (!usuario) {
-            return;
-          }
-
-          const ultima =
-            this.ultimaPublicacion.get(clave);
-
-          if (!publicacion) {
-
-            demo.niveles.push({
-              id: Number(nivel.id),
-              nombre: nivel.nombre,
-              autorId: usuario.id,
-              autor: usuario.nombre,
-              publicado: true,
-              descargas: 0,
-              version: 1
-            });
-
-            this.ultimaPublicacion.set(
-              clave,
-              nivel.ultimaModificacion
-            );
-
-            this.mostrarNiveles();
-
-            return;
-          }
-
-          if (!publicacion.publicado) {
-
-            if (
-              ultima !== undefined &&
-              ultima !== nivel.ultimaModificacion
-            ) {
-              publicacion.version++;
-            }
-
-            publicacion.nombre =
-              nivel.nombre;
-
-            publicacion.autor =
-              usuario.nombre;
-
-            publicacion.publicado = true;
-
-            this.ultimaPublicacion.set(
-              clave,
-              nivel.ultimaModificacion
-            );
-
-            this.mostrarNiveles();
-
-            return;
-          }
-
-          if (
-            ultima !== nivel.ultimaModificacion
-          ) {
-
-            publicacion.nombre =
-              nivel.nombre;
-
-            publicacion.autor =
-              usuario.nombre;
-
-            publicacion.version++;
-
-            this.ultimaPublicacion.set(
-              clave,
-              nivel.ultimaModificacion
-            );
-
-            this.mostrarNiveles();
-
-            return;
-          }
-
-          publicacion.publicado = false;
+          eliminarNivel(nivel.id);
 
           this.mostrarNiveles();
         },
-        colorPublicar
+        ROJO
       );
+
+      if (i < fin - 1) {
+
+        const linea = this.add.rectangle(
+          400,
+          y + 34,
+          680,
+          2,
+          0x303653
+        );
+
+        this.objetosLista.push(linea);
+      }
 
       y = y + 64;
     }
@@ -708,7 +662,7 @@ export class LevelsScene extends Phaser.Scene {
 
       const mensaje = this.add.text(
         400,
-        300,
+        345,
         "No hay niveles para mostrar.",
         {
           fontFamily: "Fuente",
@@ -722,7 +676,7 @@ export class LevelsScene extends Phaser.Scene {
       this.objetosLista.push(mensaje);
     }
 
-    if (this.textoPagina) {
+    if (this.textoPagina !== null) {
 
       this.textoPagina.setText(
         "Página " +
@@ -739,8 +693,7 @@ export class LevelsScene extends Phaser.Scene {
 
     this.activarBoton(
       this.botonSiguiente,
-      this.paginaActual <
-      totalPaginas - 1
+      this.paginaActual < totalPaginas - 1
     );
   }
 
@@ -751,25 +704,27 @@ export class LevelsScene extends Phaser.Scene {
 
     texto.setText(completo);
 
-    const caracteres =
-      Array.from(completo);
+    let visible = completo;
 
     while (
-      texto.width > 212 &&
-      caracteres.length > 0
+      texto.width > 250 &&
+      visible.length > 0
     ) {
 
-      caracteres.pop();
+      visible = visible.substring(
+        0,
+        visible.length - 1
+      );
 
       texto.setText(
-        caracteres.join("") + "..."
+        visible + "..."
       );
     }
   }
 
   cerrarNombre(guardar: boolean) {
 
-    if (this.finalizarNombre) {
+    if (this.finalizarNombre !== null) {
       this.finalizarNombre(guardar);
     }
   }
@@ -782,14 +737,15 @@ export class LevelsScene extends Phaser.Scene {
 
     this.cerrarNombre(true);
 
-    const input =
-      document.createElement("input");
+    const input = document.createElement(
+      "input"
+    );
 
     input.type = "text";
     input.value = nombreOriginal;
     input.maxLength = MAX_NOMBRE_NIVEL;
 
-    input.style.width = "212px";
+    input.style.width = "250px";
     input.style.height = "36px";
     input.style.boxSizing = "border-box";
     input.style.margin = "0";
@@ -807,12 +763,11 @@ export class LevelsScene extends Phaser.Scene {
     input.style.outline = "none";
     input.style.verticalAlign = "middle";
 
-    const objeto =
-      this.add.dom(
-        80,
-        texto.y,
-        input
-      );
+    const objeto = this.add.dom(
+      80,
+      texto.y,
+      input
+    );
 
     objeto.setOrigin(
       0,
@@ -827,16 +782,13 @@ export class LevelsScene extends Phaser.Scene {
       guardar: boolean
     ) => {
 
-      if (
-        this.finalizarNombre !== finalizar
-      ) {
+      if (this.finalizarNombre !== finalizar) {
         return;
       }
 
       this.finalizarNombre = null;
 
-      const escrito =
-        input.value;
+      const escrito = input.value;
 
       objeto.destroy();
 
@@ -844,17 +796,16 @@ export class LevelsScene extends Phaser.Scene {
       texto.setColor("#ffffff");
 
       if (
-        !guardar ||
+        guardar === false ||
         escrito === nombreOriginal
       ) {
         return;
       }
 
-      const nuevoNombre =
-        filtrarTexto(
-          escrito,
-          MAX_NOMBRE_NIVEL
-        ).trim();
+      const nuevoNombre = filtrarTexto(
+        escrito,
+        MAX_NOMBRE_NIVEL
+      ).trim();
 
       if (
         nuevoNombre === "" ||
@@ -868,36 +819,10 @@ export class LevelsScene extends Phaser.Scene {
         nuevoNombre
       );
 
-      const usuario =
-        demo.usuarioActual;
-
-      if (usuario) {
-
-        const clave =
-          usuario.id + "-" + id;
-
-        for (const publicacion of demo.niveles) {
-
-          if (
-            publicacion.id === Number(id) &&
-            publicacion.autorId === usuario.id
-          ) {
-
-            this.ultimaPublicacion.set(
-              clave,
-              -1
-            );
-
-            break;
-          }
-        }
-      }
-
       this.mostrarNiveles();
     };
 
-    this.finalizarNombre =
-      finalizar;
+    this.finalizarNombre = finalizar;
 
     input.addEventListener(
       "pointerdown",
@@ -943,4 +868,3 @@ export class LevelsScene extends Phaser.Scene {
     input.select();
   }
 }
-
