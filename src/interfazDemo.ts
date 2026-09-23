@@ -7,6 +7,13 @@ export const NORMAL = 0xcbdbfc;
 
 export class InterfazDemo extends Phaser.Scene {
   limpiar() {
+
+    for (let i = this.children.list.length - 1; i >= 0; i--) {
+      const objeto = this.children.list[i];
+      if (objeto.type === 'DOMElement') {
+        objeto.destroy();
+      }
+    }
     this.children.removeAll(true);
     this.cameras.main.setBackgroundColor('#222034');
   }

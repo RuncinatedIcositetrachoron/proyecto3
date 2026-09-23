@@ -25,7 +25,7 @@ export class LevelsScene extends Phaser.Scene {
   ordenInvertido = false;
   busqueda = "";
   paginaActual = 0;
-  nivelesPorPagina = 6;
+  nivelesPorPagina = 5;
 
   objetosLista: Phaser.GameObjects.GameObject[] = [];
 
@@ -119,20 +119,20 @@ export class LevelsScene extends Phaser.Scene {
 
     this.add.text(
       400,
-      22,
+      30,
       "LEVELS",
       {
         fontFamily: "Fuente",
         fontSize: "26px",
         color: "#ffffff"
       }
-    ).setOrigin(0.5, 0);
+    ).setOrigin(0.5);
 
     this.add.rectangle(
       400,
-      326,
-      720,
-      498,
+      300,
+      680,
+      480,
       0x171a2e
     ).setStrokeStyle(
       4,
@@ -141,9 +141,9 @@ export class LevelsScene extends Phaser.Scene {
 
     const campo = crearCampoTexto(
       this,
-      60,
-      110,
-      500,
+      72,
+      105,
+      499,
       "Buscar nivel...",
       MAX_BUSQUEDA,
       (valor) => {
@@ -191,9 +191,9 @@ export class LevelsScene extends Phaser.Scene {
     );
 
     this.boton(
-      650,
-      110,
-      160,
+      653,
+      105,
+      140,
       "Crear Nivel",
       () => {
 
@@ -216,9 +216,9 @@ export class LevelsScene extends Phaser.Scene {
     );
 
     this.botonAnterior = this.boton(
-      155,
-      538,
-      180,
+      159,
+      495,
+      170,
       "Anterior",
       () => {
 
@@ -234,7 +234,7 @@ export class LevelsScene extends Phaser.Scene {
 
     this.textoPagina = this.add.text(
       400,
-      538,
+      495,
       "",
       {
         fontFamily: "Fuente",
@@ -246,9 +246,9 @@ export class LevelsScene extends Phaser.Scene {
     this.textoPagina.setOrigin(0.5);
 
     this.botonSiguiente = this.boton(
-      645,
-      538,
-      180,
+      638,
+      495,
+      170,
       "Siguiente",
       () => {
 
@@ -416,9 +416,14 @@ export class LevelsScene extends Phaser.Scene {
       const tarjeta = this.add.rectangle(
         400,
         y,
-        680,
-        48,
-        0x222034
+        656,
+        56,
+        0x303653
+      );
+
+      tarjeta.setStrokeStyle(
+        2,
+        0x4b5275
       );
 
       this.objetosLista.push(tarjeta);
@@ -434,7 +439,10 @@ export class LevelsScene extends Phaser.Scene {
         }
       );
 
-      nombre.setOrigin(0, 0.5);
+      nombre.setOrigin(
+        0,
+        0.5
+      );
 
       nombre.setInteractive({
         useHandCursor: true
@@ -532,9 +540,9 @@ export class LevelsScene extends Phaser.Scene {
       }
 
       this.botonLista(
-        342,
+        349,
         y,
-        78,
+        90,
         "Editar",
         () => {
 
@@ -551,7 +559,7 @@ export class LevelsScene extends Phaser.Scene {
       );
 
       this.botonLista(
-        437,
+        456,
         y,
         90,
         "Eliminar",
@@ -573,7 +581,7 @@ export class LevelsScene extends Phaser.Scene {
       );
 
       this.botonLista(
-        539,
+        563,
         y,
         90,
         "Duplicar",
@@ -599,9 +607,9 @@ export class LevelsScene extends Phaser.Scene {
       }
 
       this.botonLista(
-        663,
+        670,
         y,
-        130,
+        90,
         textoPublicar,
         () => {
 
@@ -693,14 +701,14 @@ export class LevelsScene extends Phaser.Scene {
         colorPublicar
       );
 
-      y = y + 57;
+      y = y + 64;
     }
 
     if (niveles.length === 0) {
 
       const mensaje = this.add.text(
         400,
-        325,
+        300,
         "No hay niveles para mostrar.",
         {
           fontFamily: "Fuente",
@@ -747,7 +755,7 @@ export class LevelsScene extends Phaser.Scene {
       Array.from(completo);
 
     while (
-      texto.width > 210 &&
+      texto.width > 212 &&
       caracteres.length > 0
     ) {
 
@@ -774,18 +782,44 @@ export class LevelsScene extends Phaser.Scene {
 
     this.cerrarNombre(true);
 
-    const campo = crearCampoTexto(
-      this,
-      texto.x - 4,
-      texto.y,
-      220,
-      "Nombre del nivel",
-      MAX_NOMBRE_NIVEL,
-      () => {}
+    const input =
+      document.createElement("input");
+
+    input.type = "text";
+    input.value = nombreOriginal;
+    input.maxLength = MAX_NOMBRE_NIVEL;
+
+    input.style.width = "212px";
+    input.style.height = "36px";
+    input.style.boxSizing = "border-box";
+    input.style.margin = "0";
+    input.style.fontFamily = '"Fuente", monospace';
+    input.style.fontSize = "16px";
+    input.style.lineHeight = "32px";
+    input.style.backgroundColor = "#171a2e";
+    input.style.color = "#ffffff";
+    input.style.border = "2px solid #ffd166";
+    input.style.borderRadius = "0";
+    input.style.paddingLeft = "8px";
+    input.style.paddingRight = "8px";
+    input.style.paddingTop = "0";
+    input.style.paddingBottom = "0";
+    input.style.outline = "none";
+    input.style.verticalAlign = "middle";
+
+    const objeto =
+      this.add.dom(
+        80,
+        texto.y,
+        input
+      );
+
+    objeto.setOrigin(
+      0,
+      0.5
     );
 
-    campo.input.value =
-      nombreOriginal;
+    objeto.setDepth(100);
 
     texto.setVisible(false);
 
@@ -802,9 +836,9 @@ export class LevelsScene extends Phaser.Scene {
       this.finalizarNombre = null;
 
       const escrito =
-        campo.input.value;
+        input.value;
 
-      campo.objeto.destroy();
+      objeto.destroy();
 
       texto.setVisible(true);
       texto.setColor("#ffffff");
@@ -834,11 +868,6 @@ export class LevelsScene extends Phaser.Scene {
         nuevoNombre
       );
 
-      this.ajustarNombreVisible(
-        texto,
-        nuevoNombre
-      );
-
       const usuario =
         demo.usuarioActual;
 
@@ -853,6 +882,7 @@ export class LevelsScene extends Phaser.Scene {
             publicacion.id === Number(id) &&
             publicacion.autorId === usuario.id
           ) {
+
             this.ultimaPublicacion.set(
               clave,
               -1
@@ -869,16 +899,18 @@ export class LevelsScene extends Phaser.Scene {
     this.finalizarNombre =
       finalizar;
 
-    campo.input.addEventListener(
-      "blur",
-      () => {
-        finalizar(true);
+    input.addEventListener(
+      "pointerdown",
+      (evento) => {
+        evento.stopPropagation();
       }
     );
 
-    campo.input.addEventListener(
+    input.addEventListener(
       "keydown",
       (evento) => {
+
+        evento.stopPropagation();
 
         if (evento.isComposing) {
           return;
@@ -900,7 +932,15 @@ export class LevelsScene extends Phaser.Scene {
       }
     );
 
-    campo.input.focus();
-    campo.input.select();
+    input.addEventListener(
+      "blur",
+      () => {
+        finalizar(true);
+      }
+    );
+
+    input.focus();
+    input.select();
   }
 }
+

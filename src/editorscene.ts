@@ -58,7 +58,7 @@ export class EditorScene extends Phaser.Scene {
     private columns: number = 16;
     private rows: number = 10;
     private cellsize: number = 32;
-    private tileGraphicSize: number = 160;
+    private tileGraphicSize: number = 16;
     private tileScale: number = this.cellsize / this.tileGraphicSize;
     private board_offset_x: number = 32;
     private board_offset_y: number = 32;
@@ -88,6 +88,13 @@ export class EditorScene extends Phaser.Scene {
     private tilesSinPortal: number[] = [2, 5, 6, 7, 8];
     private tileJugador: number = 7;
     private tileBandera: number = 6;
+
+    private formasPared: Record<number, number[][]> = {
+      200: [[0, 0, 7], [1, 0, 8]],
+      201: [[0, 0, 8], [0, 1, 14]]
+    };
+    private gruposParedes: number[][][] = [];
+
 
     //LINKS
 
@@ -779,45 +786,53 @@ export class EditorScene extends Phaser.Scene {
         this.actualizarHoverTile();
       }
 
-      private usarHerramienta(): void {
+      private usarHerramienta() {
         if (
-          this.mouseX === -1 ||
-          this.mouseY === -1 ||
+          this.mouseX === -1 || this.mouseY === -1 ||
           this.herramienta === this.selectTool ||
           this.herramienta === this.pasteTool ||
           this.herramienta === this.sinHerramienta ||
           this.herramienta === this.portalTool ||
           this.herramienta === this.linkTool
-        ) {
-          return;
+        ) return;
+        let forma = this.formasPared[this.herramienta];
+        const compuesta = forma !== undefined;
+        if (forma === undefined) {
+          let tile = this.herramienta;
+          if (this.herramienta === 0) {
+            tile = this.tileInvisible;
+          }
+          forma = [[0, 0, tile]];
         }
-        
+        const casillas = [];
+        for (let i = 0; i < forma.length; i++) {
+          const x = this.mouseX + forma[i][0];
+          const y = this.mouseY + forma[i][1];
+          if (x < 0 || y < 0 || x >= this.columns || y >= this.rows) {
+            return;
+          }
+          casillas.push([x, y]);
+        }
         this.restaurarTileHover();
-        this.borrarPortalEn(this.mouseX, this.mouseY);
-
+        for (let i = 0; i < casillas.length; i++) {
+          const x = casillas[i][0];
+          const y = casillas[i][1];
+          this.borrarGrupoEn(x, y);
+        }
         if (this.herramienta === this.tileJugador) {
           this.borrarTileUnico(this.tileJugador);
         }
         if (this.herramienta === this.tileBandera) {
           this.borrarTileUnico(this.tileBandera);
         }
-
-        if (this.herramienta === 0) {
-          this.mapa.putTileAt(
-            this.tileInvisible,
-            this.mouseX,
-            this.mouseY,
-            true,
-            this.tablero,
-          );
-        } else {
-          this.mapa.putTileAt(
-            this.herramienta,
-            this.mouseX,
-            this.mouseY,
-            true,
-            this.tablero,
-          );
+        for (let i = 0; i < casillas.length; i++) {
+          const x = casillas[i][0];
+          const y = casillas[i][1];
+          const tile = forma[i][2];
+          this.tablero.putTileAt(tile, x, y);
+        }
+        if (compuesta) {
+          this.gruposParedes.push(casillas);
         }
         this.actualizarHoverTile();
       }
@@ -2602,5 +2617,25 @@ private crearFondoPanel(elementos: Phaser.GameObjects.Rectangle[]): void {
   fondo.setDepth(-1);
 }
 
+//PAREDES DOBLES O TRIPLES
+
+private grupoEn(x: number, y: number): number[][] {
+  for (const grupo of this.gruposParedes) {
+    for (const casilla of grupo) {
+      if (casilla[0] === x && casilla[1] === y) {
+        return grupo;
+      }
+    }
+  }
+  return [[x, y]];
+}
+private borrarGrupoEn(x: number, y: number): void {
+  const grupo = this.grupoEn(x, y);
+  for (const [columna, fila] of grupo) {
+    this.tablero.putTileAt(this.tileInvisible, columna, fila);
+    this.borrarPortalEn(columna, fila);
+  }
+  this.gruposParedes = this.gruposParedes.filter(g => g !== grupo);
+}
 
 }
