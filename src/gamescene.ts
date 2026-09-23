@@ -461,10 +461,17 @@ export class GameScene extends Phaser.Scene {
                     console.log("ERROR: YOUR PORTAL HAS NO PORTAL");
                     return false;
                 }
-                entity.dir = (((entity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
-                if (entity.portal !== undefined) {
-                    entity.portal = (((entity.portal + (entry.portal - exit.portal)) % 4) + 4) % 4;
+                
+                const incomingDir = (entry.portal + 2) % 4;
+                let rotation = exit.portal - incomingDir;
+                if (rotation < 0) {
+                    rotation += 4;
                 }
+                entity.dir = (entity.dir + rotation) % 4;
+                if (entity.portal !== undefined) {
+                    entity.portal = (entity.portal + rotation) % 4;
+                }
+                
                 entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
                 if (entity.sprite2 && entity.group === 1) {
                     entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
@@ -648,16 +655,10 @@ export class GameScene extends Phaser.Scene {
 
                         entry.x = newEntityX;
                         entry.y = newEntityY;
-                        entry.sprite.setPosition(
-                            this.offsetX + entry.x * 64,
-                            this.offsetY + entry.y * 64
-                        ).setDepth(2*entity.y);
+                        entry.sprite.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64).setDepth(2*entity.y);
 
                         if (entry.sprite2) {
-                            entry.sprite2.setPosition(
-                                this.offsetX + entry.x * 64,
-                                this.offsetY + entry.y * 64
-                            ).setDepth(2*entity.y+1);
+                            entry.sprite2.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64).setDepth(2*entity.y+1);
                         }
                     }
                 } else {
