@@ -81,7 +81,9 @@ export class GameScene extends Phaser.Scene {
     private playerMoving = false;
     private inputBuffer: string = "";
     private holdBufferOpen: Boolean = false;
+
     private playerTween: Phaser.Tweens.Tween | undefined;
+    private pushTweens: Phaser.Tweens.Tween[] = [];
     private playerVertical: Boolean = true;
 
     init(data: { level: number, history: GameState[] }) {
@@ -664,8 +666,7 @@ export class GameScene extends Phaser.Scene {
                     }
                     entity.x = newEntityX;
                     entity.y = newEntityY;
-                    entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64); entity.sprite.setDepth(2*entity.y);
-                    if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64); entity.sprite2.setDepth(2*entity.y+1)}
+                    this.animatePushable(entity);
                 }
             }
         }
@@ -752,6 +753,37 @@ export class GameScene extends Phaser.Scene {
         return true;
     }
 
+    private animatePushable(entity: Entity) {
+        const sprites: Phaser.GameObjects.Sprite[] = [];
+
+        sprites.push(entity.sprite);
+        if (entity.sprite2) {
+            sprites.push(entity.sprite2);
+        }
+
+        const tween = this.tweens.add({
+            targets: sprites,
+            x: this.offsetX + entity.x * 64,
+            y: this.offsetY + entity.y * 64,
+            duration: 250,
+            ease: "Linear",
+
+            onUpdate: () => {
+                entity.sprite.setDepth(
+                    (entity.sprite.y - this.offsetY) / 32
+                );
+
+                if (entity.sprite2) {
+                    entity.sprite2.setDepth(
+                        (entity.sprite.y - this.offsetY) / 32 + 1
+                    );
+                }
+            }
+        });
+
+        this.pushTweens.push(tween);
+    }
+
     private animatePlayer(player: Entity, facing: number | undefined) {
         let animation = "";
         if (!this.movenumber == true) {
@@ -789,7 +821,7 @@ export class GameScene extends Phaser.Scene {
             ease: "Linear",
             onComplete: () => {
                 player.sprite.stop();
-                player.sprite.setTexture("lindsey", facing);
+                player.sprite.setTexture("lindseyi", facing);
                 this.playerMoving = false;
                 this.holdBufferOpen = false;
                 this.playerTween = undefined;
@@ -813,10 +845,13 @@ export class GameScene extends Phaser.Scene {
         this.load.spritesheet("lindsey", "assets/lindsey.walking.anim.sheet.png", {
             frameWidth: 16,
             frameHeight: 28,
+        });this.load.spritesheet("lindseyi", "assets/lindsey.idle.spr.png", {
+            frameWidth: 16,
+            frameHeight: 28,
         });
         this.load.spritesheet("spritestall1x1", "assets/spritesTall1x1.png", {
             frameWidth: 16,
-            frameHeight: 23,
+            frameHeight: 28,
         });
         this.load.spritesheet("portals", "assets/portalsheet1.png", {
             frameWidth: 16,
@@ -947,14 +982,37 @@ export class GameScene extends Phaser.Scene {
                 const thistile = this.staticRows[y][x];
                 switch(thistile) {
                     case "#":
-                        this.entities.push ({
-                        type: "wall",
-                        x: x,
-                        y: y,
-                        pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "spritestall1x1", 1).setOrigin(1,1).setScale(4).setDepth(2*y)
-                        });
-                        break;
+                        if (y > 0) {
+                        if (this.staticRows[y-1][x] === "#") {
+                            this.entities.push ({
+                            type: "wall",
+                            x: x,
+                            y: y,
+                            pushable: false,
+                            sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "spritestall1x1", 3).setOrigin(1,1).setScale(4).setDepth(2*y)
+                            });
+                            break;
+                        }
+                        else {
+                            this.entities.push ({
+                            type: "wall",
+                            x: x,
+                            y: y,
+                            pushable: false,
+                            sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "spritestall1x1", 1).setOrigin(1,1).setScale(4).setDepth(2*y)
+                            });
+                            break;
+                        }
+                        }else {
+                            this.entities.push ({
+                            type: "wall",
+                            x: x,
+                            y: y,
+                            pushable: false,
+                            sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "spritestall1x1", 1).setOrigin(1,1).setScale(4).setDepth(2*y)
+                            });
+                            break;
+                        }
                     case "X":
                         this.entities.push ({
                         type: "goal",
@@ -1160,8 +1218,14 @@ export class GameScene extends Phaser.Scene {
                         break;
                     case "a":
                         if (entity){
-                            entity.portal = 3;
-                            entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "portals", 2).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            if (entity.type === "wall"){
+                                entity.portal = 3;
+                                entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64 - 12, "portals", 2).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            }
+                            else {
+                                entity.portal = 3;
+                                entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "portals", 2).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            }
                         } else {
                             this.entities.push ({
                             type: "box",
@@ -1198,8 +1262,14 @@ export class GameScene extends Phaser.Scene {
                         break;
                     case "d":
                         if (entity){
-                            entity.portal = 1;
-                            entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "portals", 3).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            if (entity.type === "wall"){
+                                entity.portal = 1;
+                                entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64 - 12, "portals", 3).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            }
+                            else {
+                                entity.portal = 1;
+                                entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "portals", 3).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            }
                         } else {
                             this.entities.push ({
                             type: "box",
@@ -1257,6 +1327,7 @@ export class GameScene extends Phaser.Scene {
     //////////////////////////////
 
     private doMovement(direction: string) {
+        this.pushTweens = [];
         const player = this.entities.find(entity => entity.type === "player");
         if (direction === "left") {
             if (!player) {
@@ -1319,28 +1390,27 @@ export class GameScene extends Phaser.Scene {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "left";
-                    if (player.dir === -1 && this.playerVertical === false) this.playerTween?.setTimeScale(50);
+                    if (player.dir === -1 && this.playerVertical === false && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "right";
-                    if (player.dir === 1 && this.playerVertical === false) this.playerTween?.setTimeScale(50);
+                    if (player.dir === 1 && this.playerVertical === false && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer ="up";
-                    if (player.dir === -1 && this.playerVertical === true) this.playerTween?.setTimeScale(50);
+                    if (player.dir === -1 && this.playerVertical === true && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "down";
-                    if (player.dir === 1 && this.playerVertical === true) this.playerTween?.setTimeScale(50);
                 }
                 else if (this.holdBufferOpen && this.inputBuffer === "") {
                     if (this.cursors.left!.isDown){
@@ -1478,7 +1548,25 @@ export class GameScene extends Phaser.Scene {
                 entity.dir = oldEntity.dir;
                 entity.portal = oldEntity.portal;
                 entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64).setDepth(2*entity.y);
-                if (entity.sprite2 && entity.group == 1) {
+                if (entity.sprite2 && entity.group == 1 && entity.type === "wall") {
+                    entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64 - 12).setDepth(2*entity.y+1);
+                    switch(entity.portal) {
+                        case 0: entity.sprite2.setTexture("portals", 0).setScale(4); break;
+                        case 1: entity.sprite2.setTexture("portals", 3).setScale(4); break;
+                        case 2: entity.sprite2.setTexture("portals", 1).setScale(4); break;
+                        case 3: entity.sprite2.setTexture("portals", 2).setScale(4); break;
+                    }
+                }
+                if (entity.sprite2 && entity.group == 2 && entity.type === "wall") {
+                    entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64 - 12).setDepth(2*entity.y+1);
+                    switch(entity.portal) {
+                        case 0: entity.sprite2.setTexture("portals", 4).setScale(4); break;
+                        case 1: entity.sprite2.setTexture("portals", 7).setScale(4); break;
+                        case 2: entity.sprite2.setTexture("portals", 5).setScale(4); break;
+                        case 3: entity.sprite2.setTexture("portals", 6).setScale(4); break;
+                    }
+                }
+                if (entity.sprite2 && entity.group == 1 && entity.type !== "wall") {
                     entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64).setDepth(2*entity.y+1);
                     switch(entity.portal) {
                         case 0: entity.sprite2.setTexture("portals", 0).setScale(4); break;
@@ -1487,7 +1575,7 @@ export class GameScene extends Phaser.Scene {
                         case 3: entity.sprite2.setTexture("portals", 2).setScale(4); break;
                     }
                 }
-                if (entity.sprite2 && entity.group == 2) {
+                if (entity.sprite2 && entity.group == 2 && entity.type !== "wall") {
                     entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64).setDepth(2*entity.y+1);
                     switch(entity.portal) {
                         case 0: entity.sprite2.setTexture("portals", 4).setScale(4); break;
