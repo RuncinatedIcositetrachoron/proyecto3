@@ -649,13 +649,13 @@ export class GameScene extends Phaser.Scene {
                         entry.sprite.setPosition(
                             this.offsetX + entry.x * 64,
                             this.offsetY + entry.y * 64
-                        );
+                        ).setDepth(2*entity.y);
 
                         if (entry.sprite2) {
                             entry.sprite2.setPosition(
                                 this.offsetX + entry.x * 64,
                                 this.offsetY + entry.y * 64
-                            );
+                            ).setDepth(2*entity.y+1);
                         }
                     }
                 } else {
@@ -822,6 +822,10 @@ export class GameScene extends Phaser.Scene {
             frameWidth: 16,
             frameHeight: 23,
         });
+        this.load.spritesheet("floor", "assets/floor.spr.png", {
+            frameWidth: 16,
+            frameHeight: 16,
+        });
         this.load.text("level1", `assets/level1.txt`);
     }
 
@@ -939,6 +943,7 @@ export class GameScene extends Phaser.Scene {
 
         for (let y = 0; y<this.staticRows.length; y++) {
             for (let x = 0; x<this.staticRows[y].length; x++){
+                this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "floor", 0).setOrigin(1,1).setScale(4).setDepth(-1);
                 const thistile = this.staticRows[y][x];
                 switch(thistile) {
                     case "#":
@@ -982,7 +987,7 @@ export class GameScene extends Phaser.Scene {
                         y: y,
                         dir: 0,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "lindsey", 2).setOrigin(1,1).setScale(4).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "lindsey", 2).setOrigin(1,1.04).setScale(4).setDepth(2*y)
                         });
                         break;
                     case "b":
