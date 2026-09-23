@@ -77,9 +77,12 @@ export class GameScene extends Phaser.Scene {
 
     private tempstorage: Entity | undefined;
     private movenumber: Boolean = false;
-
+    
     private playerMoving = false;
     private inputBuffer: string = "";
+    private holdBufferOpen: Boolean = false;
+    private playerTween: Phaser.Tweens.Tween | undefined;
+    private playerVertical: Boolean = true;
 
     init(data: { level: number, history: GameState[] }) {
         this.levelNumber = data.level;
@@ -769,9 +772,16 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.playerMoving = true;
+        this.holdBufferOpen = false;
         player.sprite.play(animation);
 
-        this.tweens.add({
+        this.time.delayedCall(160, () => {
+            if (this.playerMoving) {
+                this.holdBufferOpen = true;
+            }
+        });
+
+        this.playerTween = this.tweens.add({
             targets: player.sprite,
             x: this.offsetX + player.x * 64,
             y: this.offsetY + player.y * 64,
@@ -781,6 +791,8 @@ export class GameScene extends Phaser.Scene {
                 player.sprite.stop();
                 player.sprite.setTexture("lindsey", facing);
                 this.playerMoving = false;
+                this.holdBufferOpen = false;
+                this.playerTween = undefined;
             }
         });
     }
@@ -1241,7 +1253,6 @@ export class GameScene extends Phaser.Scene {
 
     private doMovement(direction: string) {
         const player = this.entities.find(entity => entity.type === "player");
-
         if (direction === "left") {
             if (!player) {
                 console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
@@ -1250,6 +1261,7 @@ export class GameScene extends Phaser.Scene {
             player.dir = 3;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(-1, 0, 1);
+            this.playerVertical = false; 
         }
 
         if (direction === "right") {
@@ -1260,6 +1272,7 @@ export class GameScene extends Phaser.Scene {
             player.dir = 1;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(1, 0, 3);
+            this.playerVertical = false; 
         }
 
         if (direction === "up") {
@@ -1270,6 +1283,7 @@ export class GameScene extends Phaser.Scene {
             player.dir = 0;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(0, -1, 2);
+            this.playerVertical = true; 
         }
 
         if (direction === "down") {
@@ -1280,6 +1294,7 @@ export class GameScene extends Phaser.Scene {
             player.dir = 2;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(0, 1, 0);
+            this.playerVertical = true; 
         }
 
         for (const laser of this.lasers) {
@@ -1293,29 +1308,59 @@ export class GameScene extends Phaser.Scene {
 
     update() {
         if (this.playerMoving) {
-            if (this.menuup == 0 && this.inputBuffer === "") {
+            if (this.menuup == 0) {
+                const player = this.entities.find(entity => entity.type === "player");
                 if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "left";
+                    if (player.dir === -1 && this.playerVertical === false) this.playerTween?.setTimeScale(50);
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "right";
+                    if (player.dir === 1 && this.playerVertical === false) this.playerTween?.setTimeScale(50);
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer ="up";
+                    if (player.dir === -1 && this.playerVertical === true) this.playerTween?.setTimeScale(50);
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "down";
+                    if (player.dir === 1 && this.playerVertical === true) this.playerTween?.setTimeScale(50);
+                }
+                else if (this.holdBufferOpen && this.inputBuffer === "") {
+                    if (this.cursors.left!.isDown){
+                        if (this.movenumber) this.movenumber = false
+                        else this.movenumber = true;
+                        this.inputBuffer = "left";
+                    }
+
+                    else if (this.cursors.right!.isDown) {
+                        if (this.movenumber) this.movenumber = false
+                        else this.movenumber = true;
+                        this.inputBuffer = "right";
+                    }
+
+                    else if (this.cursors.up!.isDown) {
+                        if (this.movenumber) this.movenumber = false
+                        else this.movenumber = true;
+                        this.inputBuffer ="up";
+                    }
+
+                    else if (this.cursors.down!.isDown) {
+                        if (this.movenumber) this.movenumber = false
+                        else this.movenumber = true;
+                        this.inputBuffer = "down";
+                    }
                 }
             }
             return;
