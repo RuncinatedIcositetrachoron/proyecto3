@@ -33,7 +33,126 @@ export class CommunityDemoScene extends InterfazDemo {
     this.dibujar();
   }
 
+  crearTab(
+    x: number,
+    y: number,
+    ancho: number,
+    alto: number,
+    texto: string,
+    color: number,
+    colorHover: number,
+    activa: boolean,
+    accion: () => void
+  ) {
+
+    const grafico = this.add.graphics();
+
+    const izquierda = x - ancho / 2;
+    const derecha = x + ancho / 2;
+    const arriba = y - alto / 2;
+    const abajo = y + alto / 2;
+
+    const dibujar = (colorActual: number) => {
+
+      grafico.clear();
+
+      grafico.fillStyle(colorActual);
+      grafico.fillRect(
+        izquierda,
+        arriba,
+        ancho,
+        alto
+      );
+
+      grafico.lineStyle(
+        4,
+        0x171a2e
+      );
+
+      grafico.beginPath();
+
+      grafico.moveTo(
+        izquierda,
+        abajo
+      );
+
+      grafico.lineTo(
+        izquierda,
+        arriba
+      );
+
+      grafico.lineTo(
+        derecha,
+        arriba
+      );
+
+      grafico.lineTo(
+        derecha,
+        abajo
+      );
+
+      grafico.strokePath();
+    };
+
+    dibujar(color);
+
+    const zona = this.add.zone(
+      x,
+      y,
+      ancho,
+      alto
+    );
+
+    zona.setInteractive({
+      useHandCursor: true
+    });
+
+    const textoTab = this.add.text(
+      x,
+      y,
+      texto,
+      {
+        fontFamily: "Fuente",
+        fontSize: "16px",
+        color: "#222034"
+      }
+    );
+
+    textoTab.setOrigin(0.5);
+
+    zona.on("pointerover", () => {
+
+      if (!activa) {
+        dibujar(colorHover);
+      }
+    });
+
+    zona.on("pointerout", () => {
+
+      if (!activa) {
+        dibujar(color);
+      }
+    });
+
+    zona.on("pointerdown", () => {
+
+      if (!activa) {
+        accion();
+      }
+    });
+  }
+
   dibujar() {
+
+    const objetos = [...this.children.list];
+
+    for (const objeto of objetos) {
+
+      if (objeto.scene) {
+        objeto.disableInteractive(true);
+        objeto.destroy();
+      }
+    }
 
     this.limpiar();
     this.filas = [];
@@ -45,67 +164,95 @@ export class CommunityDemoScene extends InterfazDemo {
     }
 
     this.texto(
-      30,
+      400,
       25,
       "COMMUNITY LEVELS",
       26
-    );
+    ).setOrigin(0.5, 0);
 
-    this.texto(
-      30,
-      64,
-      "Usuario: " + usuario.nombre,
-      16
-    );
-
-    this.boton(
-      685,
-      50,
-      180,
-      "Cerrar sesión",
-      () => {
-        demo.usuarioActual = null;
-        this.scene.start("usuariosDemo");
+    const pestanas: {
+      nombre: Pestana;
+      color: number;
+      colorHover: number;
+      colorInactivo: number;
+    }[] = [
+      {
+        nombre: "Community",
+        color: 0x95add6,
+        colorHover: 0xaec1e1,
+        colorInactivo: 0x6f87b0
       },
-      ROJO
-    );
-
-    const pestanas: Pestana[] = [
-      "Community",
-      "Creados",
-      "Publicados",
-      "Descargados"
+      {
+        nombre: "Creados",
+        color: 0x9ccc65,
+        colorHover: 0xb0d782,
+        colorInactivo: 0x73994b
+      },
+      {
+        nombre: "Publicados",
+        color: 0xe6c56a,
+        colorHover: 0xf0d58b,
+        colorInactivo: 0xad934d
+      },
+      {
+        nombre: "Descargados",
+        color: 0xb39ddb,
+        colorHover: 0xc7b5e7,
+        colorInactivo: 0x8573a6
+      }
     ];
+
+    let colorActual = 0x95add6;
 
     for (let i = 0; i < pestanas.length; i++) {
 
       const pestana = pestanas[i];
+      const activa = this.pestana === pestana.nombre;
 
-      let color = NORMAL;
+      let y = 108;
+      let alto = 44;
+      let color = pestana.colorInactivo;
 
-      if (this.pestana === pestana) {
-        color = VERDE;
+      if (activa) {
+        y = 103;
+        alto = 54;
+        color = pestana.color;
+        colorActual = pestana.color;
       }
 
-      this.boton(
-        105 + i * 196,
-        125,
-        180,
-        pestana,
+      this.crearTab(
+        145 + i * 170,
+        y,
+        170,
+        alto,
+        pestana.nombre,
+        color,
+        pestana.colorHover,
+        activa,
         () => {
-          this.pestana = pestana;
+          this.pestana = pestana.nombre;
           this.pagina = 0;
           this.dibujar();
-        },
-        color
+        }
       );
     }
 
+    this.add.rectangle(
+      400,
+      345,
+      720,
+      430,
+      0x171a2e
+    ).setStrokeStyle(
+      4,
+      colorActual
+    );
+
     const campo = crearCampoTexto(
       this,
-      30,
-      183,
-      740,
+      60,
+      170,
+      680,
       "Buscar por ID, autor o nombre",
       MAX_BUSQUEDA,
       (valor) => {
@@ -117,20 +264,18 @@ export class CommunityDemoScene extends InterfazDemo {
 
     campo.input.value = this.busqueda;
 
-    this.texto(
-      30,
-      570,
-      "Demo: recargar reinicia usuarios, publicaciones y descargas.",
-      14
-    );
-
     this.dibujarFilas();
   }
 
   dibujarFilas() {
 
     for (const objeto of this.filas) {
-      objeto.destroy();
+
+      if (objeto.scene) {
+        objeto.emit("ocultarTooltip");
+        objeto.disableInteractive(true);
+        objeto.destroy();
+      }
     }
 
     this.filas = [];
@@ -141,7 +286,7 @@ export class CommunityDemoScene extends InterfazDemo {
       return;
     }
 
-    const cantidadAntes = this.children.list.length;
+    const objetosAntes = new Set(this.children.list);
 
     if (this.pestana === "Creados") {
       this.mostrarCreados();
@@ -159,7 +304,9 @@ export class CommunityDemoScene extends InterfazDemo {
       this.mostrarDescargados();
     }
 
-    this.filas = this.children.list.slice(cantidadAntes);
+    this.filas = this.children.list.filter(objeto => {
+      return objetosAntes.has(objeto) === false;
+    });
   }
 
   mostrarCreados() {
@@ -201,38 +348,38 @@ export class CommunityDemoScene extends InterfazDemo {
 
     if (visibles.length === 0) {
       this.texto(
-        40,
-        260,
+        400,
+        345,
         "No hay niveles creados."
-      );
+      ).setOrigin(0.5);
     }
 
     for (let i = 0; i < visibles.length; i++) {
 
       const nivel = visibles[i];
-      const y = 260 + i * 96;
+      const y = 238 + i * 100;
 
       this.add.rectangle(
         400,
         y + 7,
-        740,
-        86,
+        680,
+        80,
         0x171a2e
       );
 
       this.texto(
-        42,
+        80,
         y - 20,
         nivel.nombre,
         19
       );
 
       this.texto(
-        42,
+        80,
         y + 8,
         "ID " + nivel.id,
         14
-      );
+      ).setColor("#a5b4ce");
 
       const publicado = demo.niveles.some(publicacion => {
 
@@ -250,9 +397,9 @@ export class CommunityDemoScene extends InterfazDemo {
       if (publicado) {
 
         this.boton(
-          655,
+          630,
           y + 7,
-          200,
+          180,
           "Publicado",
           () => {},
           NORMAL,
@@ -262,9 +409,9 @@ export class CommunityDemoScene extends InterfazDemo {
       } else {
 
         this.boton(
-          655,
+          630,
           y + 7,
-          200,
+          180,
           "Publicar",
           () => {
 
@@ -348,47 +495,46 @@ export class CommunityDemoScene extends InterfazDemo {
 
     if (visibles.length === 0) {
       this.texto(
-        40,
-        260,
+        400,
+        345,
         "No hay niveles publicados."
-      );
+      ).setOrigin(0.5);
     }
 
     for (let i = 0; i < visibles.length; i++) {
 
       const nivel = visibles[i];
-      const y = 260 + i * 96;
+      const y = 238 + i * 100;
 
       this.add.rectangle(
         400,
         y + 7,
-        740,
-        86,
+        680,
+        80,
         0x171a2e
       );
 
       this.texto(
-        42,
+        80,
         y - 26,
         nivel.nombre,
         19
       );
 
       this.texto(
-        42,
+        80,
         y,
         "ID " + nivel.id +
-        " · " + nivel.autor +
-        " · v" + nivel.version,
+        " · " + nivel.autor,
         14
-      );
+      ).setColor("#a5b4ce");
 
       this.texto(
-        42,
+        80,
         y + 23,
         nivel.descargas + " descargas",
         14
-      );
+      ).setColor("#a5b4ce");
 
       const descargado = demo.descargas.some(descarga => {
 
@@ -403,9 +549,9 @@ export class CommunityDemoScene extends InterfazDemo {
       }
 
       this.boton(
-        655,
+        630,
         y + 7,
-        200,
+        180,
         textoBoton,
         () => {
 
@@ -457,51 +603,50 @@ export class CommunityDemoScene extends InterfazDemo {
 
     if (visibles.length === 0) {
       this.texto(
-        40,
-        260,
+        400,
+        345,
         "No tenés niveles publicados."
-      );
+      ).setOrigin(0.5);
     }
 
     for (let i = 0; i < visibles.length; i++) {
 
       const nivel = visibles[i];
-      const y = 260 + i * 96;
+      const y = 238 + i * 100;
 
       this.add.rectangle(
         400,
         y + 7,
-        740,
-        86,
+        680,
+        80,
         0x171a2e
       );
 
       this.texto(
-        42,
+        80,
         y - 26,
         nivel.nombre,
         19
       );
 
       this.texto(
-        42,
+        80,
         y,
-        "ID " + nivel.id +
-        " · v" + nivel.version,
+        "ID " + nivel.id,
         14
-      );
+      ).setColor("#a5b4ce");
 
       this.texto(
-        42,
+        80,
         y + 23,
         nivel.descargas + " descargas",
         14
-      );
+      ).setColor("#a5b4ce");
 
       this.boton(
-        655,
+        630,
         y + 7,
-        200,
+        180,
         "Despublicar",
         () => {
 
@@ -564,40 +709,39 @@ export class CommunityDemoScene extends InterfazDemo {
 
     if (visibles.length === 0) {
       this.texto(
-        40,
-        260,
+        400,
+        345,
         "No tenés niveles descargados."
-      );
+      ).setOrigin(0.5);
     }
 
     for (let i = 0; i < visibles.length; i++) {
 
       const nivel = visibles[i];
-      const y = 260 + i * 96;
+      const y = 238 + i * 100;
 
       this.add.rectangle(
         400,
         y + 7,
-        740,
-        86,
+        680,
+        80,
         0x171a2e
       );
 
       this.texto(
-        42,
+        80,
         y - 26,
         nivel.nombre,
         19
       );
 
       this.texto(
-        42,
+        80,
         y,
         "ID " + nivel.nivelId +
-        " · " + nivel.autor +
-        " · v" + nivel.version,
+        " · " + nivel.autor,
         14
-      );
+      ).setColor("#a5b4ce");
 
       let estado = "Sin completar";
 
@@ -606,11 +750,11 @@ export class CommunityDemoScene extends InterfazDemo {
       }
 
       this.texto(
-        42,
+        80,
         y + 23,
         estado,
         14
-      );
+      ).setColor("#a5b4ce");
 
       const original = demo.niveles.find(publicacion => {
 
@@ -634,9 +778,9 @@ export class CommunityDemoScene extends InterfazDemo {
       }
 
       this.boton(
-        655,
+        475,
         y + 7,
-        200,
+        150,
         textoBoton,
         () => {
 
@@ -667,6 +811,24 @@ export class CommunityDemoScene extends InterfazDemo {
           );
         },
         VERDE
+      );
+
+      this.boton(
+        640,
+        y + 7,
+        160,
+        "Desinstalar",
+        () => {
+
+          demo.descargas = demo.descargas.filter(descarga => {
+
+            return descarga.usuarioId !== usuario.id ||
+              descarga.nivelId !== nivel.nivelId;
+          });
+
+          this.dibujarFilas();
+        },
+        ROJO
       );
     }
 
@@ -724,9 +886,9 @@ export class CommunityDemoScene extends InterfazDemo {
   paginacion(paginas: number) {
 
     this.boton(
-      120,
-      535,
-      170,
+      150,
+      520,
+      180,
       "Anterior",
       () => {
         this.pagina--;
@@ -737,16 +899,16 @@ export class CommunityDemoScene extends InterfazDemo {
     );
 
     this.texto(
-      310,
-      526,
+      400,
+      520,
       "Página " + (this.pagina + 1) + " / " + paginas,
       16
-    );
+    ).setOrigin(0.5);
 
     this.boton(
-      680,
-      535,
-      170,
+      650,
+      520,
+      180,
       "Siguiente",
       () => {
         this.pagina++;
