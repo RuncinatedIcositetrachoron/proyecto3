@@ -18,6 +18,7 @@ import {
 } from "./camposTexto";
 
 import { demo } from "./datosDemo";
+import { NORMAL, VERDE, ROJO } from "./interfazDemo";
 
 export class LevelsScene extends Phaser.Scene {
 
@@ -69,6 +70,46 @@ export class LevelsScene extends Phaser.Scene {
     this.finalizarNombre = null;
   }
 
+  boton(
+    x: number,
+    y: number,
+    ancho: number,
+    texto: string,
+    accion: () => void,
+    color = NORMAL
+  ) {
+
+    const fondo = crearBoton(
+      this,
+      x,
+      y,
+      ancho,
+      texto,
+      accion
+    );
+
+    fondo.removeAllListeners("pointerover");
+    fondo.removeAllListeners("pointerout");
+
+    fondo.setFillStyle(color);
+
+    fondo.on(
+      "pointerover",
+      () => {
+        fondo.setAlpha(0.8);
+      }
+    );
+
+    fondo.on(
+      "pointerout",
+      () => {
+        fondo.setAlpha(1);
+      }
+    );
+
+    return fondo;
+  }
+
   create() {
 
     if (!demo.usuarioActual) {
@@ -77,64 +118,32 @@ export class LevelsScene extends Phaser.Scene {
     }
 
     this.add.text(
-      40,
-      30,
-      "Level Editor",
+      400,
+      22,
+      "LEVELS",
       {
         fontFamily: "Fuente",
-        fontSize: "28px",
+        fontSize: "26px",
         color: "#ffffff"
       }
+    ).setOrigin(0.5, 0);
+
+    this.add.rectangle(
+      400,
+      326,
+      720,
+      498,
+      0x171a2e
+    ).setStrokeStyle(
+      4,
+      0x9ccc65
     );
-
-    crearBoton(
-      this,
-      120,
-      90,
-      120,
-      "Crear Nivel",
-      () => {
-
-        this.cerrarNombre(true);
-
-        const nivel = crearNivel(10, 16);
-
-        if (!nivel) {
-          return;
-        }
-
-        this.scene.start(
-          "editor",
-          {
-            nivelId: nivel.id
-          }
-        );
-      }
-    );
-
-    crearBoton(
-      this,
-      260,
-      90,
-      120,
-      "Invertir Orden",
-      () => {
-
-        this.cerrarNombre(true);
-
-        this.ordenInvertido = !this.ordenInvertido;
-
-        this.mostrarNiveles();
-      }
-    );
-
-    // BUSQUEDA
 
     const campo = crearCampoTexto(
       this,
-      450,
-      90,
-      300,
+      60,
+      110,
+      500,
       "Buscar nivel...",
       MAX_BUSQUEDA,
       (valor) => {
@@ -181,13 +190,35 @@ export class LevelsScene extends Phaser.Scene {
       }
     );
 
-    // PAGINACION
+    this.boton(
+      650,
+      110,
+      160,
+      "Crear Nivel",
+      () => {
 
-    this.botonAnterior = crearBoton(
-      this,
-      100,
-      550,
-      100,
+        this.cerrarNombre(true);
+
+        const nivel = crearNivel(10, 16);
+
+        if (!nivel) {
+          return;
+        }
+
+        this.scene.start(
+          "editor",
+          {
+            nivelId: nivel.id
+          }
+        );
+      },
+      VERDE
+    );
+
+    this.botonAnterior = this.boton(
+      155,
+      538,
+      180,
       "Anterior",
       () => {
 
@@ -197,12 +228,13 @@ export class LevelsScene extends Phaser.Scene {
           this.paginaActual--;
           this.mostrarNiveles();
         }
-      }
+      },
+      NORMAL
     );
 
     this.textoPagina = this.add.text(
-      300,
-      550,
+      400,
+      538,
       "",
       {
         fontFamily: "Fuente",
@@ -213,11 +245,10 @@ export class LevelsScene extends Phaser.Scene {
 
     this.textoPagina.setOrigin(0.5);
 
-    this.botonSiguiente = crearBoton(
-      this,
-      500,
-      550,
-      100,
+    this.botonSiguiente = this.boton(
+      645,
+      538,
+      180,
       "Siguiente",
       () => {
 
@@ -226,7 +257,8 @@ export class LevelsScene extends Phaser.Scene {
         this.paginaActual++;
 
         this.mostrarNiveles();
-      }
+      },
+      NORMAL
     );
 
     this.events.once(
@@ -241,8 +273,6 @@ export class LevelsScene extends Phaser.Scene {
     this.mostrarNiveles();
   }
 
-  // BUSQUEDA
-
   normalizarBusqueda(texto: string) {
 
     texto = texto.trim();
@@ -251,26 +281,25 @@ export class LevelsScene extends Phaser.Scene {
     return texto;
   }
 
-  // BOTONES DE LA LISTA
-
   botonLista(
     x: number,
     y: number,
     ancho: number,
     texto: string,
-    accion: () => void
+    accion: () => void,
+    color = NORMAL
   ) {
 
     const cantidadAnterior =
       this.children.list.length;
 
-    crearBoton(
-      this,
+    this.boton(
       x,
       y,
       ancho,
       texto,
-      accion
+      accion,
+      color
     );
 
     for (
@@ -299,17 +328,17 @@ export class LevelsScene extends Phaser.Scene {
         useHandCursor: true
       });
 
-      boton.setFillStyle(0xcbdbfc);
+      boton.setFillStyle(NORMAL);
+      boton.setAlpha(1);
 
     } else {
 
       boton.disableInteractive();
-      boton.setFillStyle(0x999999);
+      boton.setFillStyle(NORMAL);
+      boton.setAlpha(0.35);
       boton.emit("ocultarTooltip");
     }
   }
-
-  // LISTA DE NIVELES
 
   mostrarNiveles() {
 
@@ -378,14 +407,24 @@ export class LevelsScene extends Phaser.Scene {
       fin = niveles.length;
     }
 
-    let y = 180;
+    let y = 172;
 
     for (let i = inicio; i < fin; i++) {
 
       const nivel = niveles[i];
 
+      const tarjeta = this.add.rectangle(
+        400,
+        y,
+        680,
+        48,
+        0x222034
+      );
+
+      this.objetosLista.push(tarjeta);
+
       const nombre = this.add.text(
-        40,
+        80,
         y,
         nivel.nombre,
         {
@@ -432,8 +471,7 @@ export class LevelsScene extends Phaser.Scene {
             this.editarNombre(
               nivel.id,
               actual.nombre,
-              nombre,
-              y
+              nombre
             );
           }
         }
@@ -493,12 +531,10 @@ export class LevelsScene extends Phaser.Scene {
         }
       }
 
-      // EDITAR
-
       this.botonLista(
-        350,
+        342,
         y,
-        80,
+        78,
         "Editar",
         () => {
 
@@ -510,13 +546,12 @@ export class LevelsScene extends Phaser.Scene {
               nivelId: nivel.id
             }
           );
-        }
+        },
+        NORMAL
       );
 
-      // ELIMINAR
-
       this.botonLista(
-        445,
+        437,
         y,
         90,
         "Eliminar",
@@ -533,13 +568,12 @@ export class LevelsScene extends Phaser.Scene {
           eliminarNivel(nivel.id);
 
           this.mostrarNiveles();
-        }
+        },
+        ROJO
       );
 
-      // DUPLICAR
-
       this.botonLista(
-        545,
+        539,
         y,
         90,
         "Duplicar",
@@ -550,13 +584,24 @@ export class LevelsScene extends Phaser.Scene {
           duplicarNivel(nivel.id);
 
           this.mostrarNiveles();
-        }
+        },
+        0xb39ddb
       );
 
+      let colorPublicar = VERDE;
+
+      if (textoPublicar === "Actualizar") {
+        colorPublicar = 0xe6c56a;
+      }
+
+      if (textoPublicar === "Despublicar") {
+        colorPublicar = ROJO;
+      }
+
       this.botonLista(
-        680,
+        663,
         y,
-        170,
+        130,
         textoPublicar,
         () => {
 
@@ -644,17 +689,18 @@ export class LevelsScene extends Phaser.Scene {
           publicacion.publicado = false;
 
           this.mostrarNiveles();
-        }
+        },
+        colorPublicar
       );
 
-      y = y + 60;
+      y = y + 57;
     }
 
     if (niveles.length === 0) {
 
       const mensaje = this.add.text(
-        40,
-        180,
+        400,
+        325,
         "No hay niveles para mostrar.",
         {
           fontFamily: "Fuente",
@@ -663,15 +709,17 @@ export class LevelsScene extends Phaser.Scene {
         }
       );
 
+      mensaje.setOrigin(0.5);
+
       this.objetosLista.push(mensaje);
     }
 
     if (this.textoPagina) {
 
       this.textoPagina.setText(
-        "Pagina " +
+        "Página " +
         (this.paginaActual + 1) +
-        " de " +
+        " / " +
         totalPaginas
       );
     }
@@ -688,8 +736,6 @@ export class LevelsScene extends Phaser.Scene {
     );
   }
 
-  // EDICION DEL NOMBRE
-
   ajustarNombreVisible(
     texto: Phaser.GameObjects.Text,
     completo: string
@@ -701,7 +747,7 @@ export class LevelsScene extends Phaser.Scene {
       Array.from(completo);
 
     while (
-      texto.width > 270 &&
+      texto.width > 210 &&
       caracteres.length > 0
     ) {
 
@@ -723,17 +769,16 @@ export class LevelsScene extends Phaser.Scene {
   editarNombre(
     id: string,
     nombreOriginal: string,
-    texto: Phaser.GameObjects.Text,
-    y: number
+    texto: Phaser.GameObjects.Text
   ) {
 
     this.cerrarNombre(true);
 
     const campo = crearCampoTexto(
       this,
-      36,
-      y,
-      270,
+      texto.x - 4,
+      texto.y,
+      220,
       "Nombre del nivel",
       MAX_NOMBRE_NIVEL,
       () => {}
@@ -786,6 +831,11 @@ export class LevelsScene extends Phaser.Scene {
 
       renombrarNivel(
         id,
+        nuevoNombre
+      );
+
+      this.ajustarNombreVisible(
+        texto,
         nuevoNombre
       );
 

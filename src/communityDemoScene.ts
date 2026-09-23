@@ -259,6 +259,10 @@ export class CommunityDemoScene extends InterfazDemo {
         pestana.colorHover,
         activa,
         () => {
+          if (pestana.nombre === "Creados") {
+            this.scene.start("LevelsScene");
+            return;
+          }
           this.pestana = pestana.nombre;
           this.pagina = 0;
           this.dibujar();
