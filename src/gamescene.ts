@@ -1412,7 +1412,6 @@ export class GameScene extends Phaser.Scene {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "down";
-                    if (player.dir === 1 && this.playerVertical === true) this.playerTween?.setTimeScale(50);
                 }
                 else if (this.holdBufferOpen && this.inputBuffer === "") {
                     if (this.cursors.left!.isDown){
