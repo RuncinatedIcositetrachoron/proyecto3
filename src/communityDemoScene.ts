@@ -2,7 +2,7 @@ import Phaser from "phaser";
 
 import { InterfazDemo, VERDE, ROJO, NORMAL } from "./interfazDemo";
 import { demo } from "./datosDemo";
-import { obtenerNiveles } from "./niveles";
+import { obtenerNiveles, crearBoton } from "./niveles";
 import { crearCampoTexto, MAX_BUSQUEDA } from "./camposTexto";
 
 type Pestana = "Community" | "Creados" | "Publicados" | "Descargados";
@@ -17,6 +17,35 @@ export class CommunityDemoScene extends InterfazDemo {
 
   constructor() {
     super("communityDemo");
+  }
+
+  boton(
+    x: number,
+    y: number,
+    ancho: number,
+    titulo: string,
+    accion: () => void,
+    color = NORMAL,
+    habilitado = true
+  ) {
+
+    const fondo = crearBoton(this, x, y, ancho, titulo, accion);
+
+    fondo.removeAllListeners("pointerover");
+    fondo.removeAllListeners("pointerout");
+    fondo.setFillStyle(color);
+
+    if (habilitado === false) {
+      fondo.disableInteractive(true);
+      fondo.removeAllListeners("pointermove");
+      fondo.removeAllListeners("pointerdown");
+      fondo.removeAllListeners("pointerup");
+      fondo.setAlpha(0.35);
+      return;
+    }
+
+    fondo.on("pointerover", () => fondo.setAlpha(0.8));
+    fondo.on("pointerout", () => fondo.setAlpha(1));
   }
 
   create() {
