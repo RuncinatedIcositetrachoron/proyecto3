@@ -554,7 +554,7 @@ export class CommunityDemoScene extends InterfazDemo {
         80,
         y,
         "ID " + nivel.id +
-        " · " + nivel.autor,
+        " - " + nivel.autor,
         14
       ).setColor("#a5b4ce");
 
