@@ -81,13 +81,9 @@ export class GameScene extends Phaser.Scene {
     private playerMoving = false;
     private inputBuffer: string = "";
     private holdBufferOpen: Boolean = false;
-<<<<<<< HEAD
 
     private playerTween: Phaser.Tweens.Tween | undefined;
     private pushTweens: Phaser.Tweens.Tween[] = [];
-=======
-    private playerTween: Phaser.Tweens.Tween | undefined;
->>>>>>> 6c8570e (movement is good now (buffers work better and also you can hold directional))
     private playerVertical: Boolean = true;
 
     init(data: { level: number, history: GameState[] }) {
@@ -1395,33 +1391,21 @@ export class GameScene extends Phaser.Scene {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "left";
-<<<<<<< HEAD
                     if (player.dir === -1 && this.playerVertical === false && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
-=======
-                    if (player.dir === -1 && this.playerVertical === false) this.playerTween?.setTimeScale(50);
->>>>>>> 6c8570e (movement is good now (buffers work better and also you can hold directional))
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "right";
-<<<<<<< HEAD
                     if (player.dir === 1 && this.playerVertical === false && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
-=======
-                    if (player.dir === 1 && this.playerVertical === false) this.playerTween?.setTimeScale(50);
->>>>>>> 6c8570e (movement is good now (buffers work better and also you can hold directional))
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer ="up";
-<<<<<<< HEAD
                     if (player.dir === -1 && this.playerVertical === true && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
-=======
-                    if (player.dir === -1 && this.playerVertical === true) this.playerTween?.setTimeScale(50);
->>>>>>> 6c8570e (movement is good now (buffers work better and also you can hold directional))
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
