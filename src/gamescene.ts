@@ -64,7 +64,11 @@ const Tile = {
 
 export class GameScene extends Phaser.Scene {
     
+
     private levelNumber = 1;
+    private modoTest = false;
+    private nivelTest = "";
+
     //private levelMode = 0;
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
@@ -81,9 +85,20 @@ export class GameScene extends Phaser.Scene {
     private playerMoving = false;
     private inputBuffer: string = "";
 
-    init(data: { level: number, history: GameState[] }) {
-        this.levelNumber = data.level;
-        this.history = data.history;
+    init(data: any) {
+        if (data.modoTest === true) {
+            this.modoTest = true;
+            this.nivelTest = data.nivelTest;
+        } else {
+            this.modoTest = false;
+            this.nivelTest = "";
+            if (data.level !== undefined) {
+                this.levelNumber = data.level;
+            }
+        }
+        if (data.history !== undefined) {
+            this.history = data.history;
+        }
     }
 
     private qKey!: Phaser.Input.Keyboard.Key;
@@ -678,10 +693,18 @@ export class GameScene extends Phaser.Scene {
         const flag = this.entities.find(entity => entity.type === "flag");
         if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
             this.entities = [];
-            for (const laser of this.lasers) laser.destroy();
+            for (const laser of this.lasers) {
+                laser.destroy();
+            }
             this.lasers = [];
-            this.scene.start("game", {level: this.levelNumber+1});
-        }
+            if (this.modoTest) {
+                this.scene.wake("editor");
+                this.scene.stop();
+            } else {
+                this.scene.start("game", {
+                    level: this.levelNumber + 1
+                });
+        }}
         return true;
         }
         console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
@@ -810,7 +833,12 @@ export class GameScene extends Phaser.Scene {
             frameWidth: 16,
             frameHeight: 23,
         });
-        this.load.text("level1", `assets/level1.txt`);
+        if (!this.modoTest) {
+            this.load.text(
+            "level" + this.levelNumber,
+            "assets/level" + this.levelNumber + ".txt"
+        );
+        }
     }
 
     create() {
@@ -915,8 +943,14 @@ export class GameScene extends Phaser.Scene {
         this.escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
         this.enterKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
-        const level = this.cache.text.get(`level${this.levelNumber}`);
+        let level = "";
+        if (this.modoTest) {
+            level = this.nivelTest;
+        } else {
+            level = this.cache.text.get("level" + this.levelNumber);
+        }
         const [staticLayer, dynamicLayer, laserLayer, portalLayer, directionLayer] = level.split("^");
+
         this.staticRows = staticLayer.trim().split("\n");
         const dynamicRows = dynamicLayer.trim().split("\n");
         const laserRows = laserLayer.trim().split("\n");
@@ -1349,9 +1383,16 @@ export class GameScene extends Phaser.Scene {
                         break;
                     case 2:
                         this.entities = [];
-                        for (const laser of this.lasers) laser.destroy();
-                        this.lasers = [];
-                        this.scene.start("menu");
+                        for (const laser of this.lasers) {
+                            laser.destroy();
+                        } 
+                        this.lasers = []; 
+                        if (this.modoTest) {
+                            this.scene.wake("editor");
+                            this.scene.stop();
+                        } else {
+                            this.scene.start("menu");
+                        }
                         break;
                 }
             }
@@ -1397,17 +1438,35 @@ export class GameScene extends Phaser.Scene {
                 laser.destroy();
             }
             this.lasers = [];
-            this.scene.start("game", {level: this.levelNumber});
-        }
-
-        if (Phaser.Input.Keyboard.JustDown(this.qKey) && this.menuup == 0) {
-            this.entities = [];
-            for (const laser of this.lasers) {
-                laser.destroy();
+            if (this.modoTest) {
+                this.scene.restart({
+                    modoTest: true,
+                    nivelTest: this.nivelTest
+                });
+            } else {
+                this.scene.restart({
+                    level: this.levelNumber
+                });
             }
-            this.lasers = [];
-            this.scene.start("game", {level: this.levelNumber+1});
-        }
+            return;
+            }
+
+            if (
+                Phaser.Input.Keyboard.JustDown(this.qKey) &&
+                this.menuup == 0 &&
+                !this.modoTest
+                ) {
+                this.entities = [];
+                for (const laser of this.lasers) {
+                    laser.destroy();
+                }
+                this.lasers = [];
+                this.scene.start("game", {
+                    level: this.levelNumber + 1
+                });
+                return;
+                }
+
         if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.menuup == 0) {
             this.menuup = 1;
             this.selected = 0;

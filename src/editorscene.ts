@@ -7,6 +7,7 @@ interface EstadoEditor {
 }
 
 import {obtenerNivel, actualizarNivel, crearBoton} from "./niveles";
+import { convertirNivel } from "./parser";
 
 export class EditorScene extends Phaser.Scene {
   init(data: { nivelId?: string } = {}): void {
@@ -45,6 +46,9 @@ export class EditorScene extends Phaser.Scene {
   this.linkInicioY = -1;
   this.mouseX = -1;
   this.mouseY = -1;
+  
+  this.capaRelievePortales = null;
+  this.capaRelievePortalesPegado = null;
 }
 
   constructor() {
@@ -78,6 +82,8 @@ export class EditorScene extends Phaser.Scene {
     private arrastreInicioX: number = -1;
     private arrastreInicioY: number = -1;
 
+    private tKey!: Phaser.Input.Keyboard.Key;
+
     //VALORES DEFAULT
 
     private tileInvisible: number = 1;
@@ -86,8 +92,8 @@ export class EditorScene extends Phaser.Scene {
     private pasteTool: number = 101;
     private linkTool: number = 103;
     private tilesSinPortal: number[] = [2, 5, 6, 7, 8];
-    private tileJugador: number = 7;
-    private tileBandera: number = 6;
+    private tileJugador: number = 24;
+    private tileBandera: number = 25;
 
     private formasPared = [
       //DOMINO
@@ -107,7 +113,11 @@ export class EditorScene extends Phaser.Scene {
     private ocultasGrupo = [];
 
     private relieves = [
-      [37, 38], [39, 40]
+      [37, 38], [39, 40], [33, 35], [34, 36], [41,42], 
+      [50, 50],
+      [51, 52],
+      [53, 54],
+      [55, 56]
     ];
 
     //LINKS
@@ -126,10 +136,10 @@ export class EditorScene extends Phaser.Scene {
     //PORTALES
 
     private portalTool: number = 102;
-    private portalArriba: number = 25;
-    private portalDerecha: number = 26;
-    private portalIzquierda: number = 27;
-    private portalAbajo: number = 28;
+    private portalArriba = 50;
+    private portalAbajo = 51;
+    private portalIzquierda = 53;
+    private portalDerecha = 55;
 
     //UNDO Y REDO
 
@@ -159,11 +169,12 @@ export class EditorScene extends Phaser.Scene {
     private objetosSubHotbar: Phaser.GameObjects.GameObject[] = [];
     private subHotbarAbierta: number = -1;
 
-    private tilesHotbar = [6, 9, 11, 13, 39, 37, 200, 201];
+    private tilesHotbar = [37, 3, 11, 27, 39, 41, 201];
     private variantesTiles = [
-      [6, 7],
-      [9, 10],
-      [11, 12]
+      [3,4,5,6],
+      [11, 12, 13, 14],
+      [27,28,29,30],
+      [41,200]
     ];
    
     private casillasHotbar: Phaser.GameObjects.Rectangle[] = [];
@@ -206,6 +217,8 @@ export class EditorScene extends Phaser.Scene {
     private capaVistaPortalesPegado!: Phaser.Tilemaps.TilemapLayer;
     private capaRelieve: Phaser.Tilemaps.TilemapLayer | null = null;
     private capaRelievePegado: Phaser.Tilemaps.TilemapLayer | null = null;
+    private capaRelievePortales: Phaser.Tilemaps.TilemapLayer | null = null;
+    private capaRelievePortalesPegado: Phaser.Tilemaps.TilemapLayer | null = null;
 
     private herramienta: number = 1;
 
@@ -518,6 +531,32 @@ export class EditorScene extends Phaser.Scene {
           this.capaRelievePegado.setAlpha(0.4);
           this.capaRelievePegado.setVisible(false);
 
+          this.capaRelievePortales = this.mapa.createBlankLayer(
+            "relievePortales",
+            conjuntoTiles,
+            this.board_offset_x,
+            this.board_offset_y - this.cellsize
+          );
+          if (this.capaRelievePortales === null) {
+            return;
+          }
+          this.capaRelievePortales.setScale(this.tileScale);
+          this.capaRelievePortales.setDepth(2.5);
+          
+          this.capaRelievePortalesPegado = this.mapa.createBlankLayer(
+            "relievePortalesPegado",
+            conjuntoTiles,
+            this.board_offset_x,
+            this.board_offset_y - this.cellsize
+          );
+          if (this.capaRelievePortalesPegado === null) {
+            return;
+          }
+          this.capaRelievePortalesPegado.setScale(this.tileScale);
+          this.capaRelievePortalesPegado.setDepth(4.5);
+          this.capaRelievePortalesPegado.setAlpha(0.4);
+          this.capaRelievePortalesPegado.setVisible(false);
+
           this.graficosLinks = this.add.graphics();
           this.graficosLinks.setDepth(7);
 
@@ -681,6 +720,8 @@ export class EditorScene extends Phaser.Scene {
 
 
               //EVENTOS DE TECLADO
+
+              this.tKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.T);
 
               const alTeclado = (evento: KeyboardEvent) => {
               if (this.popupSalida !== null) {
@@ -1232,6 +1273,10 @@ private obtenerContenidoSeleccion(): number[][] {
 
 update(): void {
   if (this.popupSalida !== null) return;
+  if (Phaser.Input.Keyboard.JustDown(this.tKey)) {
+    this.testearNivel();
+    return;
+    }
   this.actualizarLinks();
   const valido = this.nivelValido();
   const puedeGuardar = valido && this.hayCambiosSinGuardar();
@@ -2330,10 +2375,26 @@ private actualizarHoverTile() {
       this.hoverCell.setFillStyle(0xff0000, 0.4);
       return;
     }
-    this.hoverTile.setTexture("editorTiles", portal - 1);
-    this.hoverTile.setDisplaySize(this.cellsize, this.cellsize);
-    this.hoverTile.setPosition(this.hoverCell.x, this.hoverCell.y);
-    this.hoverTile.setVisible(true);
+    this.hoverTile.setVisible(false);
+    if (portal !== this.portalArriba) {
+      this.hoverTile.setTexture("editorTiles", portal - 1);
+      this.hoverTile.setDisplaySize(this.cellsize, this.cellsize);
+      this.hoverTile.setPosition(this.hoverCell.x, this.hoverCell.y);
+      this.hoverTile.setVisible(true);
+    }
+    const indiceRelieve = this.obtenerRelieve(portal);
+    if (indiceRelieve !== -1) {
+      const imagenRelieve = this.add.image(
+        this.hoverCell.x,
+        this.hoverCell.y - this.cellsize,
+        "editorTiles",
+        indiceRelieve - 1
+      );
+      imagenRelieve.setDisplaySize(this.cellsize, this.cellsize);
+      imagenRelieve.setAlpha(0.4);
+      imagenRelieve.setDepth(5.1);
+      this.hoverGrupo.push(imagenRelieve);
+    }
     return;
   }
   if (this.herramienta === 0) {
@@ -2817,36 +2878,24 @@ private actualizarCapaRelieve(
   for (let fila = 0; fila < this.rows; fila++) {
     for (let columna = 0; columna < this.columns; columna++) {
       const tile = base.getTileAt(columna, fila);
-      if (tile !== null) {
-        tile.alpha = 1;
-      }
       if (tile === null || tile.visible === false) {
         relieve.removeTileAt(columna, fila);
         continue;
       }
-      let indice = this.obtenerRelieve(tile.index);
-      let desplazamiento = 0;
-      if (tile.index === 37) {
-        let arriba = base.getTileAt(columna, fila - 1);
-        if (base === this.capaVistaPegado && arriba === null) {
-          arriba = this.tablero.getTileAt(columna, fila - 1);
-          if (arriba !== null && arriba.visible === false) {
-            arriba = null;
-          }
-        }
-        if (arriba !== null && arriba.index === 37) {
-          indice = 17;
-          desplazamiento = this.tileGraphicSize;
+      if (
+        base === this.capaPortales ||
+        base === this.capaVistaPortalesPegado
+      ) {
+        tile.alpha = 1;
+        if (tile.index === this.portalArriba) {
           tile.alpha = 0;
         }
       }
+      const indice = this.obtenerRelieve(tile.index);
       if (indice === -1) {
         relieve.removeTileAt(columna, fila);
-        continue;
-      }
-      const dibujo = relieve.putTileAt(indice, columna, fila);
-      if (dibujo !== null) {
-        dibujo.pixelY = fila * this.tileGraphicSize + desplazamiento;
+      } else {
+        relieve.putTileAt(indice, columna, fila);
       }
     }
   }
@@ -2865,7 +2914,61 @@ private actualizarRelieves() {
       this.capaRelievePegado
     );
   }
+  if (this.capaRelievePortales !== null) {
+    this.actualizarCapaRelieve(
+      this.capaPortales,
+      this.capaRelievePortales
+    );
+  }
+  if (this.capaRelievePortalesPegado !== null) {
+    this.actualizarCapaRelieve(
+      this.capaVistaPortalesPegado,
+      this.capaRelievePortalesPegado
+    );
+  }
 }
 
+private testearNivel(): void {
+  if (this.nivelValido() === false) {
+    return;
+  }
+
+  const nivel = this.getEditorState();
+
+  for (let y = 0; y < nivel.portales.length; y++) {
+    for (let x = 0; x < nivel.portales[y].length; x++) {
+      if (nivel.portales[y][x] === -1) {
+        continue;
+      }
+
+      let tieneLink = false;
+
+      for (let i = 0; i < nivel.links.length; i++) {
+        const link = nivel.links[i];
+
+        if (
+          (link[0] === x && link[1] === y) ||
+          (link[2] === x && link[3] === y)
+        ) {
+          tieneLink = true;
+          break;
+        }
+      }
+
+      if (tieneLink === false) {
+        nivel.portales[y][x] = -1;
+      }
+    }
+  }
+
+  const nivelTest = convertirNivel(nivel);
+
+  this.scene.launch("game", {
+    modoTest: true,
+    nivelTest: nivelTest
+  });
+
+  this.scene.sleep();
+}
 
 }
