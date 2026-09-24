@@ -64,11 +64,7 @@ const Tile = {
 
 export class GameScene extends Phaser.Scene {
     
-
     private levelNumber = 1;
-    private modoTest = false;
-    private nivelTest = "";
-
     //private levelMode = 0;
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
@@ -81,24 +77,18 @@ export class GameScene extends Phaser.Scene {
 
     private tempstorage: Entity | undefined;
     private movenumber: Boolean = false;
-
+    
     private playerMoving = false;
     private inputBuffer: string = "";
+    private holdBufferOpen: Boolean = false;
 
-    init(data: any) {
-        if (data.modoTest === true) {
-            this.modoTest = true;
-            this.nivelTest = data.nivelTest;
-        } else {
-            this.modoTest = false;
-            this.nivelTest = "";
-            if (data.level !== undefined) {
-                this.levelNumber = data.level;
-            }
-        }
-        if (data.history !== undefined) {
-            this.history = data.history;
-        }
+    private playerTween: Phaser.Tweens.Tween | undefined;
+    private pushTweens: Phaser.Tweens.Tween[] = [];
+    private playerVertical: Boolean = true;
+
+    init(data: { level: number, history: GameState[] }) {
+        this.levelNumber = data.level;
+        this.history = data.history;
     }
 
     private qKey!: Phaser.Input.Keyboard.Key;
@@ -471,10 +461,17 @@ export class GameScene extends Phaser.Scene {
                     console.log("ERROR: YOUR PORTAL HAS NO PORTAL");
                     return false;
                 }
-                entity.dir = (((entity.dir + (entry.portal - exit.portal)) % 4) + 4) % 4;
-                if (entity.portal !== undefined) {
-                    entity.portal = (((entity.portal + (entry.portal - exit.portal)) % 4) + 4) % 4;
+                
+                const incomingDir = (entry.portal + 2) % 4;
+                let rotation = exit.portal - incomingDir;
+                if (rotation < 0) {
+                    rotation += 4;
                 }
+                entity.dir = (entity.dir + rotation) % 4;
+                if (entity.portal !== undefined) {
+                    entity.portal = (entity.portal + rotation) % 4;
+                }
+                
                 entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
                 if (entity.sprite2 && entity.group === 1) {
                     entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64);
@@ -658,16 +655,10 @@ export class GameScene extends Phaser.Scene {
 
                         entry.x = newEntityX;
                         entry.y = newEntityY;
-                        entry.sprite.setPosition(
-                            this.offsetX + entry.x * 64,
-                            this.offsetY + entry.y * 64
-                        );
+                        entry.sprite.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64).setDepth(2*entity.y);
 
                         if (entry.sprite2) {
-                            entry.sprite2.setPosition(
-                                this.offsetX + entry.x * 64,
-                                this.offsetY + entry.y * 64
-                            );
+                            entry.sprite2.setPosition(this.offsetX + entry.x * 64, this.offsetY + entry.y * 64).setDepth(2*entity.y+1);
                         }
                     }
                 } else {
@@ -676,8 +667,7 @@ export class GameScene extends Phaser.Scene {
                     }
                     entity.x = newEntityX;
                     entity.y = newEntityY;
-                    entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64); entity.sprite.setDepth(2*entity.y);
-                    if (entity.sprite2) {entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64); entity.sprite2.setDepth(2*entity.y+1)}
+                    this.animatePushable(entity);
                 }
             }
         }
@@ -693,18 +683,10 @@ export class GameScene extends Phaser.Scene {
         const flag = this.entities.find(entity => entity.type === "flag");
         if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
             this.entities = [];
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
+            for (const laser of this.lasers) laser.destroy();
             this.lasers = [];
-            if (this.modoTest) {
-                this.scene.wake("editor");
-                this.scene.stop();
-            } else {
-                this.scene.start("game", {
-                    level: this.levelNumber + 1
-                });
-        }}
+            this.scene.start("game", {level: this.levelNumber+1});
+        }
         return true;
         }
         console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
@@ -772,6 +754,37 @@ export class GameScene extends Phaser.Scene {
         return true;
     }
 
+    private animatePushable(entity: Entity) {
+        const sprites: Phaser.GameObjects.Sprite[] = [];
+
+        sprites.push(entity.sprite);
+        if (entity.sprite2) {
+            sprites.push(entity.sprite2);
+        }
+
+        const tween = this.tweens.add({
+            targets: sprites,
+            x: this.offsetX + entity.x * 64,
+            y: this.offsetY + entity.y * 64,
+            duration: 250,
+            ease: "Linear",
+
+            onUpdate: () => {
+                entity.sprite.setDepth(
+                    (entity.sprite.y - this.offsetY) / 32
+                );
+
+                if (entity.sprite2) {
+                    entity.sprite2.setDepth(
+                        (entity.sprite.y - this.offsetY) / 32 + 1
+                    );
+                }
+            }
+        });
+
+        this.pushTweens.push(tween);
+    }
+
     private animatePlayer(player: Entity, facing: number | undefined) {
         let animation = "";
         if (!this.movenumber == true) {
@@ -792,9 +805,16 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.playerMoving = true;
+        this.holdBufferOpen = false;
         player.sprite.play(animation);
 
-        this.tweens.add({
+        this.time.delayedCall(160, () => {
+            if (this.playerMoving) {
+                this.holdBufferOpen = true;
+            }
+        });
+
+        this.playerTween = this.tweens.add({
             targets: player.sprite,
             x: this.offsetX + player.x * 64,
             y: this.offsetY + player.y * 64,
@@ -802,8 +822,10 @@ export class GameScene extends Phaser.Scene {
             ease: "Linear",
             onComplete: () => {
                 player.sprite.stop();
-                player.sprite.setTexture("lindsey", facing);
+                player.sprite.setTexture("lindseyi", facing);
                 this.playerMoving = false;
+                this.holdBufferOpen = false;
+                this.playerTween = undefined;
             }
         });
     }
@@ -824,21 +846,23 @@ export class GameScene extends Phaser.Scene {
         this.load.spritesheet("lindsey", "assets/lindsey.walking.anim.sheet.png", {
             frameWidth: 16,
             frameHeight: 28,
+        });this.load.spritesheet("lindseyi", "assets/lindsey.idle.spr.png", {
+            frameWidth: 16,
+            frameHeight: 28,
         });
         this.load.spritesheet("spritestall1x1", "assets/spritesTall1x1.png", {
             frameWidth: 16,
-            frameHeight: 23,
+            frameHeight: 28,
         });
         this.load.spritesheet("portals", "assets/portalsheet1.png", {
             frameWidth: 16,
             frameHeight: 23,
         });
-        if (!this.modoTest) {
-            this.load.text(
-            "level" + this.levelNumber,
-            "assets/level" + this.levelNumber + ".txt"
-        );
-        }
+        this.load.spritesheet("floor", "assets/floor.spr.png", {
+            frameWidth: 16,
+            frameHeight: 16,
+        });
+        this.load.text("level1", `assets/level1.txt`);
     }
 
     create() {
@@ -943,14 +967,8 @@ export class GameScene extends Phaser.Scene {
         this.escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
         this.enterKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
-        let level = "";
-        if (this.modoTest) {
-            level = this.nivelTest;
-        } else {
-            level = this.cache.text.get("level" + this.levelNumber);
-        }
+        const level = this.cache.text.get(`level${this.levelNumber}`);
         const [staticLayer, dynamicLayer, laserLayer, portalLayer, directionLayer] = level.split("^");
-
         this.staticRows = staticLayer.trim().split("\n");
         const dynamicRows = dynamicLayer.trim().split("\n");
         const laserRows = laserLayer.trim().split("\n");
@@ -961,17 +979,41 @@ export class GameScene extends Phaser.Scene {
 
         for (let y = 0; y<this.staticRows.length; y++) {
             for (let x = 0; x<this.staticRows[y].length; x++){
+                this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "floor", 0).setOrigin(1,1).setScale(4).setDepth(-1);
                 const thistile = this.staticRows[y][x];
                 switch(thistile) {
                     case "#":
-                        this.entities.push ({
-                        type: "wall",
-                        x: x,
-                        y: y,
-                        pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "spritestall1x1", 1).setOrigin(1,1).setScale(4).setDepth(2*y)
-                        });
-                        break;
+                        if (y > 0) {
+                        if (this.staticRows[y-1][x] === "#") {
+                            this.entities.push ({
+                            type: "wall",
+                            x: x,
+                            y: y,
+                            pushable: false,
+                            sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "spritestall1x1", 3).setOrigin(1,1).setScale(4).setDepth(2*y)
+                            });
+                            break;
+                        }
+                        else {
+                            this.entities.push ({
+                            type: "wall",
+                            x: x,
+                            y: y,
+                            pushable: false,
+                            sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "spritestall1x1", 1).setOrigin(1,1).setScale(4).setDepth(2*y)
+                            });
+                            break;
+                        }
+                        }else {
+                            this.entities.push ({
+                            type: "wall",
+                            x: x,
+                            y: y,
+                            pushable: false,
+                            sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "spritestall1x1", 1).setOrigin(1,1).setScale(4).setDepth(2*y)
+                            });
+                            break;
+                        }
                     case "X":
                         this.entities.push ({
                         type: "goal",
@@ -1004,7 +1046,7 @@ export class GameScene extends Phaser.Scene {
                         y: y,
                         dir: 0,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "lindsey", 2).setOrigin(1,1).setScale(4).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "lindsey", 2).setOrigin(1,1.04).setScale(4).setDepth(2*y)
                         });
                         break;
                     case "b":
@@ -1177,8 +1219,14 @@ export class GameScene extends Phaser.Scene {
                         break;
                     case "a":
                         if (entity){
-                            entity.portal = 3;
-                            entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "portals", 2).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            if (entity.type === "wall"){
+                                entity.portal = 3;
+                                entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64 - 12, "portals", 2).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            }
+                            else {
+                                entity.portal = 3;
+                                entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "portals", 2).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            }
                         } else {
                             this.entities.push ({
                             type: "box",
@@ -1215,8 +1263,14 @@ export class GameScene extends Phaser.Scene {
                         break;
                     case "d":
                         if (entity){
-                            entity.portal = 1;
-                            entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "portals", 3).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            if (entity.type === "wall"){
+                                entity.portal = 1;
+                                entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64 - 12, "portals", 3).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            }
+                            else {
+                                entity.portal = 1;
+                                entity.sprite2 = this.add.sprite(this.offsetX+x*64, this.offsetY+y*64, "portals", 3).setOrigin(1,1).setScale(4).setDepth(2*y);
+                            }
                         } else {
                             this.entities.push ({
                             type: "box",
@@ -1274,8 +1328,8 @@ export class GameScene extends Phaser.Scene {
     //////////////////////////////
 
     private doMovement(direction: string) {
+        this.pushTweens = [];
         const player = this.entities.find(entity => entity.type === "player");
-
         if (direction === "left") {
             if (!player) {
                 console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
@@ -1284,6 +1338,7 @@ export class GameScene extends Phaser.Scene {
             player.dir = 3;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(-1, 0, 1);
+            this.playerVertical = false; 
         }
 
         if (direction === "right") {
@@ -1294,6 +1349,7 @@ export class GameScene extends Phaser.Scene {
             player.dir = 1;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(1, 0, 3);
+            this.playerVertical = false; 
         }
 
         if (direction === "up") {
@@ -1304,6 +1360,7 @@ export class GameScene extends Phaser.Scene {
             player.dir = 0;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(0, -1, 2);
+            this.playerVertical = true; 
         }
 
         if (direction === "down") {
@@ -1314,6 +1371,7 @@ export class GameScene extends Phaser.Scene {
             player.dir = 2;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
             this.updatePosition(0, 1, 0);
+            this.playerVertical = true; 
         }
 
         for (const laser of this.lasers) {
@@ -1327,29 +1385,58 @@ export class GameScene extends Phaser.Scene {
 
     update() {
         if (this.playerMoving) {
-            if (this.menuup == 0 && this.inputBuffer === "") {
+            if (this.menuup == 0) {
+                const player = this.entities.find(entity => entity.type === "player");
                 if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "left";
+                    if (player.dir === -1 && this.playerVertical === false && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "right";
+                    if (player.dir === 1 && this.playerVertical === false && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer ="up";
+                    if (player.dir === -1 && this.playerVertical === true && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
                 else if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "down";
+                }
+                else if (this.holdBufferOpen && this.inputBuffer === "") {
+                    if (this.cursors.left!.isDown){
+                        if (this.movenumber) this.movenumber = false
+                        else this.movenumber = true;
+                        this.inputBuffer = "left";
+                    }
+
+                    else if (this.cursors.right!.isDown) {
+                        if (this.movenumber) this.movenumber = false
+                        else this.movenumber = true;
+                        this.inputBuffer = "right";
+                    }
+
+                    else if (this.cursors.up!.isDown) {
+                        if (this.movenumber) this.movenumber = false
+                        else this.movenumber = true;
+                        this.inputBuffer ="up";
+                    }
+
+                    else if (this.cursors.down!.isDown) {
+                        if (this.movenumber) this.movenumber = false
+                        else this.movenumber = true;
+                        this.inputBuffer = "down";
+                    }
                 }
             }
             return;
@@ -1383,16 +1470,9 @@ export class GameScene extends Phaser.Scene {
                         break;
                     case 2:
                         this.entities = [];
-                        for (const laser of this.lasers) {
-                            laser.destroy();
-                        } 
-                        this.lasers = []; 
-                        if (this.modoTest) {
-                            this.scene.wake("editor");
-                            this.scene.stop();
-                        } else {
-                            this.scene.start("menu");
-                        }
+                        for (const laser of this.lasers) laser.destroy();
+                        this.lasers = [];
+                        this.scene.start("menu");
                         break;
                 }
             }
@@ -1438,35 +1518,17 @@ export class GameScene extends Phaser.Scene {
                 laser.destroy();
             }
             this.lasers = [];
-            if (this.modoTest) {
-                this.scene.restart({
-                    modoTest: true,
-                    nivelTest: this.nivelTest
-                });
-            } else {
-                this.scene.restart({
-                    level: this.levelNumber
-                });
-            }
-            return;
-            }
+            this.scene.start("game", {level: this.levelNumber});
+        }
 
-            if (
-                Phaser.Input.Keyboard.JustDown(this.qKey) &&
-                this.menuup == 0 &&
-                !this.modoTest
-                ) {
-                this.entities = [];
-                for (const laser of this.lasers) {
-                    laser.destroy();
-                }
-                this.lasers = [];
-                this.scene.start("game", {
-                    level: this.levelNumber + 1
-                });
-                return;
-                }
-
+        if (Phaser.Input.Keyboard.JustDown(this.qKey) && this.menuup == 0) {
+            this.entities = [];
+            for (const laser of this.lasers) {
+                laser.destroy();
+            }
+            this.lasers = [];
+            this.scene.start("game", {level: this.levelNumber+1});
+        }
         if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.menuup == 0) {
             this.menuup = 1;
             this.selected = 0;
@@ -1487,7 +1549,25 @@ export class GameScene extends Phaser.Scene {
                 entity.dir = oldEntity.dir;
                 entity.portal = oldEntity.portal;
                 entity.sprite.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64).setDepth(2*entity.y);
-                if (entity.sprite2 && entity.group == 1) {
+                if (entity.sprite2 && entity.group == 1 && entity.type === "wall") {
+                    entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64 - 12).setDepth(2*entity.y+1);
+                    switch(entity.portal) {
+                        case 0: entity.sprite2.setTexture("portals", 0).setScale(4); break;
+                        case 1: entity.sprite2.setTexture("portals", 3).setScale(4); break;
+                        case 2: entity.sprite2.setTexture("portals", 1).setScale(4); break;
+                        case 3: entity.sprite2.setTexture("portals", 2).setScale(4); break;
+                    }
+                }
+                if (entity.sprite2 && entity.group == 2 && entity.type === "wall") {
+                    entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64 - 12).setDepth(2*entity.y+1);
+                    switch(entity.portal) {
+                        case 0: entity.sprite2.setTexture("portals", 4).setScale(4); break;
+                        case 1: entity.sprite2.setTexture("portals", 7).setScale(4); break;
+                        case 2: entity.sprite2.setTexture("portals", 5).setScale(4); break;
+                        case 3: entity.sprite2.setTexture("portals", 6).setScale(4); break;
+                    }
+                }
+                if (entity.sprite2 && entity.group == 1 && entity.type !== "wall") {
                     entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64).setDepth(2*entity.y+1);
                     switch(entity.portal) {
                         case 0: entity.sprite2.setTexture("portals", 0).setScale(4); break;
@@ -1496,7 +1576,7 @@ export class GameScene extends Phaser.Scene {
                         case 3: entity.sprite2.setTexture("portals", 2).setScale(4); break;
                     }
                 }
-                if (entity.sprite2 && entity.group == 2) {
+                if (entity.sprite2 && entity.group == 2 && entity.type !== "wall") {
                     entity.sprite2.setPosition(this.offsetX + entity.x * 64, this.offsetY + entity.y * 64).setDepth(2*entity.y+1);
                     switch(entity.portal) {
                         case 0: entity.sprite2.setTexture("portals", 4).setScale(4); break;
