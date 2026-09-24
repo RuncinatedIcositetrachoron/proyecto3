@@ -106,6 +106,10 @@ export class EditorScene extends Phaser.Scene {
     private hoverGrupo = [];
     private ocultasGrupo = [];
 
+    private relieves = [
+      [37, 38], [39, 40]
+    ];
+
     //LINKS
 
     private links: number[][] = [];
@@ -155,7 +159,7 @@ export class EditorScene extends Phaser.Scene {
     private objetosSubHotbar: Phaser.GameObjects.GameObject[] = [];
     private subHotbarAbierta: number = -1;
 
-    private tilesHotbar = [6, 9, 11, 13, 15, 16, 200, 201];
+    private tilesHotbar = [6, 9, 11, 13, 39, 37, 200, 201];
     private variantesTiles = [
       [6, 7],
       [9, 10],
@@ -200,6 +204,8 @@ export class EditorScene extends Phaser.Scene {
     private capaPortales!: Phaser.Tilemaps.TilemapLayer;
     private capaVistaPegado!: Phaser.Tilemaps.TilemapLayer;
     private capaVistaPortalesPegado!: Phaser.Tilemaps.TilemapLayer;
+    private capaRelieve: Phaser.Tilemaps.TilemapLayer | null = null;
+    private capaRelievePegado: Phaser.Tilemaps.TilemapLayer | null = null;
 
     private herramienta: number = 1;
 
@@ -484,6 +490,34 @@ export class EditorScene extends Phaser.Scene {
           this.capaVistaPortalesPegado.setAlpha(0.4);
           this.capaVistaPortalesPegado.setVisible(false);
 
+          const relieveCreado = this.mapa.createBlankLayer(
+            "relieves",
+            conjuntoTiles,
+            this.board_offset_x,
+            this.board_offset_y - this.cellsize
+          );
+          if (relieveCreado === null) {
+            return;
+          }
+          this.capaRelieve = relieveCreado;
+          this.capaRelieve.setScale(this.tileScale);
+          this.capaRelieve.setDepth(1.5);
+
+          const relievePegadoCreado = this.mapa.createBlankLayer(
+            "relievesPegado",
+            conjuntoTiles,
+            this.board_offset_x,
+            this.board_offset_y - this.cellsize
+          );
+          if (relievePegadoCreado === null) {
+            return;
+          }
+          this.capaRelievePegado = relievePegadoCreado;
+          this.capaRelievePegado.setScale(this.tileScale);
+          this.capaRelievePegado.setDepth(3.5);
+          this.capaRelievePegado.setAlpha(0.4);
+          this.capaRelievePegado.setVisible(false);
+
           this.graficosLinks = this.add.graphics();
           this.graficosLinks.setDepth(7);
 
@@ -764,6 +798,7 @@ export class EditorScene extends Phaser.Scene {
               this.actualizarInterfaz();
               this.actualizarHotbar();
               this.lastState = this.getEditorState();
+              this.actualizarRelieves();
             }
           
       private updateHoveredCell(pointerX: number, pointerY: number): void {
@@ -1222,6 +1257,7 @@ update(): void {
     this.capaVistaPortalesPegado.setVisible(false);
     this.restaurarTilesVistaPegado();
   }
+  this.actualizarRelieves();
 }
 
 private hayCambiosSinGuardar(): boolean {
@@ -2348,6 +2384,22 @@ private actualizarHoverTile() {
       imagen.setTint(0xff0000);
     }
     this.hoverGrupo.push(imagen);
+    const indiceRelieve = this.obtenerRelieve(forma[i][2]);
+    if (indiceRelieve !== -1) {
+      const imagenRelieve = this.add.image(
+        px,
+        py - this.cellsize,
+        "editorTiles",
+        indiceRelieve - 1
+      );
+      imagenRelieve.setDisplaySize(this.cellsize, this.cellsize);
+      imagenRelieve.setAlpha(0.4);
+      imagenRelieve.setDepth(5.1);
+      if (entra === false) {
+        imagenRelieve.setTint(0xff0000);
+      }
+      this.hoverGrupo.push(imagenRelieve);
+    }
   }
 }
 
@@ -2746,6 +2798,73 @@ private seleccionCompleta(): boolean {
     }
   }
   return true;
+}
+
+private obtenerRelieve(indice: number) {
+  for (let i = 0; i < this.relieves.length; i++) {
+    if (this.relieves[i][0] === indice) {
+      return this.relieves[i][1];
+    }
+  }
+  return -1;
+}
+
+private actualizarCapaRelieve(
+  base: Phaser.Tilemaps.TilemapLayer,
+  relieve: Phaser.Tilemaps.TilemapLayer
+) {
+  relieve.setVisible(base.visible);
+  for (let fila = 0; fila < this.rows; fila++) {
+    for (let columna = 0; columna < this.columns; columna++) {
+      const tile = base.getTileAt(columna, fila);
+      if (tile !== null) {
+        tile.alpha = 1;
+      }
+      if (tile === null || tile.visible === false) {
+        relieve.removeTileAt(columna, fila);
+        continue;
+      }
+      let indice = this.obtenerRelieve(tile.index);
+      let desplazamiento = 0;
+      if (tile.index === 37) {
+        let arriba = base.getTileAt(columna, fila - 1);
+        if (base === this.capaVistaPegado && arriba === null) {
+          arriba = this.tablero.getTileAt(columna, fila - 1);
+          if (arriba !== null && arriba.visible === false) {
+            arriba = null;
+          }
+        }
+        if (arriba !== null && arriba.index === 37) {
+          indice = 17;
+          desplazamiento = this.tileGraphicSize;
+          tile.alpha = 0;
+        }
+      }
+      if (indice === -1) {
+        relieve.removeTileAt(columna, fila);
+        continue;
+      }
+      const dibujo = relieve.putTileAt(indice, columna, fila);
+      if (dibujo !== null) {
+        dibujo.pixelY = fila * this.tileGraphicSize + desplazamiento;
+      }
+    }
+  }
+}
+
+private actualizarRelieves() {
+  if (this.capaRelieve !== null) {
+    this.actualizarCapaRelieve(
+      this.tablero,
+      this.capaRelieve
+    );
+  }
+  if (this.capaRelievePegado !== null) {
+    this.actualizarCapaRelieve(
+      this.capaVistaPegado,
+      this.capaRelievePegado
+    );
+  }
 }
 
 

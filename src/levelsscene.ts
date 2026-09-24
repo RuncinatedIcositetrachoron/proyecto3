@@ -505,7 +505,7 @@ export class LevelsScene extends Phaser.Scene {
       fin = niveles.length;
     }
 
-    let y = 230;
+    let y = 345 - (this.nivelesPorPagina - 1) * 64 / 2;
 
     for (let i = inicio; i < fin; i++) {
 
