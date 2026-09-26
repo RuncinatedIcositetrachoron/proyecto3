@@ -66,7 +66,7 @@ export class MenuScene extends Phaser.Scene {
   abrirOpcion(opcion: number) {
     switch (opcion) {
       case 0:
-        this.scene.start("game", { level: 1 });
+        this.scene.start("selectscene");
         break;
 
       case 1:

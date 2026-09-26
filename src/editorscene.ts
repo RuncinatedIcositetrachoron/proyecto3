@@ -1947,7 +1947,7 @@ this.bordeTooltipTile.setVisible(false);
         this.textoEstado.setColor("#ffd166");
       } else {
         this.textoEstado.setText("Level Editor - Nivel guardado");
-        this.textoEstado.setColor("#95add6");
+        this.textoEstado.setColor("#9ccc65");
       }
     }
 
