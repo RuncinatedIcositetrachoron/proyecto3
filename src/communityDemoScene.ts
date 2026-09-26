@@ -5,11 +5,9 @@ import { demo } from "./datosDemo";
 import { obtenerNiveles, crearBoton } from "./niveles";
 import { crearCampoTexto, MAX_BUSQUEDA } from "./camposTexto";
 
-type Pestana = "Community" | "Creados" | "Publicados" | "Descargados";
-
 export class CommunityDemoScene extends InterfazDemo {
 
-  pestana: Pestana = "Community";
+  pestana = "Community";
   busqueda = "";
   pagina = 0;
 
@@ -44,13 +42,18 @@ export class CommunityDemoScene extends InterfazDemo {
       return;
     }
 
-    fondo.on("pointerover", () => fondo.setAlpha(0.8));
-    fondo.on("pointerout", () => fondo.setAlpha(1));
+    fondo.on("pointerover", () => {
+      fondo.setAlpha(0.8);
+    });
+
+    fondo.on("pointerout", () => {
+      fondo.setAlpha(1);
+    });
   }
 
   create() {
 
-    if (!demo.usuarioActual) {
+    if (demo.usuarioActual === null || demo.usuarioActual === undefined) {
       this.scene.start("usuariosDemo");
       return;
     }
@@ -150,22 +153,19 @@ export class CommunityDemoScene extends InterfazDemo {
     textoTab.setOrigin(0.5);
 
     zona.on("pointerover", () => {
-
-      if (!activa) {
+      if (activa === false) {
         dibujar(colorHover);
       }
     });
 
     zona.on("pointerout", () => {
-
-      if (!activa) {
+      if (activa === false) {
         dibujar(color);
       }
     });
 
     zona.on("pointerdown", () => {
-
-      if (!activa) {
+      if (activa === false) {
         accion();
       }
     });
@@ -173,9 +173,8 @@ export class CommunityDemoScene extends InterfazDemo {
 
   dibujar() {
 
-    const objetos = [...this.children.list];
-
-    for (const objeto of objetos) {
+    for (let i = this.children.list.length - 1; i >= 0; i--) {
+      const objeto = this.children.list[i];
 
       if (objeto.scene) {
         objeto.disableInteractive(true);
@@ -188,7 +187,7 @@ export class CommunityDemoScene extends InterfazDemo {
 
     const usuario = demo.usuarioActual;
 
-    if (!usuario) {
+    if (usuario === null || usuario === undefined) {
       return;
     }
 
@@ -199,12 +198,7 @@ export class CommunityDemoScene extends InterfazDemo {
       26
     ).setOrigin(0.5, 0);
 
-    const pestanas: {
-      nombre: Pestana;
-      color: number;
-      colorHover: number;
-      colorInactivo: number;
-    }[] = [
+    const pestanas = [
       {
         nombre: "Community",
         color: 0x95add6,
@@ -259,6 +253,11 @@ export class CommunityDemoScene extends InterfazDemo {
         pestana.colorHover,
         activa,
         () => {
+          if (pestana.nombre === "Creados") {
+            this.scene.start("LevelsScene");
+            return;
+          }
+
           this.pestana = pestana.nombre;
           this.pagina = 0;
           this.dibujar();
@@ -298,7 +297,8 @@ export class CommunityDemoScene extends InterfazDemo {
 
   dibujarFilas() {
 
-    for (const objeto of this.filas) {
+    for (let i = 0; i < this.filas.length; i++) {
+      const objeto = this.filas[i];
 
       if (objeto.scene) {
         objeto.emit("ocultarTooltip");
@@ -311,11 +311,11 @@ export class CommunityDemoScene extends InterfazDemo {
 
     const usuario = demo.usuarioActual;
 
-    if (!usuario) {
+    if (usuario === null || usuario === undefined) {
       return;
     }
 
-    const objetosAntes = new Set(this.children.list);
+    const cantidadAntes = this.children.list.length;
 
     if (this.pestana === "Creados") {
       this.mostrarCreados();
@@ -333,16 +333,16 @@ export class CommunityDemoScene extends InterfazDemo {
       this.mostrarDescargados();
     }
 
-    this.filas = this.children.list.filter(objeto => {
-      return objetosAntes.has(objeto) === false;
-    });
+    for (let i = cantidadAntes; i < this.children.list.length; i++) {
+      this.filas.push(this.children.list[i]);
+    }
   }
 
   mostrarCreados() {
 
     const usuario = demo.usuarioActual;
 
-    if (!usuario) {
+    if (usuario === null || usuario === undefined) {
       return;
     }
 
@@ -350,20 +350,27 @@ export class CommunityDemoScene extends InterfazDemo {
 
     const consulta = this.busqueda.trim().toLowerCase();
 
-    if (consulta !== "") {
+    if (consulta.length > 0) {
+      const filtrados = [];
 
-      niveles = niveles.filter(nivel => {
+      for (let i = 0; i < niveles.length; i++) {
+        const nivel = niveles[i];
+        let coincide = false;
 
-        if (nivel.nombre.toLowerCase().includes(consulta)) {
-          return true;
+        if (nivel.nombre.toLowerCase().indexOf(consulta) >= 0) {
+          coincide = true;
         }
 
         if (String(nivel.id) === consulta) {
-          return true;
+          coincide = true;
         }
 
-        return false;
-      });
+        if (coincide) {
+          filtrados.push(nivel);
+        }
+      }
+
+      niveles = filtrados;
     }
 
     const paginas = this.calcularPaginas(niveles.length);
@@ -372,7 +379,6 @@ export class CommunityDemoScene extends InterfazDemo {
 
     const inicio = this.pagina * 3;
     const fin = inicio + 3;
-
     const visibles = niveles.slice(inicio, fin);
 
     if (visibles.length === 0) {
@@ -410,18 +416,20 @@ export class CommunityDemoScene extends InterfazDemo {
         14
       ).setColor("#a5b4ce");
 
-      const publicado = demo.niveles.some(publicacion => {
+      let publicado = false;
 
-        if (publicacion.autorId !== usuario.id) {
-          return false;
+      for (let j = 0; j < demo.niveles.length; j++) {
+        const publicacion = demo.niveles[j];
+
+        if (
+          publicacion.autorId === usuario.id &&
+          publicacion.publicado === true &&
+          publicacion.nombre === nivel.nombre
+        ) {
+          publicado = true;
+          break;
         }
-
-        if (!publicacion.publicado) {
-          return false;
-        }
-
-        return publicacion.nombre === nivel.nombre;
-      });
+      }
 
       if (publicado) {
 
@@ -451,7 +459,8 @@ export class CommunityDemoScene extends InterfazDemo {
 
                 let nuevoId = 1;
 
-                for (const publicacion of demo.niveles) {
+                for (let j = 0; j < demo.niveles.length; j++) {
+                  const publicacion = demo.niveles[j];
 
                   if (publicacion.id >= nuevoId) {
                     nuevoId = publicacion.id + 1;
@@ -490,28 +499,32 @@ export class CommunityDemoScene extends InterfazDemo {
 
     const usuario = demo.usuarioActual;
 
-    if (!usuario) {
+    if (usuario === null || usuario === undefined) {
       return;
     }
 
-    let niveles = demo.niveles.filter(nivel => {
-      return nivel.publicado;
-    });
+    let niveles = [];
+
+    for (let i = 0; i < demo.niveles.length; i++) {
+      const nivel = demo.niveles[i];
+
+      if (nivel.publicado === true) {
+        niveles.push(nivel);
+      }
+    }
 
     niveles = this.buscarPublicaciones(niveles);
 
-    niveles.sort((a, b) => {
+    for (let i = 0; i < niveles.length; i++) {
+      for (let j = i + 1; j < niveles.length; j++) {
 
-      if (a.descargas > b.descargas) {
-        return -1;
+        if (niveles[j].descargas > niveles[i].descargas) {
+          const temporal = niveles[i];
+          niveles[i] = niveles[j];
+          niveles[j] = temporal;
+        }
       }
-
-      if (a.descargas < b.descargas) {
-        return 1;
-      }
-
-      return 0;
-    });
+    }
 
     const paginas = this.calcularPaginas(niveles.length);
 
@@ -519,7 +532,6 @@ export class CommunityDemoScene extends InterfazDemo {
 
     const inicio = this.pagina * 3;
     const fin = inicio + 3;
-
     const visibles = niveles.slice(inicio, fin);
 
     if (visibles.length === 0) {
@@ -553,8 +565,7 @@ export class CommunityDemoScene extends InterfazDemo {
       this.texto(
         80,
         y,
-        "ID " + nivel.id +
-        " - " + nivel.autor,
+        "ID " + nivel.id + " - " + nivel.autor,
         14
       ).setColor("#a5b4ce");
 
@@ -565,11 +576,19 @@ export class CommunityDemoScene extends InterfazDemo {
         14
       ).setColor("#a5b4ce");
 
-      const descargado = demo.descargas.some(descarga => {
+      let descargado = false;
 
-        return descarga.usuarioId === usuario.id &&
-          descarga.nivelId === nivel.id;
-      });
+      for (let j = 0; j < demo.descargas.length; j++) {
+        const descarga = demo.descargas[j];
+
+        if (
+          descarga.usuarioId === usuario.id &&
+          descarga.nivelId === nivel.id
+        ) {
+          descargado = true;
+          break;
+        }
+      }
 
       let textoBoton = "Descargar";
 
@@ -598,7 +617,7 @@ export class CommunityDemoScene extends InterfazDemo {
           this.dibujarFilas();
         },
         VERDE,
-        !descargado
+        descargado === false
       );
     }
 
@@ -609,15 +628,22 @@ export class CommunityDemoScene extends InterfazDemo {
 
     const usuario = demo.usuarioActual;
 
-    if (!usuario) {
+    if (usuario === null || usuario === undefined) {
       return;
     }
 
-    let niveles = demo.niveles.filter(nivel => {
+    let niveles = [];
 
-      return nivel.autorId === usuario.id &&
-        nivel.publicado;
-    });
+    for (let i = 0; i < demo.niveles.length; i++) {
+      const nivel = demo.niveles[i];
+
+      if (
+        nivel.autorId === usuario.id &&
+        nivel.publicado === true
+      ) {
+        niveles.push(nivel);
+      }
+    }
 
     niveles = this.buscarPublicaciones(niveles);
 
@@ -627,7 +653,6 @@ export class CommunityDemoScene extends InterfazDemo {
 
     const inicio = this.pagina * 3;
     const fin = inicio + 3;
-
     const visibles = niveles.slice(inicio, fin);
 
     if (visibles.length === 0) {
@@ -697,34 +722,47 @@ export class CommunityDemoScene extends InterfazDemo {
 
     const usuario = demo.usuarioActual;
 
-    if (!usuario) {
+    if (usuario === null || usuario === undefined) {
       return;
     }
 
-    let niveles = demo.descargas.filter(descarga => {
-      return descarga.usuarioId === usuario.id;
-    });
+    let niveles = [];
+
+    for (let i = 0; i < demo.descargas.length; i++) {
+      const descarga = demo.descargas[i];
+
+      if (descarga.usuarioId === usuario.id) {
+        niveles.push(descarga);
+      }
+    }
 
     const consulta = this.busqueda.trim().toLowerCase();
 
-    if (consulta !== "") {
+    if (consulta.length > 0) {
+      const filtrados = [];
 
-      niveles = niveles.filter(nivel => {
+      for (let i = 0; i < niveles.length; i++) {
+        const nivel = niveles[i];
+        let coincide = false;
 
         if (String(nivel.nivelId) === consulta) {
-          return true;
+          coincide = true;
         }
 
-        if (nivel.nombre.toLowerCase().includes(consulta)) {
-          return true;
+        if (nivel.nombre.toLowerCase().indexOf(consulta) >= 0) {
+          coincide = true;
         }
 
-        if (nivel.autor.toLowerCase().includes(consulta)) {
-          return true;
+        if (nivel.autor.toLowerCase().indexOf(consulta) >= 0) {
+          coincide = true;
         }
 
-        return false;
-      });
+        if (coincide) {
+          filtrados.push(nivel);
+        }
+      }
+
+      niveles = filtrados;
     }
 
     const paginas = this.calcularPaginas(niveles.length);
@@ -733,7 +771,6 @@ export class CommunityDemoScene extends InterfazDemo {
 
     const inicio = this.pagina * 3;
     const fin = inicio + 3;
-
     const visibles = niveles.slice(inicio, fin);
 
     if (visibles.length === 0) {
@@ -767,8 +804,7 @@ export class CommunityDemoScene extends InterfazDemo {
       this.texto(
         80,
         y,
-        "ID " + nivel.nivelId +
-        " · " + nivel.autor,
+        "ID " + nivel.nivelId + " · " + nivel.autor,
         14
       ).setColor("#a5b4ce");
 
@@ -785,16 +821,25 @@ export class CommunityDemoScene extends InterfazDemo {
         14
       ).setColor("#a5b4ce");
 
-      const original = demo.niveles.find(publicacion => {
+      let original = demo.niveles[0];
+      let originalEncontrado = false;
 
-        return publicacion.id === nivel.nivelId &&
-          publicacion.publicado;
-      });
+      for (let j = 0; j < demo.niveles.length; j++) {
+        const publicacion = demo.niveles[j];
+
+        if (
+          publicacion.id === nivel.nivelId &&
+          publicacion.publicado === true
+        ) {
+          original = publicacion;
+          originalEncontrado = true;
+          break;
+        }
+      }
 
       let hayActualizacion = false;
 
-      if (original) {
-
+      if (originalEncontrado) {
         if (original.version > nivel.version) {
           hayActualizacion = true;
         }
@@ -813,7 +858,7 @@ export class CommunityDemoScene extends InterfazDemo {
         textoBoton,
         () => {
 
-          if (hayActualizacion && original) {
+          if (hayActualizacion && originalEncontrado) {
 
             nivel.nombre = original.nombre;
             nivel.autor = original.autor;
@@ -821,7 +866,6 @@ export class CommunityDemoScene extends InterfazDemo {
             nivel.completado = false;
 
             this.dibujarFilas();
-
             return;
           }
 
@@ -829,9 +873,7 @@ export class CommunityDemoScene extends InterfazDemo {
             "Partida de prueba",
             "¿Querés marcar este nivel como completado?",
             () => {
-
               nivel.completado = true;
-
               this.dibujar();
             },
             () => {
@@ -849,11 +891,16 @@ export class CommunityDemoScene extends InterfazDemo {
         "Desinstalar",
         () => {
 
-          demo.descargas = demo.descargas.filter(descarga => {
+          for (let j = demo.descargas.length - 1; j >= 0; j--) {
+            const descarga = demo.descargas[j];
 
-            return descarga.usuarioId !== usuario.id ||
-              descarga.nivelId !== nivel.nivelId;
-          });
+            if (
+              descarga.usuarioId === usuario.id &&
+              descarga.nivelId === nivel.nivelId
+            ) {
+              demo.descargas.splice(j, 1);
+            }
+          }
 
           this.dibujarFilas();
         },
@@ -864,7 +911,7 @@ export class CommunityDemoScene extends InterfazDemo {
     this.paginacion(paginas);
   }
 
-  buscarPublicaciones(niveles: typeof demo.niveles) {
+  buscarPublicaciones(niveles: any[]) {
 
     const consulta = this.busqueda.trim().toLowerCase();
 
@@ -872,22 +919,30 @@ export class CommunityDemoScene extends InterfazDemo {
       return niveles;
     }
 
-    return niveles.filter(nivel => {
+    const resultado = [];
+
+    for (let i = 0; i < niveles.length; i++) {
+      const nivel = niveles[i];
+      let coincide = false;
 
       if (String(nivel.id) === consulta) {
-        return true;
+        coincide = true;
       }
 
-      if (nivel.nombre.toLowerCase().includes(consulta)) {
-        return true;
+      if (nivel.nombre.toLowerCase().indexOf(consulta) >= 0) {
+        coincide = true;
       }
 
-      if (nivel.autor.toLowerCase().includes(consulta)) {
-        return true;
+      if (nivel.autor.toLowerCase().indexOf(consulta) >= 0) {
+        coincide = true;
       }
 
-      return false;
-    });
+      if (coincide) {
+        resultado.push(nivel);
+      }
+    }
+
+    return resultado;
   }
 
   calcularPaginas(cantidad: number) {

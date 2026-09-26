@@ -787,7 +787,7 @@ export class GameScene extends Phaser.Scene {
 
     private animatePlayer(player: Entity, facing: number | undefined) {
         let animation = "";
-        if (!this.movenumber == true) {
+        if (this.movenumber == false) {
             switch(facing) {
                 case 0: animation = "lindsey-up"; break;
                 case 1: animation = "lindsey-right"; break;
@@ -1391,6 +1391,7 @@ export class GameScene extends Phaser.Scene {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "left";
+                    if (!player) return;
                     if (player.dir === -1 && this.playerVertical === false && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
@@ -1398,6 +1399,7 @@ export class GameScene extends Phaser.Scene {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "right";
+                    if (!player) return;
                     if (player.dir === 1 && this.playerVertical === false && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
@@ -1405,6 +1407,7 @@ export class GameScene extends Phaser.Scene {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer ="up";
+                    if (!player) return;
                     if (player.dir === -1 && this.playerVertical === true && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
