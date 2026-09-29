@@ -64,8 +64,8 @@ export class EditorScene extends Phaser.Scene {
 
   private nivelId: string | null = null;
 
-  private columns: number = 17;
-  private rows: number = 11;
+  private columns: number = 15;
+  private rows: number = 9;
   private cellsize: number = 32;
   private tileGraphicSize: number = 16;
   private tileScale: number = this.cellsize / this.tileGraphicSize;
@@ -102,9 +102,11 @@ export class EditorScene extends Phaser.Scene {
       [1, 0, 34]
     ],
     [
-      [0, 0, 29],
-      [-1, 0, 30],
-      [0, 1, 31]
+      [0, 0, 45],
+      [-1, 0, 44],
+      [0, -1, 47],
+      [0, 1, 43],
+      [-1, -1, 46],
     ]
   ];
 
@@ -121,7 +123,10 @@ export class EditorScene extends Phaser.Scene {
     [51, 52],
     [53, 54],
     [55, 56],
+    [64, 65],
     [66, 67],
+    [46, 48],
+    [47, 49],
   ];
 
   private links: number[][] = [];
@@ -282,7 +287,7 @@ export class EditorScene extends Phaser.Scene {
       this.cellsize - 1,
       this.cellsize - 1,
       0x000000,
-      0.4
+      0.6
     );
 
     this.hoverCell.setVisible(false);
@@ -290,7 +295,7 @@ export class EditorScene extends Phaser.Scene {
 
     this.hoverTile = this.add.image(0, 0, "editorTiles", 0);
     this.hoverTile.setDisplaySize(this.cellsize, this.cellsize);
-    this.hoverTile.setAlpha(0.4);
+    this.hoverTile.setAlpha(0.6);
     this.hoverTile.setDepth(5);
     this.hoverTile.setVisible(false);
 
@@ -579,7 +584,7 @@ export class EditorScene extends Phaser.Scene {
     }
 
     this.capaVistaPegado = capaVistaPegadoCreada;
-    this.capaVistaPegado.setAlpha(0.4);
+    this.capaVistaPegado.setAlpha(0.6);
     this.capaVistaPegado.setVisible(false);
 
     const capaVistaPortalesPegadoCreada = this.mapa.createBlankLayer(
@@ -594,7 +599,7 @@ export class EditorScene extends Phaser.Scene {
     }
 
     this.capaVistaPortalesPegado = capaVistaPortalesPegadoCreada;
-    this.capaVistaPortalesPegado.setAlpha(0.4);
+    this.capaVistaPortalesPegado.setAlpha(0.6);
     this.capaVistaPortalesPegado.setVisible(false);
 
     const relieveCreado = this.mapa.createBlankLayer(
@@ -626,7 +631,7 @@ export class EditorScene extends Phaser.Scene {
     this.capaRelievePegado = relievePegadoCreado;
     this.capaRelievePegado.setScale(this.tileScale);
     this.capaRelievePegado.setDepth(3.5);
-    this.capaRelievePegado.setAlpha(0.4);
+    this.capaRelievePegado.setAlpha(0.6);
     this.capaRelievePegado.setVisible(false);
 
     this.capaRelievePortales = this.mapa.createBlankLayer(
@@ -656,7 +661,7 @@ export class EditorScene extends Phaser.Scene {
 
     this.capaRelievePortalesPegado.setScale(this.tileScale);
     this.capaRelievePortalesPegado.setDepth(4.5);
-    this.capaRelievePortalesPegado.setAlpha(0.4);
+    this.capaRelievePortalesPegado.setAlpha(0.6);
     this.capaRelievePortalesPegado.setVisible(false);
 
     this.graficosLinks = this.add.graphics();
@@ -734,6 +739,14 @@ export class EditorScene extends Phaser.Scene {
         true,
         this.tablero
       );
+    }
+    for (let x = 0; x < this.columns; x++) {
+      this.tablero.putTileAt(39, x, 0);
+      this.tablero.putTileAt(39, x, this.rows - 1);
+    }
+    for (let y = 0; y < this.rows; y++) {
+      this.tablero.putTileAt(39, 0, y);
+      this.tablero.putTileAt(39, this.columns - 1, y);
     }
 
     this.tablero.setDepth(1);
@@ -1684,6 +1697,7 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     this.actualizarLinks();
+    this.actualizarParedesConexas();
 
     const valido = this.nivelValido();
     const puedeGuardar = valido && this.hayCambiosSinGuardar();
@@ -2431,7 +2445,7 @@ this.bordeTooltipTile.setVisible(false);
   private puedeColocarPortal(
     columna: number,
     fila: number,
-    portal: number
+    _portal: number
   ): boolean {
     const tile = this.mapa.getTileAt(
       columna,
@@ -2579,10 +2593,6 @@ this.bordeTooltipTile.setVisible(false);
           this.ocultarGrupo(x, y, this.tilesOcultasVistaPegado);
         }
       }
-    }
-
-    if (this.puedePegarSeleccion() === false) {
-      return;
     }
 
     for (let fila = 0; fila < this.seleccionCopiada.length; fila++) {
@@ -2871,7 +2881,7 @@ this.bordeTooltipTile.setVisible(false);
     }
   }
 
-  private iniciarLink(mouse: Phaser.Input.Pointer): void {
+  private iniciarLink(_mouse: Phaser.Input.Pointer): void {
     if (!this.hayPortalEn(this.mouseX, this.mouseY)) {
       return;
     }
@@ -3158,7 +3168,7 @@ this.bordeTooltipTile.setVisible(false);
   private actualizarHoverTile() {
     this.restaurarTileHover();
     this.hoverTile.setVisible(false);
-    this.hoverCell.setFillStyle(0x000000, 0.4);
+    this.hoverCell.setFillStyle(0x000000, 0.6);
 
     if (
       this.hoverCell.visible === false ||
@@ -3183,7 +3193,7 @@ this.bordeTooltipTile.setVisible(false);
           portal
         ) === false
       ) {
-        this.hoverCell.setFillStyle(0xff0000, 0.4);
+        this.hoverCell.setFillStyle(0xff0000, 0.6);
         return;
       }
 
@@ -3212,7 +3222,7 @@ this.bordeTooltipTile.setVisible(false);
           this.cellsize
         );
 
-        imagenRelieve.setAlpha(0.4);
+        imagenRelieve.setAlpha(0.6);
         imagenRelieve.setDepth(
           this.profundidadFila(this.mouseY, 9)
         );
@@ -3264,7 +3274,7 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     if (entra === false) {
-      this.hoverCell.setFillStyle(0xff0000, 0.4);
+      this.hoverCell.setFillStyle(0xff0000, 0.6);
     }
 
     for (let i = 0; i < forma.length; i++) {
@@ -3298,7 +3308,7 @@ this.bordeTooltipTile.setVisible(false);
       );
 
       imagen.setDisplaySize(this.cellsize, this.cellsize);
-      imagen.setAlpha(0.4);
+      imagen.setAlpha(0.6);
       imagen.setDepth(this.profundidadFila(y, 8));
 
       if (entra === false) {
@@ -3322,7 +3332,7 @@ this.bordeTooltipTile.setVisible(false);
           this.cellsize
         );
 
-        imagenRelieve.setAlpha(0.4);
+        imagenRelieve.setAlpha(0.6);
         imagenRelieve.setDepth(this.profundidadFila(y, 9));
 
         if (entra === false) {
@@ -4379,25 +4389,25 @@ this.bordeTooltipTile.setVisible(false);
     this.actualizarCapaProfundidad(
       this.capaVistaPegado,
       4,
-      0.4
+      0.6
     );
 
     this.actualizarCapaProfundidad(
       this.capaRelievePegado,
       5,
-      0.4
+      0.6
     );
 
     this.actualizarCapaProfundidad(
       this.capaVistaPortalesPegado,
       6,
-      0.4
+      0.6
     );
 
     this.actualizarCapaProfundidad(
       this.capaRelievePortalesPegado,
       7,
-      0.4
+      0.6
     );
   }
 
@@ -4443,4 +4453,28 @@ this.bordeTooltipTile.setVisible(false);
 
     this.scene.sleep();
   }
+
+
+  private actualizarParedesConexas(): void {
+    for (let y = 0; y < this.rows; y++) {
+      for (let x = 0; x < this.columns; x++) {
+      const tile = this.tablero.getTileAt(x, y);
+      if (tile === null) {
+        continue;
+      }
+      if (tile.index !== 39 && tile.index !== 64) {
+        continue;
+      }
+      if (y > 0) {
+        const arriba = this.tablero.getTileAt(x, y - 1);
+        if (arriba !== null && arriba.index === 39 || arriba.index === 64) {
+          this.tablero.putTileAt(64, x, y);
+        } else {
+          this.tablero.putTileAt(39, x, y);
+        }
+      } else {
+        this.tablero.putTileAt(39, x, y);
+  }}}}
+
+
 }

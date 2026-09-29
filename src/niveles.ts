@@ -8,7 +8,9 @@ export type Nivel = {
     nombre: string;
     tablero: number[][];
     ultimaModificacion: number;
-    portales: number[][];
+    ancho?: number;
+    largo?: number;
+    portales?: number[][];
     links?: number[][];
   };
 

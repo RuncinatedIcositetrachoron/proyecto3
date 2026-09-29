@@ -26,8 +26,8 @@ export class LevelsScene extends Phaser.Scene {
   busquedaCommunity = "";
   busqueda = "";
 
-  filas = 11;
-  columnas = 17;
+  filas = 9;
+  columnas = 15;
 
   paginaActual = 0;
   nivelesPorPagina = 4;

@@ -62,31 +62,31 @@ const Tile = {
 //CLASS STARTS HERE//
 /////////////////////
 
-export class GameScene extends Phaser.Scene {
-    
+export class GameScene extends Phaser.Scene {    
     private levelNumber = 1;
+    private history: GameState[] = [];
     //private levelMode = 0;
+
+    init(data: { level: number, history: GameState[] }) {
+        this.levelNumber = data.level;
+        this.history = data.history;
+    }
+
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
-
     private pixelmultiplier: number = 3;
-
-    private history: GameState[] = [];
-    
+    private tilesize: number = this.pixelmultiplier*16;
     private laser: any;
     private emitterQueue: Entity[] = [];
     private firedEmitters: Entity[] = [];
-
     private tempstorage: Entity | undefined;
     private tempstorage2a: Phaser.GameObjects.Sprite;
     private tempstorage2b: Phaser.GameObjects.Sprite;
     private tempstorage3: Entity | undefined;
     private movenumber: Boolean = false;
-    
     private playerMoving = false;
     private inputBuffer: string = "";
     private holdBufferOpen: Boolean = false;
-
     private playerTween: Phaser.Tweens.Tween | undefined;
     private pushTweens: Phaser.Tweens.Tween[] = [];
     private playerVertical: Boolean = true;
@@ -94,30 +94,18 @@ export class GameScene extends Phaser.Scene {
     private playerPortalMask: any;
     private maskFilter: any;
     private maskFilter2: any;
-
-    init(data: { level: number, history: GameState[] }) {
-        this.levelNumber = data.level;
-        this.history = data.history;
-    }
-
     private qKey!: Phaser.Input.Keyboard.Key;
     private rKey!: Phaser.Input.Keyboard.Key;
     private zKey!: Phaser.Input.Keyboard.Key;
     private escKey!: Phaser.Input.Keyboard.Key;
     private enterKey!: Phaser.Input.Keyboard.Key;
-
     private entities: Entity[] = [];
     private lasers: Phaser.GameObjects.Sprite[] = [];
-
     private offsetX = 0;
     private offsetY = 0;
-
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-
     private staticRows: any;
-    
     private selected = 0;
-    
     private menuItems: Phaser.GameObjects.Text[] = [];
     private menuLabels: string[] = [];
         
@@ -538,6 +526,15 @@ export class GameScene extends Phaser.Scene {
                             case 3: entity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
                         }
                     }
+
+                    if (this.tempstorage2a) {
+                        this.tempstorage2a.destroy();
+                        this.tempstorage2a = undefined;
+                    }
+                    if (this.tempstorage2b) {
+                        this.tempstorage2b.destroy();
+                        this.tempstorage2b = undefined;
+                    }
                     return false;
                 }
                 }
@@ -655,19 +652,19 @@ export class GameScene extends Phaser.Scene {
                                 if (otherEntity.sprite2 && otherEntity.group === 1) {
                                     otherEntity.sprite2.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y+1);
                                     switch(otherEntity.portal) {
-                                        case 0: otherEntity.sprite2.setTexture("portals", 0).setScale(4); break;
-                                        case 1: otherEntity.sprite2.setTexture("portals", 3).setScale(4); break;
-                                        case 2: otherEntity.sprite2.setTexture("portals", 1).setScale(4); break;
-                                        case 3: otherEntity.sprite2.setTexture("portals", 2).setScale(4); break;
+                                        case 0: otherEntity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
+                                        case 1: otherEntity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
+                                        case 2: otherEntity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
+                                        case 3: otherEntity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
                                     }
                                 }
                                 if (otherEntity.sprite2 && otherEntity.group === 2) {
                                     otherEntity.sprite2.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y+1);
                                     switch(otherEntity.portal) {
-                                        case 0: otherEntity.sprite2.setTexture("portals", 4).setScale(4); break;
-                                        case 1: otherEntity.sprite2.setTexture("portals", 7).setScale(4); break;
-                                        case 2: otherEntity.sprite2.setTexture("portals", 5).setScale(4); break;
-                                        case 3: otherEntity.sprite2.setTexture("portals", 6).setScale(4); break;
+                                        case 0: otherEntity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
+                                        case 1: otherEntity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
+                                        case 2: otherEntity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
+                                        case 3: otherEntity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
                                     }
                                 }
 
@@ -760,7 +757,7 @@ export class GameScene extends Phaser.Scene {
             return false;
         }
         this.animateBPortalEntry(entry.x, entry.y, entry.portal);
-        this.maskBoxPortal(this.tempstorage, this.tempstorage.x-dx, this.tempstorage.y-dy, this.opposite(this.tempstorage.dir));
+        this.maskBoxPortal(this.tempstorage, this.tempstorage.x-dx, this.tempstorage.y-dy, this.opposite(dir));
         if (this.tempstorage.sprite2 && this.tempstorage.group === 1) {
             switch(this.tempstorage.portal) {
                 case 0: this.tempstorage.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
@@ -798,8 +795,8 @@ export class GameScene extends Phaser.Scene {
 
         const tween = this.tweens.add({
             targets: sprites,
-            x: this.offsetX + entity.x * 16*this.pixelmultiplier,
-            y: this.offsetY + entity.y * 16*this.pixelmultiplier,
+            x: this.offsetX + entity.x * this.tilesize,
+            y: this.offsetY + entity.y * this.tilesize,
             duration: 250,
             ease: "Linear",
 
@@ -821,15 +818,16 @@ export class GameScene extends Phaser.Scene {
     
     private maskBoxPortal(box: Entity, portalX: number, portalY: number, portalDir: number | undefined) {
         this.tempstorage3 = box;
-        let maskX = 0;
-        let maskY = 0;
+        console.log(portalDir)
         let maskW = 5000;
         let maskH = 5000;
+        let maskX = this.offsetX;
+        let maskY = this.offsetY;
         switch(portalDir) {
-            case 2: maskH = portalY*this.pixelmultiplier*16-23*this.pixelmultiplier; break;
-            case 1: maskX = portalX*this.pixelmultiplier*16 + this.offsetX; break;
-            case 0: maskY = portalY*this.pixelmultiplier*16-13*this.pixelmultiplier + this.offsetY; break;
-            case 3: maskW = portalX*this.pixelmultiplier*16 - 16*this.pixelmultiplier; break;
+            case 0: maskH = portalY*this.tilesize - 23 * this.pixelmultiplier; break;
+            case 1: maskW = portalX*this.tilesize + this.offsetX; break;
+            case 2: maskY = portalY*this.tilesize - 13 * this.pixelmultiplier + this.offsetY; break;
+            case 3: maskX = portalX*this.tilesize; break;
         }
         const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
         const masks = Phaser.Actions.AddMaskShape(box.sprite, {
@@ -852,10 +850,10 @@ export class GameScene extends Phaser.Scene {
         let maskX = this.offsetX;
         let maskY = this.offsetY;
         switch(portalDir) {
-            case 0: maskH = portalY*this.pixelmultiplier*16-23*this.pixelmultiplier; break;
-            case 1: maskX = portalX*this.pixelmultiplier*16 + this.offsetX; break;
-            case 2: maskY = portalY*this.pixelmultiplier*16-13*this.pixelmultiplier + this.offsetY; break;
-            case 3: maskW = portalX*this.pixelmultiplier*16-16*this.pixelmultiplier + this.offsetX; break;
+            case 0: maskH = portalY*this.tilesize - 23*this.pixelmultiplier; break;
+            case 1: maskX = portalX*this.tilesize + this.offsetX; break;
+            case 2: maskY = portalY*this.tilesize - 13*this.pixelmultiplier + this.offsetY; break;
+            case 3: maskW = portalX*this.tilesize - this.tilesize; break;
         }
         const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
         const masks = Phaser.Actions.AddMaskShape(this.tempstorage2a, {
@@ -966,10 +964,10 @@ export class GameScene extends Phaser.Scene {
         let maskW = 5000;
         let maskH = 5000;
         switch(portalDir) {
-            case 0: maskH = portalY*this.pixelmultiplier*16-23*this.pixelmultiplier; break;
+            case 0: maskH = portalY*this.pixelmultiplier*16-23*this.pixelmultiplier + this.offsetY; break;
             case 1: maskX = portalX*this.pixelmultiplier*16 + this.offsetX; break;
             case 2: maskY = portalY*this.pixelmultiplier*16-19*this.pixelmultiplier + this.offsetY; break;
-            case 3: maskW = portalX*this.pixelmultiplier*16-16*this.pixelmultiplier + this.offsetX; break;
+            case 3: maskW = portalX*this.pixelmultiplier*15 + this.offsetX; break;
         }
         const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
         const masks = Phaser.Actions.AddMaskShape(player.sprite, {
@@ -999,20 +997,40 @@ export class GameScene extends Phaser.Scene {
             duration: 250,
             ease: "Linear",
             onComplete: () => {
+
                 player.sprite.stop();
                 player.sprite.setTexture("lindseyi", facing);
+
                 if (this.playerPortalMask) {
                     if (player.sprite.filters) player.sprite.filters.external.remove(this.playerPortalMask);
                     this.playerPortalMask = undefined;
                 }
+
                 if (this.maskFilter) {
-                    if (this.tempstorage3.sprite.filters) this.tempstorage3.sprite.filters.external.remove(this.maskFilter);
+                    if (this.tempstorage3) {
+                        if (this.tempstorage3.sprite.filters) {
+                            this.tempstorage3.sprite.filters.external.remove(
+                                this.maskFilter
+                            );
+                        }
+                    }
                     this.maskFilter = undefined;
                 }
+
                 if (this.maskFilter2) {
-                    if (this.tempstorage3.sprite2.filters) this.tempstorage3.sprite2.filters.external.remove(this.maskFilter2);
+                    if (this.tempstorage3) {
+                        if (this.tempstorage3.sprite2) {
+                            if (this.tempstorage3.sprite2.filters) {
+                                this.tempstorage3.sprite2.filters.external.remove(
+                                    this.maskFilter2
+                                );
+                            }
+                        }
+                    }
                     this.maskFilter2 = undefined;
                 }
+
+                this.tempstorage3 = undefined;
                 this.playerMoving = false;
                 this.holdBufferOpen = false;
                 this.playerTween = undefined;
