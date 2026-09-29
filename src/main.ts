@@ -17,6 +17,7 @@ await document.fonts.ready;
 
 const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
+
     parent: "game-container",
 
     width: 800,
