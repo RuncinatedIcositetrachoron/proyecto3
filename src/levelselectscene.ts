@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { crearBoton } from "./niveles";
 
 export class LevelselectScene extends Phaser.Scene {
-  totalNiveles = 20;
+  totalNiveles = 20005;
 
   columnas = 5;
   nivelesPorPagina = 15;
@@ -705,7 +705,7 @@ export class LevelselectScene extends Phaser.Scene {
     this.scene.start(
       "game",
       {
-        nivel:
+        level:
           numeroNivel
       }
     );

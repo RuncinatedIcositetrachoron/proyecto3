@@ -318,7 +318,6 @@ export function duplicarNivel(id: string): Nivel | undefined {
     let baseRecortada = "";
     let cantidad = 0;
 
-    // Reserva espacio para el numero de copia.
     for (const letra of nombreBase) {
       if (cantidad >= limiteBase) {
         break;

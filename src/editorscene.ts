@@ -64,8 +64,8 @@ export class EditorScene extends Phaser.Scene {
 
   private nivelId: string | null = null;
 
-  private columns: number = 16;
-  private rows: number = 10;
+  private columns: number = 17;
+  private rows: number = 11;
   private cellsize: number = 32;
   private tileGraphicSize: number = 16;
   private tileScale: number = this.cellsize / this.tileGraphicSize;
@@ -93,7 +93,7 @@ export class EditorScene extends Phaser.Scene {
   private pasteTool: number = 101;
   private linkTool: number = 103;
   private tilesSinPortal: number[] = [2, 5, 6, 7, 8];
-  private tileJugador: number = 24;
+  private tileJugador: number = 66;
   private tileBandera: number = 25;
 
   private formasPared = [
@@ -120,7 +120,8 @@ export class EditorScene extends Phaser.Scene {
     [50, 50],
     [51, 52],
     [53, 54],
-    [55, 56]
+    [55, 56],
+    [66, 67],
   ];
 
   private links: number[][] = [];
@@ -172,13 +173,15 @@ export class EditorScene extends Phaser.Scene {
   private objetosSubHotbar: Phaser.GameObjects.GameObject[] = [];
   private subHotbarAbierta: number = -1;
 
-  private tilesHotbar = [37, 3, 11, 27, 39, 41, 201];
+  //CUSTOMIZAR HOTBAR
+  
+  private tilesHotbar = [37, 3, 11, 27, 39, 41, 66];
 
   private variantesTiles = [
     [3, 4, 5, 6],
     [11, 12, 13, 14],
     [27, 28, 29, 30],
-    [41, 200]
+    [41, 200, 201]
   ];
 
   private casillasHotbar: Phaser.GameObjects.Rectangle[] = [];

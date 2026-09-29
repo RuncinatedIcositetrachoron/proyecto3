@@ -26,6 +26,9 @@ export class LevelsScene extends Phaser.Scene {
   busquedaCommunity = "";
   busqueda = "";
 
+  filas = 11;
+  columnas = 17;
+
   paginaActual = 0;
   nivelesPorPagina = 4;
 
@@ -246,7 +249,7 @@ export class LevelsScene extends Phaser.Scene {
       () => {
         this.cerrarNombre(true);
 
-        const nivel = crearNivel(10, 16);
+        const nivel = crearNivel(this.filas, this.columnas);
 
         if (nivel === undefined || nivel === null) {
           return;
