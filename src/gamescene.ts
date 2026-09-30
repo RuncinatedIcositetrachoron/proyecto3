@@ -74,7 +74,7 @@ export class GameScene extends Phaser.Scene {
 
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
-    private pixelmultiplier: number = 3;
+    private pixelmultiplier: number = 3.33
     private tilesize: number = this.pixelmultiplier*16;
     private laser: any;
     private emitterQueue: Entity[] = [];
@@ -108,6 +108,7 @@ export class GameScene extends Phaser.Scene {
     private selected = 0;
     private menuItems: Phaser.GameObjects.Text[] = [];
     private menuLabels: string[] = [];
+    private deathmessage: Phaser.GameObjects.Text;
         
     private updateMenu() {
         for (let i = 0; i < this.menuItems.length; i++) {
@@ -259,6 +260,25 @@ export class GameScene extends Phaser.Scene {
             );
         }
     }
+    
+    private lindseyDeath(): boolean {
+        const player = this.entities.find(entity => entity.type === "player");
+        const currX = player.x;
+        const currY = player.y;
+        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY-1) * 16*this.pixelmultiplier && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
+            return true;
+        }
+        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX+1) * 16*this.pixelmultiplier && String(laser.frame.name) === "4")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
+            return true;
+        }
+        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY+1) * 16*this.pixelmultiplier && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
+            return true;
+        }
+        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX-1) * 16*this.pixelmultiplier && String(laser.frame.name) === "4")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
+            return true;
+        }
+        return false;
+    }
 
     private laserFunction() {
         this.emitterQueue = [];
@@ -380,7 +400,10 @@ export class GameScene extends Phaser.Scene {
             }
 
             if (!success) {
-                player.sprite.setPosition(this.offsetX + player.x * 16*this.pixelmultiplier, this.offsetY + player.y * 16*this.pixelmultiplier).setDepth(2 * player.y);
+                player.y = savedPlayerY;
+                player.x = savedPlayerX;
+                player.dir = savedPlayerDir;
+                player.sprite.setPosition(this.offsetX + savedPlayerX * this.tilesize, this.offsetY + savedPlayerY * this.tilesize).setDepth(2 * player.y);
                 return false;
             }
             this.animatePortalEntry(savedPlayerX, savedPlayerY, entry.x, entry.y, entry.portal, this.opposite(dir));
@@ -697,7 +720,11 @@ export class GameScene extends Phaser.Scene {
         const facing = this.opposite(dir);
         player.sprite.setScale(this.pixelmultiplier).setDepth(2*player.y);
         this.animatePlayer(player, facing);
-
+        if (this.lindseyDeath()){
+            this.menuup = 2;
+            this.menuOverlay.setVisible(true);
+            this.deathmessage.setVisible(true);
+        }
 
         const flag = this.entities.find(entity => entity.type === "flag");
         if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
@@ -801,14 +828,9 @@ export class GameScene extends Phaser.Scene {
             ease: "Linear",
 
             onUpdate: () => {
-                entity.sprite.setDepth(
-                    (entity.sprite.y - this.offsetY) / (8*this.pixelmultiplier)
-                );
-
+                entity.sprite.setDepth(2*entity.y-0.1);
                 if (entity.sprite2) {
-                    entity.sprite2.setDepth(
-                        (entity.sprite.y - this.offsetY) / (8*this.pixelmultiplier) + 1
-                    );
+                    entity.sprite2.setDepth(2*entity.y+0.9);
                 }
             }
         });
@@ -923,7 +945,7 @@ export class GameScene extends Phaser.Scene {
 
     private animatePortalEntry(startX: number, startY: number, portalX: number, portalY: number, portalDir: number | undefined, facing: number | undefined) {
         const animation = this.getLindseyAnimation(facing);
-        const copy = this.add.sprite(this.offsetX + startX * 16*this.pixelmultiplier, this.offsetY + startY * 16*this.pixelmultiplier, "lindsey", 0).setOrigin(1, 1.04).setScale(this.pixelmultiplier).setDepth(2 * startY);
+        const copy = this.add.sprite(this.offsetX + startX * 16*this.pixelmultiplier, this.offsetY + startY * 16*this.pixelmultiplier, "lindsey", 0).setOrigin(1, 1.04).setScale(this.pixelmultiplier).setDepth(2 * startY + 1.1);
         copy.play(animation);
 
         let maskW = 5000;
@@ -1518,7 +1540,7 @@ export class GameScene extends Phaser.Scene {
             }
         }
         this.cursors = this.input.keyboard!.createCursorKeys();
-        this.menuOverlay = this.add.rectangle(432, 332, 600 + 16*this.pixelmultiplier, 800 + 16*this.pixelmultiplier, 0x2d2d2d, 0.6).setVisible(false).setDepth(100);
+        this.menuOverlay = this.add.rectangle(0, 0, 5000, 5000, 0x222034, 0.6).setVisible(false).setDepth(100);
         this.menuLabels = ["RESUME", "OPTIONS", "EXIT"];
         for (let i = 0; i < this.menuLabels.length; i++) {
             const text = this.add.text(400, 250 + i * 40, this.menuLabels[i], {
@@ -1528,6 +1550,11 @@ export class GameScene extends Phaser.Scene {
                 }).setOrigin(0.5).setVisible(false).setDepth(101);
             this.menuItems.push(text);
         }
+        this.deathmessage = this.add.text(400, 250, "you died", {
+            fontFamily: "biysmall",
+            fontSize: "16px",
+            color: "#ffffff",
+        }).setOrigin(0.5).setVisible(false).setDepth(101);
         this.laserFunction();
     }
 
@@ -1594,7 +1621,7 @@ export class GameScene extends Phaser.Scene {
 
     update() {
         if (this.playerMoving) {
-            if (this.menuup == 0) {
+            if (this.menuup === 0) {
                 const player = this.entities.find(entity => entity.type === "player");
                 if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
                     if (this.movenumber) this.movenumber = false
@@ -1656,7 +1683,7 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
-        if (this.inputBuffer !== "") {
+        if (this.inputBuffer !== "" && this.menuup === 0) {
             const direction = this.inputBuffer;
             this.inputBuffer = "";
 
@@ -1664,7 +1691,7 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
-        if (this.menuup == 1) {
+        if (this.menuup === 1) {
             if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
                 this.selected = (this.selected - 1 + this.menuItems.length) % this.menuItems.length;
                 this.updateMenu();
@@ -1698,59 +1725,61 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.left!) && this.menuup == 0) {
             if (this.movenumber) this.movenumber = false
             else this.movenumber = true;
             this.doMovement("left");
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.right!) && this.menuup == 0) {
             if (this.movenumber) this.movenumber = false
             else this.movenumber = true;
             this.doMovement("right");
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.up!) && this.menuup == 0) {
             if (this.movenumber) this.movenumber = false
             else this.movenumber = true;
             this.doMovement("up");
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.down!) && this.menuup == 0) {
             if (this.movenumber) this.movenumber = false
             else this.movenumber = true;
             this.doMovement("down");
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.rKey) && this.menuup == 0) {
+        if (Phaser.Input.Keyboard.JustDown(this.rKey) && this.menuup !== 1) {
             this.entities = [];
             for (const laser of this.lasers) {
                 laser.destroy();
             }
             this.lasers = [];
+            this.menuup = 0;
             this.scene.start("game", {level: this.levelNumber});
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.qKey) && this.menuup == 0) {
+        if (Phaser.Input.Keyboard.JustDown(this.qKey) && this.menuup !== 1) {
             this.entities = [];
             for (const laser of this.lasers) {
                 laser.destroy();
             }
             this.lasers = [];
+            this.menuup = 0;
             this.scene.start("game", {level: this.levelNumber+1});
         }
-        if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.menuup == 0) {
+        if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.menuup !== 1) {
             this.menuup = 1;
             this.selected = 0;
             this.menuOverlay.setVisible(true);
             for (const item of this.menuItems) item.setVisible(true);
             this.updateMenu();
         }
-        if (Phaser.Input.Keyboard.JustDown(this.zKey) && this.menuup == 0) {
+        if (Phaser.Input.Keyboard.JustDown(this.zKey) && this.menuup !== 1) {
             const state = this.history.pop();
             if (!state) {
                 return;
@@ -1810,6 +1839,11 @@ export class GameScene extends Phaser.Scene {
                 laser.destroy();
             }
             this.laserFunction();
+            if (this.menuup == 2) {
+                this.menuup = 0;
+                this.menuOverlay.setVisible(false);
+                this.deathmessage.setVisible(false);
+            }
         }
     }
 }
