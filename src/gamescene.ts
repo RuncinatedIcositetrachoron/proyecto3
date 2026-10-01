@@ -283,6 +283,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     private laserFunction() {
+        for (const laser of this.lasers) {
+            laser.destroy();
+        }
+        this.lasers = [];
         this.emitterQueue = [];
         this.firedEmitters = [];
         const mirrors = this.entities.filter(entity => entity.type === "mirror");
