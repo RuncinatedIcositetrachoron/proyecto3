@@ -680,12 +680,19 @@ private cerrarMenuPausa() {
             }
         }
     
-        if (dir === 0 || dir === 2) {
-            this.laser = this.add.sprite(this.offsetX + nextX * 16*this.pixelmultiplier, this.offsetY + nextY * 16*this.pixelmultiplier, "tiles", Tile.LaserV).setOrigin(1,1).setScale(this.pixelmultiplier/2);
+        if (dir === 2) {
+            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.laser.play("laser-vertical");
         }
-        if (dir === 1 || dir === 3) {
-            this.laser = this.add.sprite(this.offsetX + nextX * 16*this.pixelmultiplier, this.offsetY + nextY * 16*this.pixelmultiplier, "tiles", Tile.LaserH).setOrigin(1,1).setScale(this.pixelmultiplier/2);
+        if (dir === 0) {
+            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.laser.play("laser-vertical2");
         }
+        if (dir === 3) {
+            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.laser.play("laser-horizontal2");
+        }
+        if (dir === 1) {
+            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.laser.play("laser-horizontal");
+        }
+        this.laser.setData("laserDir", dir);
         this.lasers.push(this.laser);
         this.addLaser(nextX, nextY, dir);
     }
@@ -1619,7 +1626,7 @@ private cerrarMenuPausa() {
             frameWidth: 16,
             frameHeight: 16,
         });
-        this.load.spritesheet("laserBody", "assets/laser.body.spr.png", {
+        this.load.spritesheet("laserBody", "assets/laser.body.spritesheet.png", {
             frameWidth: 16,
             frameHeight: 16,
         })
@@ -1720,6 +1727,71 @@ private cerrarMenuPausa() {
                     { key: "lindsey", frame: 31 }
                 ],
                 frameRate: this.animationspeed,
+                repeat: -1
+            });
+        }
+
+        if (!this.anims.exists("laser-horizontal")) {
+            this.anims.create({
+                key: "laser-horizontal",
+                frames: [
+                    { key: "laserBody", frame: 0 },
+                    { key: "laserBody", frame: 2 },
+                    { key: "laserBody", frame: 4 },
+                    { key: "laserBody", frame: 6 },
+                    { key: "laserBody", frame: 8 },
+                    { key: "laserBody", frame: 10 },
+                    { key: "laserBody", frame: 12 },
+                    { key: "laserBody", frame: 14 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+
+            this.anims.create({
+                key: "laser-vertical",
+                frames: [
+                    { key: "laserBody", frame: 1 },
+                    { key: "laserBody", frame: 3 },
+                    { key: "laserBody", frame: 5 },
+                    { key: "laserBody", frame: 7 },
+                    { key: "laserBody", frame: 9 },
+                    { key: "laserBody", frame: 11 },
+                    { key: "laserBody", frame: 13 },
+                    { key: "laserBody", frame: 15 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "laser-horizontal2",
+                frames: [
+                    { key: "laserBody", frame: 14 },
+                    { key: "laserBody", frame: 12 },
+                    { key: "laserBody", frame: 10 },
+                    { key: "laserBody", frame: 8 },
+                    { key: "laserBody", frame: 6 },
+                    { key: "laserBody", frame: 4 },
+                    { key: "laserBody", frame: 2 },
+                    { key: "laserBody", frame: 0 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+
+            this.anims.create({
+                key: "laser-vertical2",
+                frames: [
+                    { key: "laserBody", frame: 15 },
+                    { key: "laserBody", frame: 13 },
+                    { key: "laserBody", frame: 11 },
+                    { key: "laserBody", frame: 9 },
+                    { key: "laserBody", frame: 7 },
+                    { key: "laserBody", frame: 5 },
+                    { key: "laserBody", frame: 3 },
+                    { key: "laserBody", frame: 1 },
+                ],
+                frameRate: this.animationspeed*1.5,
                 repeat: -1
             });
         }
@@ -2270,7 +2342,17 @@ private cerrarMenuPausa() {
             this.menuup = 0;
             this.scene.start("game", {level: this.levelNumber+1});
         }
+<<<<<<< HEAD
 
+=======
+        if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.menuup == 0) {
+            this.menuup = 1;
+            this.selected = 0;
+            this.menuOverlay.setVisible(true);
+            for (const item of this.menuItems) item.setVisible(true);
+            this.updateMenu();
+        }
+>>>>>>> cac7251 (laser animations?? unbelievable. also no they do not work.)
         if (Phaser.Input.Keyboard.JustDown(this.zKey) && this.menuup !== 1) {
             this.undoMove();
             return;
