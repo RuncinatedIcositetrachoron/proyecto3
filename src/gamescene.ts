@@ -74,6 +74,7 @@ export class GameScene extends Phaser.Scene {
 
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
+    private objetosMenuPausa: Phaser.GameObjects.GameObject[] = [];
     private pixelmultiplier: number = 3.33                     // TODO: make this adjustable in settings
     private tilesize: number = this.pixelmultiplier*16;                   // TODO: make this adjustable in settings
     private animationspeed: number = 18;
@@ -100,27 +101,479 @@ export class GameScene extends Phaser.Scene {
     private rKey!: Phaser.Input.Keyboard.Key;
     private zKey!: Phaser.Input.Keyboard.Key;
     private escKey!: Phaser.Input.Keyboard.Key;
-    private enterKey!: Phaser.Input.Keyboard.Key;
     private entities: Entity[] = [];
     private lasers: Phaser.GameObjects.Sprite[] = [];
     private offsetX = 0;
     private offsetY = 0;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private staticRows: any;
-    private selected = 0;
-    private menuItems: Phaser.GameObjects.Text[] = [];
-    private menuLabels: string[] = [];
     private deathmessage: Phaser.GameObjects.Text;
-        
-    private updateMenu() {
-        for (let i = 0; i < this.menuItems.length; i++) {
-            if (i === this.selected) {
-                this.menuItems[i].setText("> " + this.menuLabels[i]);
-            } else {
-                this.menuItems[i].setText(" " + this.menuLabels[i]);
+
+    ////////////////////////
+    //BRUNO COSAS DEL MENU//
+    ////////////////////////
+
+    private obtenerNombreNivel() {
+        return "Nivel " + this.levelNumber;
+    }
+
+    private crearBotonJuego(
+        x: number,
+        y: number,
+        ancho: number,
+        texto: string,
+        color: number,
+        profundidad: number,
+        accion: () => void
+    ) {
+    const objetos: Phaser.GameObjects.GameObject[] = [];
+    const sombra = this.add.rectangle(
+        x + 3,
+        y + 3,
+        ancho + 4,
+        44,
+        0x14121e
+    );
+    sombra.setDepth(profundidad);
+    objetos.push(sombra);
+    const fondo = this.add.rectangle(
+        x,
+        y,
+        ancho,
+        40,
+        color
+    );
+    fondo.setStrokeStyle(4, 0x222034);
+    fondo.setDepth(profundidad + 1);
+    fondo.setInteractive({
+        useHandCursor: true
+    });
+    objetos.push(fondo);
+    const etiqueta = this.add.text(
+        x,
+        y,
+        texto,
+        {
+            fontFamily: "Fuente",
+            fontSize: "16px",
+            color: "#222034",
+            resolution: 1
+        }
+    );
+    etiqueta.setOrigin(0.5);
+    etiqueta.setDepth(profundidad + 2);
+    objetos.push(etiqueta);
+    fondo.on("pointerover", () => {
+        fondo.setAlpha(0.8);
+    });
+    fondo.on("pointerout", () => {
+        fondo.setAlpha(1);
+    });
+    fondo.on("pointerdown", () => {
+        accion();
+    });
+    return objetos;
+}
+
+private crearBarraSuperior() {
+    const alto = 68;
+
+    const separacion = 12;
+    const margen = separacion / 2;
+
+    const anchoBoton = 96;
+
+    const y = 30;
+
+    const xPausa =
+        this.scale.width -
+        margen -
+        anchoBoton / 2 -
+        5;
+
+    const xReset =
+        xPausa -
+        anchoBoton -
+        separacion -
+        5;
+
+    const xDeshacer =
+        xReset -
+        anchoBoton -
+        separacion -
+        5;
+
+    const barra = this.add.rectangle(
+        this.scale.width / 2,
+        alto / 2,
+        this.scale.width,
+        alto,
+        0x171a2e
+    );
+
+    barra.setDepth(900);
+
+    const bordeInferior = this.add.rectangle(
+        this.scale.width / 2,
+        alto - 2,
+        this.scale.width,
+        4,
+        0x6f87b0
+    );
+
+    bordeInferior.setDepth(901);
+
+    const nombreCompleto = this.obtenerNombreNivel();
+
+    const nombre = this.add.text(
+    margen*2,
+    alto / 2,
+    nombreCompleto,
+    {
+        fontFamily: "Fuente",
+        fontSize: "18px",
+        color: "#ffffff",
+        resolution: 1
+    }
+    );
+
+nombre.setOrigin(0, 0.5);
+
+    nombre.setOrigin(0, 0.5);
+    nombre.setDepth(902);
+
+    let nombreVisible = nombreCompleto;
+
+    const anchoMaximo =
+        xDeshacer -
+        anchoBoton / 2 -
+        separacion -
+        nombre.x;
+
+    while (
+        nombre.width > anchoMaximo &&
+        nombreVisible.length > 0
+    ) {
+        nombreVisible = nombreVisible.substring(
+            0,
+            nombreVisible.length - 1
+        );
+
+        nombre.setText(nombreVisible + "...");
+    }
+
+    const objetosDeshacer = this.crearBotonJuego(
+        xDeshacer,
+        y,
+        anchoBoton,
+        "Deshacer",
+        0x9ccc65,
+        903,
+        () => {
+            if (this.history.length === 0) {
+                return;
             }
+
+            this.undoMove();
+        }
+    );
+
+    const objetosReset = this.crearBotonJuego(
+        xReset,
+        y,
+        anchoBoton,
+        "Reset",
+        0xe6c56a,
+        903,
+        () => {
+            if (this.history.length === 0) {
+                return;
+            }
+
+            this.reiniciarNivel();
+        }
+    );
+
+    this.crearBotonJuego(
+        xPausa,
+        y,
+        anchoBoton,
+        "Pausa",
+        0xb39ddb,
+        903,
+        () => {
+            this.abrirMenuPausa();
+        }
+    );
+
+    const botonDeshacer =
+        objetosDeshacer[1] as Phaser.GameObjects.Rectangle;
+
+    const botonReset =
+        objetosReset[1] as Phaser.GameObjects.Rectangle;
+
+    const actualizarBotones = () => {
+        if (this.history.length === 0) {
+            botonDeshacer.disableInteractive();
+            botonReset.disableInteractive();
+
+            botonDeshacer.setFillStyle(0x79869e);
+            botonReset.setFillStyle(0x79869e);
+
+            botonDeshacer.setAlpha(1);
+            botonReset.setAlpha(1);
+        } else {
+            botonDeshacer.setInteractive({
+                useHandCursor: true
+            });
+
+            botonReset.setInteractive({
+                useHandCursor: true
+            });
+
+            botonDeshacer.setFillStyle(0x9ccc65);
+            botonReset.setFillStyle(0xe6c56a);
+
+            botonDeshacer.setAlpha(1);
+            botonReset.setAlpha(1);
+        }
+    };
+
+    actualizarBotones();
+
+    this.events.on(
+        Phaser.Scenes.Events.UPDATE,
+        actualizarBotones
+    );
+
+    this.events.once(
+        Phaser.Scenes.Events.SHUTDOWN,
+        () => {
+            this.events.off(
+                Phaser.Scenes.Events.UPDATE,
+                actualizarBotones
+            );
+        }
+    );
+}
+
+
+    private reiniciarNivel() {
+        this.entities = [];
+        for (const laser of this.lasers) {
+            laser.destroy();
+        }
+        this.lasers = [];
+        this.menuup = 0;
+        this.scene.start("game", {level: this.levelNumber});
+    }
+
+    private undoMove() {
+        const state = this.history.pop();
+        if (!state) {
+            return;
+        }   
+        for (let i = 0; i < this.entities.length; i++) {
+            const entity = this.entities[i];
+            const oldEntity = state.entities[i];
+            entity.x = oldEntity.x;
+            entity.y = oldEntity.y;
+            entity.dir = oldEntity.dir;
+            entity.portal = oldEntity.portal;
+            entity.sprite.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier).setDepth(2*entity.y);
+            if (entity.sprite2 && entity.group == 1 && entity.type === "wall") {
+                entity.sprite2.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier - 3 * this.pixelmultiplier).setDepth(2*entity.y+1);
+                switch(entity.portal) {
+                    case 0: entity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
+                    case 1: entity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
+                    case 2: entity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
+                    case 3: entity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
+                }
+            }
+            if (entity.sprite2 && entity.group == 2 && entity.type === "wall") {
+                entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier - 3*this.pixelmultiplier).setDepth(2*entity.y+1);
+                switch(entity.portal) {
+                    case 0: entity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
+                    case 1: entity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
+                    case 2: entity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
+                    case 3: entity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
+                }
+            }
+            if (entity.sprite2 && entity.group == 1 && entity.type !== "wall") {
+                entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y+1);
+                switch(entity.portal) {
+                    case 0: entity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
+                    case 1: entity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
+                    case 2: entity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
+                    case 3: entity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
+                }
+            }
+            if (entity.sprite2 && entity.group == 2 && entity.type !== "wall") {
+                entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y+1);
+                switch(entity.portal) {
+                    case 0: entity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
+                    case 1: entity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
+                    case 2: entity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
+                    case 3: entity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
+                }
+            }
+            if (entity.type === "player") {
+                entity.sprite.setTexture("lindseyi", entity.dir).setScale(this.pixelmultiplier).setDepth(10);
+                entity.sprite.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier);
+            }
+            entity.sprite.setDepth(2*entity.y);
+            if (entity.sprite2) entity.sprite2.setDepth(2*entity.y+1);
+        }
+        for (const laser of this.lasers) {
+            laser.destroy();
+        }
+        this.laserFunction();
+        if (this.menuup == 2) {
+            this.menuup = 0;
+            this.menuOverlay.setVisible(false);
+            this.deathmessage.setVisible(false);
         }
     }
+
+private abrirMenuPausa() {
+    if (this.menuup != 0) {
+        return;
+    }
+
+    this.menuup = 1;
+    this.inputBuffer = "";
+
+    const centroX = this.scale.width / 2;
+    const centroY = this.scale.height / 2;
+
+    const capa = this.add.rectangle(
+        centroX,
+        centroY,
+        this.scale.width,
+        this.scale.height,
+        0x080b17,
+        0.72
+    );
+
+    capa.setDepth(1000);
+    capa.setInteractive();
+
+    this.objetosMenuPausa.push(capa);
+
+    const sombra = this.add.rectangle(
+        centroX + 6,
+        centroY + 6,
+        424,
+        304,
+        0x080b17
+    );
+
+    sombra.setDepth(1001);
+
+    this.objetosMenuPausa.push(sombra);
+
+    const panel = this.add.rectangle(
+        centroX,
+        centroY,
+        420,
+        300,
+        0x171a2e
+    );
+
+    panel.setStrokeStyle(4, 0xb39ddb);
+    panel.setDepth(1002);
+
+    this.objetosMenuPausa.push(panel);
+
+    const titulo = this.add.text(
+        centroX,
+        centroY - 105,
+        "PAUSA",
+        {
+            fontFamily: "Fuente",
+            fontSize: "26px",
+            color: "#ffffff",
+            resolution: 1
+        }
+    );
+
+    titulo.setOrigin(0.5);
+    titulo.setDepth(1003);
+
+    this.objetosMenuPausa.push(titulo);
+
+    let objetosBoton = this.crearBotonJuego(
+        centroX,
+        centroY - 35,
+        260,
+        "Continuar",
+        0xcbdbfc,
+        1004,
+        () => {
+            this.cerrarMenuPausa();
+        }
+    );
+
+    for (let i = 0; i < objetosBoton.length; i++) {
+        this.objetosMenuPausa.push(objetosBoton[i]);
+    }
+
+    objetosBoton = this.crearBotonJuego(
+        centroX,
+        centroY + 25,
+        260,
+        "Reiniciar",
+        0xe6c56a,
+        1004,
+        () => {
+            this.cerrarMenuPausa();
+            this.reiniciarNivel();
+        }
+    );
+
+    for (let i = 0; i < objetosBoton.length; i++) {
+        this.objetosMenuPausa.push(objetosBoton[i]);
+    }
+
+    objetosBoton = this.crearBotonJuego(
+        centroX,
+        centroY + 85,
+        260,
+        "Salir",
+        0xe57373,
+        1004,
+        () => {
+            this.entities = [];
+
+            for (let i = 0; i < this.lasers.length; i++) {
+                this.lasers[i].destroy();
+            }
+
+            this.lasers = [];
+            this.scene.start("menu");
+        }
+    );
+
+    for (let i = 0; i < objetosBoton.length; i++) {
+        this.objetosMenuPausa.push(objetosBoton[i]);
+    }
+}
+private cerrarMenuPausa() {
+    if (this.menuup != 1) {
+        return;
+    }
+
+    this.menuup = 0;
+
+    for (let i = 0; i < this.objetosMenuPausa.length; i++) {
+        if (this.objetosMenuPausa[i].scene) {
+            this.objetosMenuPausa[i].destroy();
+        }
+    }
+
+    this.objetosMenuPausa = [];
+}
+
 
     private opposite(dir: number): number | undefined {
         switch(dir) {
@@ -1177,6 +1630,8 @@ export class GameScene extends Phaser.Scene {
         this.entities = [];
         this.history = [];
         this.lasers = [];
+        this.menuup = 0;
+        this.objetosMenuPausa = [];
 
         if (!this.anims.exists("lindsey-up")) {
             this.anims.create({
@@ -1273,7 +1728,6 @@ export class GameScene extends Phaser.Scene {
         this.rKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
         this.zKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
         this.escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-        this.enterKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
         const level = this.cache.text.get(`level${this.levelNumber}`);
         const [staticLayer, dynamicLayer, laserLayer, portalLayer, directionLayer] = level.split("^");
@@ -1619,21 +2073,13 @@ export class GameScene extends Phaser.Scene {
         }
         this.cursors = this.input.keyboard!.createCursorKeys();
         this.menuOverlay = this.add.rectangle(0, 0, 5000, 5000, 0x222034, 0.6).setVisible(false).setDepth(100);
-        this.menuLabels = ["RESUME", "OPTIONS", "EXIT"];
-        for (let i = 0; i < this.menuLabels.length; i++) {
-            const text = this.add.text(400, 250 + i * 40, this.menuLabels[i], {
-                    fontFamily: "biysmall",
-                    fontSize: "16px",
-                    color: "#ffffff",
-                }).setOrigin(0.5).setVisible(false).setDepth(101);
-            this.menuItems.push(text);
-        }
         this.deathmessage = this.add.text(400, 250, "you died", {
             fontFamily: "biysmall",
             fontSize: "16px",
             color: "#ffffff",
         }).setOrigin(0.5).setVisible(false).setDepth(101);
         this.laserFunction();
+        this.crearBarraSuperior();
     }
 
     //////////////////////////////
@@ -1698,6 +2144,19 @@ export class GameScene extends Phaser.Scene {
     }
 
     update() {
+        if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
+            if (this.menuup == 0) {
+                this.abrirMenuPausa();
+            } else if (this.menuup == 1) {
+                this.cerrarMenuPausa();
+            }
+            return;
+        }
+
+        if (this.menuup == 1) {
+            return;
+        }
+
         if (this.playerMoving) {
             if (this.menuup === 0) {
                 const player = this.entities.find(entity => entity.type === "player");
@@ -1769,40 +2228,6 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
-        if (this.menuup === 1) {
-            if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
-                this.selected = (this.selected - 1 + this.menuItems.length) % this.menuItems.length;
-                this.updateMenu();
-            }
-            if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
-                this.selected = (this.selected + 1) % this.menuItems.length;
-                this.updateMenu();
-            }
-            if (Phaser.Input.Keyboard.JustDown(this.enterKey)) {
-                switch (this.selected) {
-                    case 0:
-                        this.menuup = 0;
-                        this.menuOverlay.setVisible(false);
-                        for (const item of this.menuItems) item.setVisible(false);
-                        break;
-                    case 1:
-                        break;
-                    case 2:
-                        this.entities = [];
-                        for (const laser of this.lasers) laser.destroy();
-                        this.lasers = [];
-                        this.scene.start("menu");
-                        break;
-                }
-            }
-            if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
-                this.menuup = 0;
-                for (const item of this.menuItems) item.setVisible(false);
-                this.menuOverlay.setVisible(false);
-            }
-            return;
-        }
-
         if (Phaser.Input.Keyboard.JustDown(this.cursors.left!) && this.menuup == 0) {
             if (this.movenumber) this.movenumber = false
             else this.movenumber = true;
@@ -1832,13 +2257,8 @@ export class GameScene extends Phaser.Scene {
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.rKey) && this.menuup !== 1) {
-            this.entities = [];
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.lasers = [];
-            this.menuup = 0;
-            this.scene.start("game", {level: this.levelNumber});
+            this.reiniciarNivel();
+            return;
         }
 
         if (Phaser.Input.Keyboard.JustDown(this.qKey) && this.menuup !== 1) {
@@ -1850,78 +2270,10 @@ export class GameScene extends Phaser.Scene {
             this.menuup = 0;
             this.scene.start("game", {level: this.levelNumber+1});
         }
-        if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.menuup !== 1) {
-            this.menuup = 1;
-            this.selected = 0;
-            this.menuOverlay.setVisible(true);
-            for (const item of this.menuItems) item.setVisible(true);
-            this.updateMenu();
-        }
+
         if (Phaser.Input.Keyboard.JustDown(this.zKey) && this.menuup !== 1) {
-            const state = this.history.pop();
-            if (!state) {
-                return;
-            }   
-            for (let i = 0; i < this.entities.length; i++) {
-                const entity = this.entities[i];
-                const oldEntity = state.entities[i];
-                entity.x = oldEntity.x;
-                entity.y = oldEntity.y;
-                entity.dir = oldEntity.dir;
-                entity.portal = oldEntity.portal;
-                entity.sprite.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier).setDepth(2*entity.y);
-                if (entity.sprite2 && entity.group == 1 && entity.type === "wall") {
-                    entity.sprite2.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier - 3 * this.pixelmultiplier).setDepth(2*entity.y+1);
-                    switch(entity.portal) {
-                        case 0: entity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
-                        case 1: entity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
-                        case 2: entity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
-                        case 3: entity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
-                    }
-                }
-                if (entity.sprite2 && entity.group == 2 && entity.type === "wall") {
-                    entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier - 3*this.pixelmultiplier).setDepth(2*entity.y+1);
-                    switch(entity.portal) {
-                        case 0: entity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
-                        case 1: entity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
-                        case 2: entity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
-                        case 3: entity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
-                    }
-                }
-                if (entity.sprite2 && entity.group == 1 && entity.type !== "wall") {
-                    entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y+1);
-                    switch(entity.portal) {
-                        case 0: entity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
-                        case 1: entity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
-                        case 2: entity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
-                        case 3: entity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
-                    }
-                }
-                if (entity.sprite2 && entity.group == 2 && entity.type !== "wall") {
-                    entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y+1);
-                    switch(entity.portal) {
-                        case 0: entity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
-                        case 1: entity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
-                        case 2: entity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
-                        case 3: entity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
-                    }
-                }
-                if (entity.type === "player") {
-                    entity.sprite.setTexture("lindseyi", entity.dir).setScale(this.pixelmultiplier).setDepth(10);
-                    entity.sprite.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier);
-                }
-                entity.sprite.setDepth(2*entity.y);
-                if (entity.sprite2) entity.sprite2.setDepth(2*entity.y+1);
-            }
-            for (const laser of this.lasers) {
-                laser.destroy();
-            }
-            this.laserFunction();
-            if (this.menuup == 2) {
-                this.menuup = 0;
-                this.menuOverlay.setVisible(false);
-                this.deathmessage.setVisible(false);
-            }
+            this.undoMove();
+            return;
         }
     }
 }

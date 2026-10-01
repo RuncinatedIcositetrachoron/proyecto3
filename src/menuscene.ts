@@ -8,7 +8,12 @@ export class MenuScene extends Phaser.Scene {
 
   preload() {
     this.load.image("logo", "assets/logo.png");
-    this.load.font("Fuente", "./font.ttf");
+    this.load.bitmapFont(
+      "FuenteBitmap",
+      "./laserfont_0.png",
+      "./laserfont.fnt"
+    );
+    this.load.font("Fuente", "./font.ttf", "truetype");
   }
 
   create() {
