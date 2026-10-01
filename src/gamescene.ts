@@ -74,8 +74,10 @@ export class GameScene extends Phaser.Scene {
 
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
-    private pixelmultiplier: number = 3.33
+    private pixelmultiplier: number = 3.33                     // TODO: make this adjustable in settings
     private tilesize: number = this.pixelmultiplier*16;
+    private lindseyspeed: number = 218.75;                     // TODO: make this adjustable in settings
+    private animationspeed: number = this.lindseyspeed*0.064
     private laser: any;
     private emitterQueue: Entity[] = [];
     private firedEmitters: Entity[] = [];
@@ -720,6 +722,7 @@ export class GameScene extends Phaser.Scene {
         const facing = this.opposite(dir);
         player.sprite.setScale(this.pixelmultiplier).setDepth(2*player.y);
         this.animatePlayer(player, facing);
+        this.laserFunction();
         if (this.lindseyDeath()){
             this.menuup = 2;
             this.menuOverlay.setVisible(true);
@@ -824,7 +827,7 @@ export class GameScene extends Phaser.Scene {
             targets: sprites,
             x: this.offsetX + entity.x * this.tilesize,
             y: this.offsetY + entity.y * this.tilesize,
-            duration: 250,
+            duration: this.lindseyspeed,
             ease: "Linear",
 
             onUpdate: () => {
@@ -840,16 +843,15 @@ export class GameScene extends Phaser.Scene {
     
     private maskBoxPortal(box: Entity, portalX: number, portalY: number, portalDir: number | undefined) {
         this.tempstorage3 = box;
-        console.log(portalDir)
         let maskW = 5000;
         let maskH = 5000;
         let maskX = this.offsetX;
         let maskY = this.offsetY;
         switch(portalDir) {
             case 0: maskH = portalY*this.tilesize - 23 * this.pixelmultiplier; break;
-            case 1: maskW = portalX*this.tilesize + this.offsetX; break;
+            case 3: maskW = portalX*this.tilesize + this.offsetX; break;
             case 2: maskY = portalY*this.tilesize - 13 * this.pixelmultiplier + this.offsetY; break;
-            case 3: maskX = portalX*this.tilesize; break;
+            case 1: maskW = portalX*this.tilesize + this.offsetX; break; // i have no clue why this works, it's literally the same logic as leftward portal but w/e it works
         }
         const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
         const masks = Phaser.Actions.AddMaskShape(box.sprite, {
@@ -895,7 +897,7 @@ export class GameScene extends Phaser.Scene {
             targets: this.tempstorage2a, 
             x: this.offsetX + portalX * 16*this.pixelmultiplier,
             y: this.offsetY + portalY * 16*this.pixelmultiplier,
-            duration: 250,
+            duration: this.lindseyspeed,
             ease: "Linear",
 
             onComplete: () => {
@@ -969,7 +971,7 @@ export class GameScene extends Phaser.Scene {
             targets: copy,
             x: this.offsetX + portalX * 16*this.pixelmultiplier,
             y: this.offsetY + portalY * 16*this.pixelmultiplier,
-            duration: 250,
+            duration: this.lindseyspeed,
             ease: "Linear",
 
             onComplete: () => {
@@ -1016,7 +1018,7 @@ export class GameScene extends Phaser.Scene {
             targets: player.sprite,
             x: this.offsetX + player.x * 16*this.pixelmultiplier,
             y: this.offsetY + player.y * 16*this.pixelmultiplier,
-            duration: 250,
+            duration: this.lindseyspeed,
             ease: "Linear",
             onComplete: () => {
 
@@ -1109,7 +1111,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "lindsey", frame: 8 },
                     { key: "lindsey", frame: 12 }
                 ],
-                frameRate: 16,
+                frameRate: this.animationspeed,
                 repeat: -1
             });
             this.anims.create({
@@ -1120,7 +1122,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "lindsey", frame: 24 },
                     { key: "lindsey", frame: 28 }
                 ],
-                frameRate: 16,
+                frameRate: this.animationspeed,
                 repeat: -1
             });
             this.anims.create({
@@ -1131,7 +1133,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "lindsey", frame: 9 },
                     { key: "lindsey", frame: 13 }
                 ],
-                frameRate: 16,
+                frameRate: this.animationspeed,
                 repeat: -1
             });
             this.anims.create({
@@ -1142,7 +1144,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "lindsey", frame: 25 },
                     { key: "lindsey", frame: 29 }
                 ],
-                frameRate: 16,
+                frameRate: this.animationspeed,
                 repeat: -1
             });
             this.anims.create({
@@ -1153,7 +1155,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "lindsey", frame: 10 },
                     { key: "lindsey", frame: 14 }
                 ],
-                frameRate: 16,
+                frameRate: this.animationspeed,
                 repeat: -1
             });
             this.anims.create({
@@ -1164,7 +1166,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "lindsey", frame: 26 },
                     { key: "lindsey", frame: 30 }
                 ],
-                frameRate: 16,
+                frameRate: this.animationspeed,
                 repeat: -1
             });
             this.anims.create({
@@ -1175,7 +1177,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "lindsey", frame: 11 },
                     { key: "lindsey", frame: 15 }
                 ],
-                frameRate: 16,
+                frameRate: this.animationspeed,
                 repeat: -1
             });
             this.anims.create({
@@ -1186,7 +1188,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "lindsey", frame: 27 },
                     { key: "lindsey", frame: 31 }
                 ],
-                frameRate: 16,
+                frameRate: this.animationspeed,
                 repeat: -1
             });
         }
