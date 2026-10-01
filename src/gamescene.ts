@@ -75,9 +75,9 @@ export class GameScene extends Phaser.Scene {
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
     private pixelmultiplier: number = 3.33                     // TODO: make this adjustable in settings
-    private tilesize: number = this.pixelmultiplier*16;
-    private lindseyspeed: number = 218.75;                     // TODO: make this adjustable in settings
-    private animationspeed: number = this.lindseyspeed*0.064
+    private tilesize: number = this.pixelmultiplier*16;                   // TODO: make this adjustable in settings
+    private animationspeed: number = 18;
+    private lindseyspeed: number = this.animationspeed*11.94;  
     private laser: any;
     private emitterQueue: Entity[] = [];
     private firedEmitters: Entity[] = [];
@@ -570,7 +570,7 @@ export class GameScene extends Phaser.Scene {
             } else {
                 const otherEntity = this.getEntityAt(newEntityX, newEntityY);
 
-                if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity) {
+                if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity) {   // eat branch
                     const entry = entity;
                     const exit = this.findPair(entry.group, entry);
 
@@ -597,6 +597,8 @@ export class GameScene extends Phaser.Scene {
                         const savedY = otherEntity.y;
                         const savedDir = otherEntity.dir;
                         const savedPortal = otherEntity.portal;
+                        this.tempstorage2a = this.duplicateSprite(otherEntity.sprite);
+                        if (otherEntity.sprite2) this.tempstorage2b = this.duplicateSprite(otherEntity.sprite2);
 
                         let exitX = exit.x;
                         let exitY = exit.y;
@@ -660,14 +662,11 @@ export class GameScene extends Phaser.Scene {
 
                             let done = false;
 
-                            this.tempstorage2a = this.duplicateSprite(this.tempstorage.sprite);
-                            if (this.tempstorage.sprite2) this.tempstorage2b = this.duplicateSprite(this.tempstorage.sprite2);
-
                             switch(exit.portal) {
-                                case 0: done = this.updatePosition2(0, -1, 2, entry); break;
-                                case 1: done = this.updatePosition2(1, 0, 3, entry); break;
-                                case 2: done = this.updatePosition2(0, 1, 0, entry); break;
-                                case 3: done = this.updatePosition2(-1, 0, 1, entry); break;
+                                case 0: done = this.updatePosition2(0, -1, 2, entry, true); break;
+                                case 1: done = this.updatePosition2(1, 0, 3, entry, true); break;
+                                case 2: done = this.updatePosition2(0, 1, 0, entry, true); break;
+                                case 3: done = this.updatePosition2(-1, 0, 1, entry, true); break;
                             }
 
                             if (!done) {
@@ -675,6 +674,8 @@ export class GameScene extends Phaser.Scene {
                                 otherEntity.y = savedY;
                                 otherEntity.dir = savedDir;
                                 otherEntity.portal = savedPortal;
+                                this.tempstorage2a.destroy();
+                                if(this.tempstorage2b) this.tempstorage2b.destroy();
 
                                 otherEntity.sprite.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y);
 
@@ -700,14 +701,15 @@ export class GameScene extends Phaser.Scene {
                                 return false;
                             }
                         }
+                        const portalStartX = entry.x;
+                        const portalStartY = entry.y;
 
                         entry.x = newEntityX;
                         entry.y = newEntityY;
-                        entry.sprite.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier).setDepth(2*entity.y);
 
-                        if (entry.sprite2) {
-                            entry.sprite2.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier).setDepth(2*entity.y+1);
-                        }
+                        this.animatePushable(entry);
+
+                        this.animateEat(portalStartX, portalStartY, entry.portal, dx, dy);
                     }
                 } else {
                     if (this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) {
@@ -746,7 +748,7 @@ export class GameScene extends Phaser.Scene {
         return false;
     }
 
-    private updatePosition2(dx: number, dy: number, dir: number, entry: Entity | undefined): boolean {
+    private updatePosition2(dx: number, dy: number, dir: number, entry: Entity | undefined, eat: boolean = false): boolean {
         if (!this.tempstorage) {
             console.log("ERROR:TEMPSTORAGE IS UNEXPECTEDLY UNDEFINED. something has gone terribly wrong.");
             return false;
@@ -790,7 +792,9 @@ export class GameScene extends Phaser.Scene {
             console.log("ERROR: YOU ARE EXITING A PORTAL WITH NO ENTRY");
             return false;
         }
-        this.animateBPortalEntry(entry.x, entry.y, entry.portal);
+        if (eat == false) {
+            this.animateBPortalEntry(entry.x, entry.y, entry.portal);
+        }
         this.maskBoxPortal(this.tempstorage, this.tempstorage.x-dx, this.tempstorage.y-dy, this.opposite(dir));
         if (this.tempstorage.sprite2 && this.tempstorage.group === 1) {
             switch(this.tempstorage.portal) {
@@ -915,10 +919,74 @@ export class GameScene extends Phaser.Scene {
                 targets: this.tempstorage2b, 
                 x: this.offsetX + portalX * 16*this.pixelmultiplier,
                 y: this.offsetY + portalY * 16*this.pixelmultiplier,
-                duration: 250,
+                duration: this.lindseyspeed,
                 ease: "Linear",
 
                 onComplete: () => {
+                    if (this.tempstorage2b) this.tempstorage2b.destroy();
+                    this.tempstorage2b = undefined;
+                }
+            });
+            this.portalTweens.push(tween2);
+        }
+    }
+
+    private animateEat(portalX: number, portalY: number, portalDir: number | undefined, dx: number, dy: number) {
+        let maskW = 5000;
+        let maskH = 5000;
+        let maskX = this.offsetX;
+        let maskY = this.offsetY;
+        switch(portalDir) {
+            case 0: maskH = portalY*this.tilesize - 23*this.pixelmultiplier; break;
+            case 1: maskX = portalX*this.tilesize + this.offsetX; break;
+            case 2: maskY = portalY*this.tilesize - 13*this.pixelmultiplier + this.offsetY; break;
+            case 3: maskW = portalX*this.tilesize - this.tilesize; break;
+        }
+        const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
+        const masks = Phaser.Actions.AddMaskShape(this.tempstorage2a, {
+            shape: "rectangle",
+            region: region
+        });
+        const maskFilter = masks[0];
+        const maskShape = maskFilter.maskGameObject as Phaser.GameObjects.Rectangle;
+        maskFilter.autoUpdate = true;
+
+        if (!this.tempstorage2a) {console.log ("fuck you"); return;}
+
+        const tween = this.tweens.add({
+            targets: maskShape, 
+            x: maskShape.x + dx*this.tilesize,
+            y: maskShape.y + dy*this.tilesize,
+            duration: this.lindseyspeed,
+            ease: "Linear",
+
+            onComplete: () => {
+                if(this.tempstorage2a.filters) this.tempstorage2a.filters.external.remove(maskFilter);
+                maskShape.destroy();
+
+                if (this.tempstorage2a) this.tempstorage2a.destroy();
+                this.tempstorage2a = undefined;
+            }
+        });
+        this.portalTweens.push(tween);
+        if (this.tempstorage2b) {
+            const masks2 = Phaser.Actions.AddMaskShape(this.tempstorage2b, {
+                shape: "rectangle",
+                region: region
+            });
+            const maskFilter2 = masks2[0];
+            const maskShape2 = maskFilter2.maskGameObject as Phaser.GameObjects.Rectangle;
+            maskFilter2.autoUpdate = true;
+            const tween2 = this.tweens.add({
+                targets: maskShape2, 
+                x: maskShape2.x + dx*this.tilesize,
+                y: maskShape2.y + dy*this.tilesize,
+                duration: this.lindseyspeed,
+                ease: "Linear",
+
+                onComplete: () => {
+                    if(this.tempstorage2b.filters) this.tempstorage2b.filters.external.remove(maskFilter);
+                    maskShape2.destroy();
                     if (this.tempstorage2b) this.tempstorage2b.destroy();
                     this.tempstorage2b = undefined;
                 }
@@ -1098,6 +1166,10 @@ export class GameScene extends Phaser.Scene {
             frameWidth: 16,
             frameHeight: 16,
         });
+        this.load.spritesheet("laserBody", "assets/laser.body.spr.png", {
+            frameWidth: 16,
+            frameHeight: 16,
+        })
         this.load.text("level1", `assets/level1.txt`);
     }
 
