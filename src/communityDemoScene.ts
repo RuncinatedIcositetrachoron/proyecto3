@@ -79,6 +79,233 @@ export class CommunityDemoScene extends InterfazDemo {
     this.dibujar();
   }
 
+  copiarMatriz(matriz: any) {
+    const copia: number[][] = [];
+
+    if (Array.isArray(matriz) === false) {
+      return copia;
+    }
+
+    for (let fila = 0; fila < matriz.length; fila++) {
+      const filaCopiada: number[] = [];
+
+      for (let columna = 0; columna < matriz[fila].length; columna++) {
+        filaCopiada.push(matriz[fila][columna]);
+      }
+
+      copia.push(filaCopiada);
+    }
+
+    return copia;
+  }
+
+  matricesIguales(primera: any, segunda: any) {
+    if (Array.isArray(primera) === false) {
+      return false;
+    }
+
+    if (Array.isArray(segunda) === false) {
+      return false;
+    }
+
+    if (primera.length !== segunda.length) {
+      return false;
+    }
+
+    for (let fila = 0; fila < primera.length; fila++) {
+      if (primera[fila].length !== segunda[fila].length) {
+        return false;
+      }
+
+      for (let columna = 0; columna < primera[fila].length; columna++) {
+        if (primera[fila][columna] !== segunda[fila][columna]) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  obtenerLinksNivel(nivel: any) {
+    if (Array.isArray(nivel.links)) {
+      return nivel.links;
+    }
+
+    return [];
+  }
+
+  buscarPublicacionDeNivel(nivel: any) {
+    const usuario = demo.usuarioActual;
+
+    if (usuario === null || usuario === undefined) {
+      return null;
+    }
+
+    for (let i = 0; i < demo.niveles.length; i++) {
+      const publicacion: any = demo.niveles[i];
+
+      if (
+        publicacion.autorId === usuario.id &&
+        publicacion.nivelOriginalId !== undefined &&
+        String(publicacion.nivelOriginalId) === String(nivel.id)
+      ) {
+        return publicacion;
+      }
+    }
+
+    // Compatibilidad con publicaciones creadas antes de usar nivelOriginalId.
+    // Se enlazan una sola vez por autor + nombre.
+    for (let i = 0; i < demo.niveles.length; i++) {
+      const publicacion: any = demo.niveles[i];
+
+      if (
+        publicacion.autorId === usuario.id &&
+        publicacion.nivelOriginalId === undefined &&
+        publicacion.nombre === nivel.nombre
+      ) {
+        publicacion.nivelOriginalId = nivel.id;
+        return publicacion;
+      }
+    }
+
+    return null;
+  }
+
+  publicacionDesactualizada(nivel: any, publicacion: any) {
+    if (publicacion === null || publicacion === undefined) {
+      return false;
+    }
+
+    if (publicacion.nombre !== nivel.nombre) {
+      return true;
+    }
+
+    if (publicacion.tablero === undefined) {
+      return true;
+    }
+
+    if (publicacion.portales === undefined) {
+      return true;
+    }
+
+    if (publicacion.links === undefined) {
+      return true;
+    }
+
+    if (this.matricesIguales(publicacion.tablero, nivel.tablero) === false) {
+      return true;
+    }
+
+    if (this.matricesIguales(publicacion.portales, nivel.portales) === false) {
+      return true;
+    }
+
+    const links = this.obtenerLinksNivel(nivel);
+
+    if (this.matricesIguales(publicacion.links, links) === false) {
+      return true;
+    }
+
+    return false;
+  }
+
+  copiarNivelAPublicacion(nivel: any, publicacion: any) {
+    publicacion.nombre = nivel.nombre;
+    publicacion.tablero = this.copiarMatriz(nivel.tablero);
+    publicacion.portales = this.copiarMatriz(nivel.portales);
+    publicacion.links = this.copiarMatriz(this.obtenerLinksNivel(nivel));
+  }
+
+  siguienteIdPublicacion() {
+    let nuevoId = 1;
+
+    for (let i = 0; i < demo.niveles.length; i++) {
+      const publicacion: any = demo.niveles[i];
+      const id = Number(publicacion.id);
+
+      if (Number.isNaN(id) === false && id >= nuevoId) {
+        nuevoId = id + 1;
+      }
+    }
+
+    return nuevoId;
+  }
+
+  publicarNivel(nivel: any) {
+    const usuario = demo.usuarioActual;
+
+    if (usuario === null || usuario === undefined) {
+      return;
+    }
+
+    let publicacion = this.buscarPublicacionDeNivel(nivel);
+
+    if (publicacion === null) {
+      const publicaciones: any[] = demo.niveles;
+
+      publicacion = {
+        id: this.siguienteIdPublicacion(),
+        nivelOriginalId: nivel.id,
+        nombre: nivel.nombre,
+        autorId: usuario.id,
+        autor: usuario.nombre,
+        version: 1,
+        publicado: true,
+        descargas: 0,
+        tablero: this.copiarMatriz(nivel.tablero),
+        portales: this.copiarMatriz(nivel.portales),
+        links: this.copiarMatriz(this.obtenerLinksNivel(nivel))
+      };
+
+      publicaciones.push(publicacion);
+      return;
+    }
+
+    const habiaCambios = this.publicacionDesactualizada(
+      nivel,
+      publicacion
+    );
+
+    if (habiaCambios) {
+      this.copiarNivelAPublicacion(nivel, publicacion);
+
+      if (typeof publicacion.version !== "number") {
+        publicacion.version = 1;
+      } else {
+        publicacion.version++;
+      }
+    }
+
+    publicacion.publicado = true;
+  }
+
+  actualizarPublicacion(nivel: any, publicacion: any) {
+    if (publicacion === null || publicacion === undefined) {
+      return;
+    }
+
+    this.copiarNivelAPublicacion(nivel, publicacion);
+
+    if (typeof publicacion.version !== "number") {
+      publicacion.version = 1;
+    } else {
+      publicacion.version++;
+    }
+
+    publicacion.publicado = true;
+  }
+
+  copiarPublicacionADescarga(publicacion: any, descarga: any) {
+    descarga.nombre = publicacion.nombre;
+    descarga.autor = publicacion.autor;
+    descarga.version = publicacion.version;
+    descarga.tablero = this.copiarMatriz(publicacion.tablero);
+    descarga.portales = this.copiarMatriz(publicacion.portales);
+    descarga.links = this.copiarMatriz(publicacion.links);
+    descarga.completado = false;
+  }
+
   estaDescargado(id: number) {
     const usuario = demo.usuarioActual;
 
@@ -101,25 +328,13 @@ export class CommunityDemoScene extends InterfazDemo {
   }
 
   estaPublicado(nivel: any) {
-    const usuario = demo.usuarioActual;
+    const publicacion = this.buscarPublicacionDeNivel(nivel);
 
-    if (usuario === null || usuario === undefined) {
+    if (publicacion === null) {
       return false;
     }
 
-    for (let i = 0; i < demo.niveles.length; i++) {
-      const publicacion = demo.niveles[i];
-
-      if (
-        publicacion.autorId === usuario.id &&
-        publicacion.publicado === true &&
-        publicacion.nombre === nivel.nombre
-      ) {
-        return true;
-      }
-    }
-
-    return false;
+    return publicacion.publicado === true;
   }
 
   obtenerCreadosOrdenados() {
@@ -191,13 +406,18 @@ export class CommunityDemoScene extends InterfazDemo {
 
     this.guardarPestana();
 
-    demo.descargas.push({
+    const descargas: any[] = demo.descargas;
+
+    descargas.push({
       usuarioId: usuario.id,
       nivelId: nivel.id,
       nombre: nivel.nombre,
       autor: nivel.autor,
       version: nivel.version,
-      completado: false
+      completado: false,
+      tablero: this.copiarMatriz(nivel.tablero),
+      portales: this.copiarMatriz(nivel.portales),
+      links: this.copiarMatriz(nivel.links)
     });
 
     nivel.descargas++;
@@ -655,22 +875,12 @@ export class CommunityDemoScene extends InterfazDemo {
             nivelId: nivel.id
           });
         },
-        0xe6c56a
+        0xb39ddb
       );
 
-      const publicado = this.estaPublicado(nivel);
+      const publicacion = this.buscarPublicacionDeNivel(nivel);
 
-      if (publicado) {
-        this.boton(
-          640,
-          y,
-          160,
-          "Publicado",
-          () => {},
-          NORMAL,
-          false
-        );
-      } else {
+      if (publicacion === null || publicacion.publicado === false) {
         this.boton(
           640,
           y,
@@ -685,31 +895,44 @@ export class CommunityDemoScene extends InterfazDemo {
               "Publicar",
               VERDE,
               () => {
-                let nuevoId = 1;
-
-                for (let j = 0; j < demo.niveles.length; j++) {
-                  const publicacion = demo.niveles[j];
-
-                  if (publicacion.id >= nuevoId) {
-                    nuevoId = publicacion.id + 1;
-                  }
-                }
-
-                demo.niveles.push({
-                  id: nuevoId,
-                  nombre: nivel.nombre,
-                  autorId: usuario.id,
-                  autor: usuario.nombre,
-                  version: 1,
-                  publicado: true,
-                  descargas: 0
-                });
-
+                this.publicarNivel(nivel);
                 this.cambiarPestana("Publicados");
               }
             );
           },
           VERDE
+        );
+      } else if (this.publicacionDesactualizada(nivel, publicacion)) {
+        this.boton(
+          640,
+          y,
+          160,
+          "Actualizar",
+          () => {
+            mostrarConfirmacion(
+              this,
+              "Actualizar publicación",
+              '"' + nivel.nombre +
+                '"\n\nSe publicará la versión nueva del nivel.',
+              "Actualizar",
+              0xe6c56a,
+              () => {
+                this.actualizarPublicacion(nivel, publicacion);
+                this.dibujarFilas();
+              }
+            );
+          },
+          0xe6c56a
+        );
+      } else {
+        this.boton(
+          640,
+          y,
+          160,
+          "Publicado",
+          () => {},
+          NORMAL,
+          false
         );
       }
     }
@@ -979,7 +1202,7 @@ export class CommunityDemoScene extends InterfazDemo {
     }
 
     for (let i = 0; i < visibles.length; i++) {
-      const nivel = visibles[i];
+      const nivel: any = visibles[i];
       const y = 238 + i * 100;
 
       this.add.rectangle(400, y + 7, 680, 80, 0x171a2e);
@@ -1011,25 +1234,23 @@ export class CommunityDemoScene extends InterfazDemo {
         14
       ).setColor("#a5b4ce");
 
-      let original = demo.niveles[0];
-      let originalEncontrado = false;
+      let original: any = null;
 
       for (let j = 0; j < demo.niveles.length; j++) {
-        const publicacion = demo.niveles[j];
+        const publicacion: any = demo.niveles[j];
 
         if (
           publicacion.id === nivel.nivelId &&
           publicacion.publicado === true
         ) {
           original = publicacion;
-          originalEncontrado = true;
           break;
         }
       }
 
       let hayActualizacion = false;
 
-      if (originalEncontrado) {
+      if (original !== null) {
         if (original.version > nivel.version) {
           hayActualizacion = true;
         }
@@ -1049,12 +1270,8 @@ export class CommunityDemoScene extends InterfazDemo {
         150,
         textoBoton,
         () => {
-          if (hayActualizacion && originalEncontrado) {
-            nivel.nombre = original.nombre;
-            nivel.autor = original.autor;
-            nivel.version = original.version;
-            nivel.completado = false;
-
+          if (hayActualizacion && original !== null) {
+            this.copiarPublicacionADescarga(original, nivel);
             this.dibujarFilas();
             return;
           }
