@@ -154,8 +154,6 @@ export class CommunityDemoScene extends InterfazDemo {
       }
     }
 
-    // Compatibilidad con publicaciones creadas antes de usar nivelOriginalId.
-    // Se enlazan una sola vez por autor + nombre.
     for (let i = 0; i < demo.niveles.length; i++) {
       const publicacion: any = demo.niveles[i];
 

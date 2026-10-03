@@ -16,26 +16,26 @@ interface NivelParseable {
   // -1 = ignorar
   
   const tablaTiles: ConversionTile[] = [
-    {capa: -1, caracter: ""}, // 0
-    {capa: -1, caracter: ""}, // 1
+      {capa: -1, caracter: ""}, // 0
+    {capa: -1, caracter: ""}, // 1 Vacío
     {capa: -1, caracter: ""}, // 2
-  
-    {capa: 2, caracter: "t"}, // 3 Espejo arriba
-    {capa: 2, caracter: "g"}, // 4 Espejo abajo
-    {capa: 2, caracter: "f"}, // 5 Espejo izquierda
+
+    {capa: 2, caracter: "g"}, // 3 Espejo arriba
+    {capa: 2, caracter: "f"}, // 4 Espejo abajo
+    {capa: 2, caracter: "t"}, // 5 Espejo izquierda
     {capa: 2, caracter: "h"}, // 6 Espejo derecha
-  
+
     {capa: -1, caracter: ""}, // 7
     {capa: -1, caracter: ""}, // 8
     {capa: -1, caracter: ""}, // 9
     {capa: -1, caracter: ""}, // 10
-  
+
     {capa: 2, caracter: "w"}, // 11 Emisor arriba
     {capa: 2, caracter: "s"}, // 12 Emisor abajo
     {capa: 2, caracter: "a"}, // 13 Emisor izquierda
     {capa: 2, caracter: "d"}, // 14 Emisor derecha
-  
-    {capa: -1, caracter: ""}, // 15
+
+    {capa: -1, caracter: ""}, // 15 Piso visual
     {capa: -1, caracter: ""}, // 16
     {capa: -1, caracter: ""}, // 17
     {capa: -1, caracter: ""}, // 18
@@ -44,45 +44,61 @@ interface NivelParseable {
     {capa: -1, caracter: ""}, // 21
     {capa: -1, caracter: ""}, // 22
     {capa: -1, caracter: ""}, // 23
-  
-    {capa: 1, caracter: "p"}, // 24 Jugador
-    {capa: 0, caracter: "f"}, // 25 Exit gate
+
+    {capa: -1, caracter: ""}, // 24
+    {capa: 0, caracter: "f"}, // 25 Salida
     {capa: -1, caracter: ""}, // 26
-  
+
     {capa: 2, caracter: "i"}, // 27 Receptor arriba
     {capa: 2, caracter: "k"}, // 28 Receptor abajo
     {capa: 2, caracter: "j"}, // 29 Receptor izquierda
     {capa: 2, caracter: "l"}, // 30 Receptor derecha
-  
+
     {capa: -1, caracter: ""}, // 31
     {capa: -1, caracter: ""}, // 32
-    {capa: -1, caracter: ""}, // 33
-    {capa: -1, caracter: ""}, // 34
-    {capa: -1, caracter: ""}, // 35
-    {capa: -1, caracter: ""}, // 36
-  
+
+    {capa: -1, caracter: ""}, // 33 Maquinaria doble: izquierda
+    {capa: -1, caracter: ""}, // 34 Maquinaria doble: derecha
+    {capa: -1, caracter: ""}, // 35 Relieve de 33
+    {capa: -1, caracter: ""}, // 36 Relieve de 34
+
     {capa: 1, caracter: "b"}, // 37 Caja
-    {capa: -1, caracter: ""}, // 38
+    {capa: -1, caracter: ""}, // 38 Relieve de caja
     {capa: 0, caracter: "#"}, // 39 Pared
-    {capa: -1, caracter: ""}, // 40
-  
-    {capa: -1, caracter: ""}, // 41
-    {capa: -1, caracter: ""}, // 42
-    {capa: -1, caracter: ""}, // 43
-    {capa: -1, caracter: ""}, // 44
-    {capa: -1, caracter: ""}, // 45
-    {capa: -1, caracter: ""}, // 46
-    {capa: -1, caracter: ""}, // 47
-    {capa: -1, caracter: ""}, // 48
-    {capa: -1, caracter: ""}, // 49
-  
+    {capa: -1, caracter: ""}, // 40 Relieve de pared
+
+    {capa: -1, caracter: ""}, // 41 Maquinaria simple (pendiente)
+    {capa: -1, caracter: ""}, // 42 Relieve de maquinaria simple
+
+    {capa: -1, caracter: ""}, // 43 Parte de maquinaria 201 
+    {capa: -1, caracter: ""}, // 44 Parte de maquinaria 201 
+    {capa: -1, caracter: ""}, // 45 Parte de maquinaria 201 
+    {capa: -1, caracter: ""}, // 46 Parte de maquinaria 201 
+    {capa: -1, caracter: ""}, // 47 Parte de maquinaria 201 
+    {capa: -1, caracter: ""}, // 48 Relieve de 46
+    {capa: -1, caracter: ""}, // 49 Relieve de 47
+
     {capa: -1, caracter: ""}, // 50 Portal arriba
     {capa: -1, caracter: ""}, // 51 Portal abajo
-    {capa: -1, caracter: ""}, // 52
+    {capa: -1, caracter: ""}, // 52 Relieve de portal abajo
     {capa: -1, caracter: ""}, // 53 Portal izquierda
-    {capa: -1, caracter: ""}, // 54
+    {capa: -1, caracter: ""}, // 54 Relieve de portal izquierda
     {capa: -1, caracter: ""}, // 55 Portal derecha
-    {capa: -1, caracter: ""}  // 56
+    {capa: -1, caracter: ""}, // 56 Relieve de portal derecha
+
+    {capa: -1, caracter: ""}, // 57
+    {capa: -1, caracter: ""}, // 58
+    {capa: -1, caracter: ""}, // 59
+    {capa: -1, caracter: ""}, // 60
+    {capa: -1, caracter: ""}, // 61
+    {capa: -1, caracter: ""}, // 62
+    {capa: -1, caracter: ""}, // 63
+
+    {capa: 0, caracter: "#"}, // 64 Pared conectada con la de arriba
+    {capa: -1, caracter: ""}, // 65 Relieve de pared conectada
+
+    {capa: 1, caracter: "p"}, // 66 Jugador
+    {capa: -1, caracter: ""}  // 67 Relieve del jugador
   ];
   
   const tablaPortales: string[] = [];

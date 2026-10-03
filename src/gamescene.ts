@@ -1,5 +1,8 @@
 import Phaser from "phaser";
 
+import { obtenerNivel } from "./niveles";
+import { convertirNivel } from "./parser";
+
 interface Entity {
     type: string;
     x: number;
@@ -67,10 +70,32 @@ export class GameScene extends Phaser.Scene {
     private history: GameState[] = [];
     //private levelMode = 0;
 
-    init(data: { level: number, history: GameState[] }) {
+init(data: any) {
+    this.modoTest = false;
+    this.nivelTest = "";
+    this.nivelId = "";
+    this.levelNumber = 1;
+    this.datosInicio = data;
+    if (data === undefined || data === null) {
+        return;
+    }
+    if (data.modoTest === true) {
+        this.modoTest = true;
+        if (typeof data.nivelTest === "string") {
+            this.nivelTest = data.nivelTest;
+        }
+        return;
+    }
+    if (typeof data.nivelId === "string") {
+        this.nivelId = data.nivelId;
+    }
+    if (typeof data.level === "number") {
         this.levelNumber = data.level;
+    }
+    if (data.history !== undefined) {
         this.history = data.history;
     }
+}
 
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
@@ -108,6 +133,13 @@ export class GameScene extends Phaser.Scene {
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private staticRows: any;
     private deathmessage: Phaser.GameObjects.Text;
+
+    //TEST
+
+    private modoTest = false;
+    private nivelTest = "";
+    private nivelId = "";
+    private datosInicio: any = null;
 
     ////////////////////////
     //BRUNO COSAS DEL MENU//
@@ -359,13 +391,12 @@ nombre.setOrigin(0, 0.5);
 
 
     private reiniciarNivel() {
-        this.entities = [];
-        for (const laser of this.lasers) {
-            laser.destroy();
-        }
-        this.lasers = [];
-        this.menuup = 0;
-        this.scene.start("game", {level: this.levelNumber});
+        this.scene.restart({
+            modoTest: this.modoTest,
+            nivelTest: this.nivelTest,
+            nivelId: this.nivelId,
+            level: this.levelNumber
+        });
     }
 
     private undoMove() {
@@ -544,12 +575,19 @@ private abrirMenuPausa() {
         1004,
         () => {
             this.entities = [];
-
             for (let i = 0; i < this.lasers.length; i++) {
                 this.lasers[i].destroy();
             }
-
             this.lasers = [];
+            this.menuup = 0;
+            this.playerMoving = false;
+            this.inputBuffer = "";
+            this.holdBufferOpen = false;
+            if (this.modoTest) {
+                this.scene.wake("editor");
+                this.scene.stop();
+                return;
+            }
             this.scene.start("menu");
         }
     );
@@ -785,35 +823,83 @@ private cerrarMenuPausa() {
     }
     
     private winConditionsMet2(): boolean {
-        const recievers = this.entities.filter(entity => entity.type === "laserReciever");
-        for (const reciever of recievers) {
-            const currX = reciever.x;
-            const currY = reciever.y;
-            switch(reciever.dir){
+    const recievers = this.entities.filter(entity => entity.type === "laserReciever");
+    for (const reciever of recievers) {
+        const currX = reciever.x;
+        const currY = reciever.y;
+        let activated = false;
+        switch (reciever.dir) {
             case 0:
-                if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY-1) * 16*this.pixelmultiplier && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
-                    return true;
+                if (
+                    this.lasers.find((laser) =>
+                        laser.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
+                        laser.y === this.offsetY + (currY - 1) * 16 * this.pixelmultiplier &&
+                        String(laser.frame.name) === "8"
+                    ) ||
+                    this.entities.find((emissor) =>
+                        emissor.y === currY - 1 &&
+                        emissor.x === currX &&
+                        emissor.emitting === 2
+                    )
+                ) {
+                    activated = true;
                 }
                 break;
             case 1:
-                if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX+1) * 16*this.pixelmultiplier && String(laser.frame.name) === "4")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
-                    return true;
+                if (
+                    this.lasers.find((laser) =>
+                        laser.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
+                        laser.x === this.offsetX + (currX + 1) * 16 * this.pixelmultiplier &&
+                        String(laser.frame.name) === "4"
+                    ) ||
+                    this.entities.find((emissor) =>
+                        emissor.y === currY &&
+                        emissor.x === currX + 1 &&
+                        emissor.emitting === 3
+                    )
+                ) {
+                    activated = true;
                 }
                 break;
             case 2:
-                if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY+1) * 16*this.pixelmultiplier && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
-                    return true;
+                if (
+                    this.lasers.find((laser) =>
+                        laser.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
+                        laser.y === this.offsetY + (currY + 1) * 16 * this.pixelmultiplier &&
+                        String(laser.frame.name) === "8"
+                    ) ||
+                    this.entities.find((emissor) =>
+                        emissor.y === currY + 1 &&
+                        emissor.x === currX &&
+                        emissor.emitting === 0
+                    )
+                ) {
+                    activated = true;
                 }
                 break;
             case 3:
-                if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX-1) * 16*this.pixelmultiplier && String(laser.frame.name) === "4")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
-                    return true;
+                if (
+                    this.lasers.find((laser) =>
+                        laser.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
+                        laser.x === this.offsetX + (currX - 1) * 16 * this.pixelmultiplier &&
+                        String(laser.frame.name) === "4"
+                    ) ||
+                    this.entities.find((emissor) =>
+                        emissor.y === currY &&
+                        emissor.x === currX - 1 &&
+                        emissor.emitting === 1
+                    )
+                ) {
+                    activated = true;
                 }
                 break;
-            }
         }
-        return false;
+        if (activated === false) {
+            return false;
+        }
     }
+    return true;
+}
 
     private flagCheck() {
         const flag = this.entities.find(entity => entity.type === "flag");
@@ -1187,7 +1273,6 @@ private cerrarMenuPausa() {
             this.menuOverlay.setVisible(true);
             this.deathmessage.setVisible(true);
         }
-
         const flag = this.entities.find(entity => entity.type === "flag");
         if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
             this.entities = [];
@@ -1622,8 +1707,17 @@ private cerrarMenuPausa() {
         this.load.spritesheet("laserBody", "assets/laser.body.spr.png", {
             frameWidth: 16,
             frameHeight: 16,
-        })
-        this.load.text("level1", `assets/level1.txt`);
+        });
+        this.load.spritesheet("tileset-fogo", "./tileset.png", {
+            frameWidth: 16,
+            frameHeight: 16,
+        });
+        if (this.modoTest === false && this.nivelId === "") {
+            this.load.text(
+                "level",
+                "assets/levels/level" + this.levelNumber + ".txt"
+            );
+        }
     }
 
     create() {
@@ -1632,6 +1726,28 @@ private cerrarMenuPausa() {
         this.lasers = [];
         this.menuup = 0;
         this.objetosMenuPausa = [];
+                this.entities = [];
+        this.history = [];
+        this.lasers = [];
+        this.menuup = 0;
+        this.objetosMenuPausa = [];
+        this.playerMoving = false;
+        this.inputBuffer = "";
+        this.holdBufferOpen = false;
+        this.movenumber = false;
+        this.playerVertical = true;
+        this.playerTween = undefined;
+        this.pushTweens = [];
+        this.portalTweens = [];
+        this.playerPortalMask = undefined;
+        this.maskFilter = undefined;
+        this.maskFilter2 = undefined;
+        this.tempstorage = undefined;
+        this.tempstorage2a = undefined;
+        this.tempstorage2b = undefined;
+        this.tempstorage3 = undefined;
+        this.emitterQueue = [];
+        this.firedEmitters = [];
 
         if (!this.anims.exists("lindsey-up")) {
             this.anims.create({
@@ -1729,7 +1845,21 @@ private cerrarMenuPausa() {
         this.zKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
         this.escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
-        const level = this.cache.text.get(`level${this.levelNumber}`);
+        //MORE TEST STUFF
+
+        let level = "";
+        if (this.modoTest) {
+            level = this.nivelTest;
+        } else if (this.nivelId !== "") {
+            const nivel = obtenerNivel(this.nivelId);
+            if (nivel === undefined) {
+                return;
+            }
+            level = convertirNivel(nivel);
+        } else {
+            level = this.cache.text.get("level");
+        }
+
         const [staticLayer, dynamicLayer, laserLayer, portalLayer, directionLayer] = level.split("^");
         this.staticRows = staticLayer.trim().split("\n");
         const dynamicRows = dynamicLayer.trim().split("\n");
