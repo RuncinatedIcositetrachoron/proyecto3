@@ -53,7 +53,7 @@ export function crearCampoTexto(
   input.style.border = "2px solid #cbdbfc";
   input.style.backgroundColor = "#171a2e";
   input.style.color = "#cbdbfc";
-  input.style.fontFamily = "Fuente, monospace";
+  input.style.fontFamily = "Fuente";
   input.style.fontSize = "16px";
   input.style.paddingLeft = "8px";
   input.style.paddingRight = "8px";

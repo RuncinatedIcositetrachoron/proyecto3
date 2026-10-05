@@ -2,6 +2,7 @@
 
 import Phaser from "phaser";
 import { MAX_NOMBRE_NIVEL } from "./camposTexto";
+import { demo } from "./datosDemo";
 
 export type Nivel = {
     id: string;
@@ -127,7 +128,7 @@ export function crearNivel(filas: number, columnas: number): Nivel {
     fontSize: "16px",
     color: "#222034",
     fontFamily: "Fuente",
-    resolution: 1
+    resolution: 4
   }).setOrigin(0.5);
 
   const colorHover = 0x95add6;
@@ -148,7 +149,7 @@ export function crearNivel(filas: number, columnas: number): Nivel {
     color: "#cbdbfc",
     backgroundColor: "#171a2e",
     padding: { left: 8, right: 8, top: 6, bottom: 6 },
-    resolution: 1
+    resolution: 4
   }).setDepth(1000).setVisible(false);
 
   const mostrarTooltip = () => {

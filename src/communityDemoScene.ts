@@ -869,9 +869,12 @@ export class CommunityDemoScene extends InterfazDemo {
         150,
         "Test",
         () => {
-          this.scene.start("game", {
-            nivelId: nivel.id
+          this.scene.launch("game", {
+            nivelId: nivel.id,
+            escenaAnterior: "communityDemo",
+            testeando: true
           });
+          this.scene.sleep();
         },
         0xb39ddb
       );

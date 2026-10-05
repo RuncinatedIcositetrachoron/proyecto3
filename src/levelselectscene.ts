@@ -88,7 +88,7 @@ export class LevelselectScene extends Phaser.Scene {
           fontFamily: "Fuente",
           fontSize: "26px",
           color: "#cbdbfc",
-          resolution: 1
+          resolution: 4
         }
       );
 
@@ -173,7 +173,7 @@ export class LevelselectScene extends Phaser.Scene {
           fontFamily: "Fuente",
           fontSize: "14px",
           color: "#a5b4ce",
-          resolution: 1
+          resolution: 4
         }
       );
 
@@ -444,7 +444,7 @@ export class LevelselectScene extends Phaser.Scene {
         fontFamily: "Fuente",
         fontSize: "22px",
         color: colorTexto,
-        resolution: 1
+        resolution: 4
       }
     ).setOrigin(0.5);
 
@@ -520,7 +520,7 @@ export class LevelselectScene extends Phaser.Scene {
         fontFamily: "Fuente",
         fontSize: "16px",
         color: "#b39ddb",
-        resolution: 1
+        resolution: 4
       }
     ).setOrigin(0.5);
 

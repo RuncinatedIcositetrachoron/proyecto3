@@ -70,32 +70,39 @@ export class GameScene extends Phaser.Scene {
     private history: GameState[] = [];
     //private levelMode = 0;
 
-init(data: any) {
-    this.modoTest = false;
-    this.nivelTest = "";
-    this.nivelId = "";
-    this.levelNumber = 1;
-    this.datosInicio = data;
-    if (data === undefined || data === null) {
-        return;
-    }
-    if (data.modoTest === true) {
-        this.modoTest = true;
-        if (typeof data.nivelTest === "string") {
-            this.nivelTest = data.nivelTest;
+    init(data: any) {
+        this.testeando = false;
+        this.modoTest = false;
+        this.nivelTest = "";
+        this.nivelId = "";
+        this.levelNumber = 1;
+        this.escenaAnterior = "menu";
+        if (data === undefined || data === null) {
+            return;
         }
-        return;
+        if (typeof data.escenaAnterior === "string") {
+            this.escenaAnterior = data.escenaAnterior;
+        }
+        if (typeof data.nivelId === "string") {
+            this.nivelId = data.nivelId;
+        }
+        if (data.testeando === true) {
+            this.testeando = true;
+        }
+        if (data.modoTest === true) {
+            this.modoTest = true;
+            if (typeof data.nivelTest === "string") {
+                this.nivelTest = data.nivelTest;
+            }
+            return;
+        }
+        if (typeof data.level === "number") {
+            this.levelNumber = data.level;
+        }
+        if (data.history !== undefined) {
+            this.history = data.history;
+        }
     }
-    if (typeof data.nivelId === "string") {
-        this.nivelId = data.nivelId;
-    }
-    if (typeof data.level === "number") {
-        this.levelNumber = data.level;
-    }
-    if (data.history !== undefined) {
-        this.history = data.history;
-    }
-}
 
     private menuup = 0;
     private menuOverlay!: Phaser.GameObjects.Rectangle;
@@ -134,18 +141,29 @@ init(data: any) {
     private staticRows: any;
     private deathmessage: Phaser.GameObjects.Text;
 
+
     //TEST
 
+    private escenaAnterior = "menu";
     private modoTest = false;
     private nivelTest = "";
     private nivelId = "";
-    private datosInicio: any = null;
+    private testeando = false;
 
     ////////////////////////
     //BRUNO COSAS DEL MENU//
     ////////////////////////
 
     private obtenerNombreNivel() {
+        if (this.nivelId !== "") {
+            const nivel = obtenerNivel(this.nivelId);
+            if (nivel !== undefined) {
+                return nivel.nombre;
+            }
+        }
+        if (this.modoTest) {
+            return "Untitled Level";
+        }
         return "Nivel " + this.levelNumber;
     }
 
@@ -189,7 +207,7 @@ init(data: any) {
             fontFamily: "Fuente",
             fontSize: "16px",
             color: "#222034",
-            resolution: 1
+            resolution: 4
         }
     );
     etiqueta.setOrigin(0.5);
@@ -265,7 +283,7 @@ private crearBarraSuperior() {
         fontFamily: "Fuente",
         fontSize: "18px",
         color: "#ffffff",
-        resolution: 1
+        resolution: 4
     }
     );
 
@@ -280,7 +298,7 @@ nombre.setOrigin(0, 0.5);
         xDeshacer -
         anchoBoton / 2 -
         separacion -
-        nombre.x;
+        nombre.x - 150;
 
     while (
         nombre.width > anchoMaximo &&
@@ -293,7 +311,21 @@ nombre.setOrigin(0, 0.5);
 
         nombre.setText(nombreVisible + "...");
     }
-
+    if (this.modoTest || this.nivelId !== "") {
+        const etiquetaTest = this.add.text(
+            nombre.x + nombre.width + 8,
+            nombre.y,
+            "Test Mode",
+            {
+                fontFamily: "Fuente",
+                fontSize: "18px",
+                color: "#ffd166",
+                resolution: 4
+            }
+        );
+        etiquetaTest.setOrigin(0, 0.5);
+        etiquetaTest.setDepth(902);
+    }
     const objetosDeshacer = this.crearBotonJuego(
         xDeshacer,
         y,
@@ -524,7 +556,7 @@ private abrirMenuPausa() {
             fontFamily: "Fuente",
             fontSize: "26px",
             color: "#ffffff",
-            resolution: 1
+            resolution: 4
         }
     );
 
@@ -583,12 +615,12 @@ private abrirMenuPausa() {
             this.playerMoving = false;
             this.inputBuffer = "";
             this.holdBufferOpen = false;
-            if (this.modoTest) {
-                this.scene.wake("editor");
+            if (this.scene.isSleeping(this.escenaAnterior)) {
+                this.scene.wake(this.escenaAnterior);
                 this.scene.stop();
                 return;
             }
-            this.scene.start("menu");
+            this.scene.start(this.escenaAnterior);
         }
     );
 
