@@ -15,7 +15,7 @@ import { CommunityDemoScene } from "./communityDemoScene";
 
 await document.fonts.ready;
 
-Phaser.GameObjects.TextStyle.prototype.resolution = 4;
+Phaser.GameObjects.TextStyle.prototype.resolution = 10;
 
 const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,

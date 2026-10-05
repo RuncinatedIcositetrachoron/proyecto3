@@ -137,6 +137,7 @@ export class GameScene extends Phaser.Scene {
     private lasers: Phaser.GameObjects.Sprite[] = [];
     private offsetX = 0;
     private offsetY = 0;
+    private altoBarra = 68;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private staticRows: any;
     private deathmessage: Phaser.GameObjects.Text;
@@ -207,7 +208,6 @@ export class GameScene extends Phaser.Scene {
             fontFamily: "Fuente",
             fontSize: "16px",
             color: "#222034",
-            resolution: 4
         }
     );
     etiqueta.setOrigin(0.5);
@@ -226,7 +226,7 @@ export class GameScene extends Phaser.Scene {
 }
 
 private crearBarraSuperior() {
-    const alto = 68;
+    const alto = this.altoBarra;
 
     const separacion = 12;
     const margen = separacion / 2;
@@ -283,7 +283,6 @@ private crearBarraSuperior() {
         fontFamily: "Fuente",
         fontSize: "18px",
         color: "#ffffff",
-        resolution: 4
     }
     );
 
@@ -320,7 +319,6 @@ nombre.setOrigin(0, 0.5);
                 fontFamily: "Fuente",
                 fontSize: "18px",
                 color: "#ffd166",
-                resolution: 4
             }
         );
         etiquetaTest.setOrigin(0, 0.5);
@@ -397,9 +395,6 @@ nombre.setOrigin(0, 0.5);
 
             botonDeshacer.setFillStyle(0x9ccc65);
             botonReset.setFillStyle(0xe6c56a);
-
-            botonDeshacer.setAlpha(1);
-            botonReset.setAlpha(1);
         }
     };
 
@@ -556,7 +551,6 @@ private abrirMenuPausa() {
             fontFamily: "Fuente",
             fontSize: "26px",
             color: "#ffffff",
-            resolution: 4
         }
     );
 
@@ -1898,8 +1892,34 @@ private cerrarMenuPausa() {
         const laserRows = laserLayer.trim().split("\n");
         const portalRows = portalLayer.trim().split("\n");
         const directionRows = directionLayer.trim().split("\n");
-        this.offsetX = (800 + 16*this.pixelmultiplier - this.staticRows[0].length * 16*this.pixelmultiplier) / 2 + 8*this.pixelmultiplier;
-        this.offsetY = (600 + 16*this.pixelmultiplier - this.staticRows.length * 16*this.pixelmultiplier) / 2 + 8*this.pixelmultiplier;
+        
+        //CALCULO DE MEDIDAS // HOLA LUCAS!!! // WHO DOESN'T LOVE SOFTCODING?
+
+            const margen = 12;
+            const columnas = this.staticRows[0].length;
+            const filas = this.staticRows.length;
+            const anchoDisponible = this.scale.width - margen * 2;
+            const altoDisponible = this.scale.height - this.altoBarra - margen * 2;
+            const extraSuperior = 8;
+            this.pixelmultiplier = Math.min(
+                3.33,
+                anchoDisponible / (columnas * 16),
+                altoDisponible / (filas * 16 + extraSuperior)
+            );
+            this.tilesize = 16 * this.pixelmultiplier;
+            const anchoTablero = columnas * this.tilesize;
+            const altoTablero = filas * this.tilesize;
+            const extra = extraSuperior * this.pixelmultiplier;
+            this.offsetX =
+                (this.scale.width - anchoTablero) / 2 +
+                this.tilesize;
+            this.offsetY =
+                this.altoBarra +
+                margen +
+                (altoDisponible - altoTablero - extra) / 2 +
+                extra +
+                this.tilesize;
+
 
         for (let y = 0; y<this.staticRows.length; y++) {
             for (let x = 0; x<this.staticRows[y].length; x++){
