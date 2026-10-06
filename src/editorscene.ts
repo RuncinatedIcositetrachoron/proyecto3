@@ -245,8 +245,7 @@ export class EditorScene extends Phaser.Scene {
     this.textoEstado = this.add.text(24, 22, "Level Editor", {
       fontFamily: "Fuente",
       fontSize: "14px",
-      color: "#95add6",
-      resolution: 1
+      color: "#95add6"
     });
 
     let nombre = "Untitled Level";
@@ -263,7 +262,6 @@ export class EditorScene extends Phaser.Scene {
       fontFamily: "Fuente",
       fontSize: "18px",
       color: "#ffffff",
-      resolution: 1
     });
 
     let nombreVisible = nombre;
@@ -991,7 +989,6 @@ export class EditorScene extends Phaser.Scene {
       backgroundColor: "#171a2e",
       padding: { x: 10, y: 8 },
       align: "center",
-      resolution: 1
     });
 
     this.textoTile.setOrigin(0, 0);
@@ -4448,7 +4445,10 @@ this.bordeTooltipTile.setVisible(false);
 
     this.scene.launch("game", {
       modoTest: true,
-      nivelTest: nivelTest
+      nivelTest: nivelTest,
+      nivelId: this.nivelId,
+      escenaAnterior: this.sys.settings.key,
+      testeando: true
     });
 
     this.scene.sleep();

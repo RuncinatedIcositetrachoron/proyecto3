@@ -1,5 +1,8 @@
 import Phaser from "phaser";
 
+import { obtenerNivel } from "./niveles";
+import { convertirNivel } from "./parser";
+
 interface Entity {
     type: string;
     x: number;
@@ -67,9 +70,38 @@ export class GameScene extends Phaser.Scene {
     private history: GameState[] = [];
     //private levelMode = 0;
 
-    init(data: { level: number, history: GameState[] }) {
-        this.levelNumber = data.level;
-        this.history = data.history;
+    init(data: any) {
+        this.testeando = false;
+        this.modoTest = false;
+        this.nivelTest = "";
+        this.nivelId = "";
+        this.levelNumber = 1;
+        this.escenaAnterior = "menu";
+        if (data === undefined || data === null) {
+            return;
+        }
+        if (typeof data.escenaAnterior === "string") {
+            this.escenaAnterior = data.escenaAnterior;
+        }
+        if (typeof data.nivelId === "string") {
+            this.nivelId = data.nivelId;
+        }
+        if (data.testeando === true) {
+            this.testeando = true;
+        }
+        if (data.modoTest === true) {
+            this.modoTest = true;
+            if (typeof data.nivelTest === "string") {
+                this.nivelTest = data.nivelTest;
+            }
+            return;
+        }
+        if (typeof data.level === "number") {
+            this.levelNumber = data.level;
+        }
+        if (data.history !== undefined) {
+            this.history = data.history;
+        }
     }
 
     private menuup = 0;
@@ -105,15 +137,34 @@ export class GameScene extends Phaser.Scene {
     private lasers: Phaser.GameObjects.Sprite[] = [];
     private offsetX = 0;
     private offsetY = 0;
+    private altoBarra = 68;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private staticRows: any;
     private deathmessage: Phaser.GameObjects.Text | undefined;
+
+
+    //TEST
+
+    private escenaAnterior = "menu";
+    private modoTest = false;
+    private nivelTest = "";
+    private nivelId = "";
+    private testeando = false;
 
     ////////////////////////
     //BRUNO COSAS DEL MENU//
     ////////////////////////
 
     private obtenerNombreNivel() {
+        if (this.nivelId !== "") {
+            const nivel = obtenerNivel(this.nivelId);
+            if (nivel !== undefined) {
+                return nivel.nombre;
+            }
+        }
+        if (this.modoTest) {
+            return "Untitled Level";
+        }
         return "Nivel " + this.levelNumber;
     }
 
@@ -157,7 +208,6 @@ export class GameScene extends Phaser.Scene {
             fontFamily: "Fuente",
             fontSize: "16px",
             color: "#222034",
-            resolution: 1
         }
     );
     etiqueta.setOrigin(0.5);
@@ -176,7 +226,7 @@ export class GameScene extends Phaser.Scene {
 }
 
 private crearBarraSuperior() {
-    const alto = 68;
+    const alto = this.altoBarra;
 
     const separacion = 12;
     const margen = separacion / 2;
@@ -233,7 +283,6 @@ private crearBarraSuperior() {
         fontFamily: "Fuente",
         fontSize: "18px",
         color: "#ffffff",
-        resolution: 1
     }
     );
 
@@ -248,7 +297,7 @@ nombre.setOrigin(0, 0.5);
         xDeshacer -
         anchoBoton / 2 -
         separacion -
-        nombre.x;
+        nombre.x - 150;
 
     while (
         nombre.width > anchoMaximo &&
@@ -261,7 +310,20 @@ nombre.setOrigin(0, 0.5);
 
         nombre.setText(nombreVisible + "...");
     }
-
+    if (this.modoTest || this.nivelId !== "") {
+        const etiquetaTest = this.add.text(
+            nombre.x + nombre.width + 8,
+            nombre.y,
+            "Test Mode",
+            {
+                fontFamily: "Fuente",
+                fontSize: "18px",
+                color: "#ffd166",
+            }
+        );
+        etiquetaTest.setOrigin(0, 0.5);
+        etiquetaTest.setDepth(902);
+    }
     const objetosDeshacer = this.crearBotonJuego(
         xDeshacer,
         y,
@@ -333,9 +395,6 @@ nombre.setOrigin(0, 0.5);
 
             botonDeshacer.setFillStyle(0x9ccc65);
             botonReset.setFillStyle(0xe6c56a);
-
-            botonDeshacer.setAlpha(1);
-            botonReset.setAlpha(1);
         }
     };
 
@@ -359,13 +418,12 @@ nombre.setOrigin(0, 0.5);
 
 
     private reiniciarNivel() {
-        this.entities = [];
-        for (const laser of this.lasers) {
-            laser.destroy();
-        }
-        this.lasers = [];
-        this.menuup = 0;
-        this.scene.start("game", {level: this.levelNumber});
+        this.scene.restart({
+            modoTest: this.modoTest,
+            nivelTest: this.nivelTest,
+            nivelId: this.nivelId,
+            level: this.levelNumber
+        });
     }
 
     private undoMove() {
@@ -493,7 +551,6 @@ private abrirMenuPausa() {
             fontFamily: "Fuente",
             fontSize: "26px",
             color: "#ffffff",
-            resolution: 1
         }
     );
 
@@ -544,13 +601,20 @@ private abrirMenuPausa() {
         1004,
         () => {
             this.entities = [];
-
             for (let i = 0; i < this.lasers.length; i++) {
                 this.lasers[i].destroy();
             }
-
             this.lasers = [];
-            this.scene.start("menu");
+            this.menuup = 0;
+            this.playerMoving = false;
+            this.inputBuffer = "";
+            this.holdBufferOpen = false;
+            if (this.scene.isSleeping(this.escenaAnterior)) {
+                this.scene.wake(this.escenaAnterior);
+                this.scene.stop();
+                return;
+            }
+            this.scene.start(this.escenaAnterior);
         }
     );
 
@@ -793,35 +857,83 @@ private cerrarMenuPausa() {
     }
     
     private winConditionsMet2(): boolean {
-        const recievers = this.entities.filter(entity => entity.type === "laserReciever");
-        for (const reciever of recievers) {
-            const currX = reciever.x;
-            const currY = reciever.y;
-            switch(reciever.dir){
+    const recievers = this.entities.filter(entity => entity.type === "laserReciever");
+    for (const reciever of recievers) {
+        const currX = reciever.x;
+        const currY = reciever.y;
+        let activated = false;
+        switch (reciever.dir) {
             case 0:
-                if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY-1) * 16*this.pixelmultiplier && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
-                    return true;
+                if (
+                    this.lasers.find((laser) =>
+                        laser.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
+                        laser.y === this.offsetY + (currY - 1) * 16 * this.pixelmultiplier &&
+                        String(laser.frame.name) === "8"
+                    ) ||
+                    this.entities.find((emissor) =>
+                        emissor.y === currY - 1 &&
+                        emissor.x === currX &&
+                        emissor.emitting === 2
+                    )
+                ) {
+                    activated = true;
                 }
                 break;
             case 1:
-                if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX+1) * 16*this.pixelmultiplier && String(laser.frame.name) === "4")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
-                    return true;
+                if (
+                    this.lasers.find((laser) =>
+                        laser.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
+                        laser.x === this.offsetX + (currX + 1) * 16 * this.pixelmultiplier &&
+                        String(laser.frame.name) === "4"
+                    ) ||
+                    this.entities.find((emissor) =>
+                        emissor.y === currY &&
+                        emissor.x === currX + 1 &&
+                        emissor.emitting === 3
+                    )
+                ) {
+                    activated = true;
                 }
                 break;
             case 2:
-                if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY+1) * 16*this.pixelmultiplier && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
-                    return true;
+                if (
+                    this.lasers.find((laser) =>
+                        laser.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
+                        laser.y === this.offsetY + (currY + 1) * 16 * this.pixelmultiplier &&
+                        String(laser.frame.name) === "8"
+                    ) ||
+                    this.entities.find((emissor) =>
+                        emissor.y === currY + 1 &&
+                        emissor.x === currX &&
+                        emissor.emitting === 0
+                    )
+                ) {
+                    activated = true;
                 }
                 break;
             case 3:
-                if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX-1) * 16*this.pixelmultiplier && String(laser.frame.name) === "4")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
-                    return true;
+                if (
+                    this.lasers.find((laser) =>
+                        laser.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
+                        laser.x === this.offsetX + (currX - 1) * 16 * this.pixelmultiplier &&
+                        String(laser.frame.name) === "4"
+                    ) ||
+                    this.entities.find((emissor) =>
+                        emissor.y === currY &&
+                        emissor.x === currX - 1 &&
+                        emissor.emitting === 1
+                    )
+                ) {
+                    activated = true;
                 }
                 break;
-            }
         }
-        return false;
+        if (activated === false) {
+            return false;
+        }
     }
+    return true;
+}
 
     private flagCheck() {
         const flag = this.entities.find(entity => entity.type === "flag");
@@ -1193,7 +1305,6 @@ private cerrarMenuPausa() {
             this.menuOverlay.setVisible(true);
             if (this.deathmessage) this.deathmessage.setVisible(true);
         }
-
         const flag = this.entities.find(entity => entity.type === "flag");
         if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
             this.entities = [];
@@ -1628,8 +1739,17 @@ private cerrarMenuPausa() {
         this.load.spritesheet("laserBody", "assets/laser.body.spritesheet.png", {
             frameWidth: 16,
             frameHeight: 16,
-        })
-        this.load.text("level1", `assets/level1.txt`);
+        });
+        this.load.spritesheet("tileset-fogo", "./tileset.png", {
+            frameWidth: 16,
+            frameHeight: 16,
+        });
+        if (this.modoTest === false && this.nivelId === "") {
+            this.load.text(
+                "level",
+                "assets/levels/level" + this.levelNumber + ".txt"
+            );
+        }
     }
 
     create() {
@@ -1638,6 +1758,28 @@ private cerrarMenuPausa() {
         this.lasers = [];
         this.menuup = 0;
         this.objetosMenuPausa = [];
+                this.entities = [];
+        this.history = [];
+        this.lasers = [];
+        this.menuup = 0;
+        this.objetosMenuPausa = [];
+        this.playerMoving = false;
+        this.inputBuffer = "";
+        this.holdBufferOpen = false;
+        this.movenumber = false;
+        this.playerVertical = true;
+        this.playerTween = undefined;
+        this.pushTweens = [];
+        this.portalTweens = [];
+        this.playerPortalMask = undefined;
+        this.maskFilter = undefined;
+        this.maskFilter2 = undefined;
+        this.tempstorage = undefined;
+        this.tempstorage2a = undefined;
+        this.tempstorage2b = undefined;
+        this.tempstorage3 = undefined;
+        this.emitterQueue = [];
+        this.firedEmitters = [];
 
         if (!this.anims.exists("lindsey-up")) {
             this.anims.create({
@@ -1800,15 +1942,55 @@ private cerrarMenuPausa() {
         this.zKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
         this.escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
-        const level = this.cache.text.get(`level${this.levelNumber}`);
+        //MORE TEST STUFF
+
+        let level = "";
+        if (this.modoTest) {
+            level = this.nivelTest;
+        } else if (this.nivelId !== "") {
+            const nivel = obtenerNivel(this.nivelId);
+            if (nivel === undefined) {
+                return;
+            }
+            level = convertirNivel(nivel);
+        } else {
+            level = this.cache.text.get("level");
+        }
+
         const [staticLayer, dynamicLayer, laserLayer, portalLayer, directionLayer] = level.split("^");
         this.staticRows = staticLayer.trim().split("\n");
         const dynamicRows = dynamicLayer.trim().split("\n");
         const laserRows = laserLayer.trim().split("\n");
         const portalRows = portalLayer.trim().split("\n");
         const directionRows = directionLayer.trim().split("\n");
-        this.offsetX = (800 + 16*this.pixelmultiplier - this.staticRows[0].length * 16*this.pixelmultiplier) / 2 + 8*this.pixelmultiplier;
-        this.offsetY = (600 + 16*this.pixelmultiplier - this.staticRows.length * 16*this.pixelmultiplier) / 2 + 8*this.pixelmultiplier;
+        
+        //CALCULO DE MEDIDAS // HOLA LUCAS!!! // WHO DOESN'T LOVE SOFTCODING?
+
+            const margen = 12;
+            const columnas = this.staticRows[0].length;
+            const filas = this.staticRows.length;
+            const anchoDisponible = this.scale.width - margen * 2;
+            const altoDisponible = this.scale.height - this.altoBarra - margen * 2;
+            const extraSuperior = 8;
+            this.pixelmultiplier = Math.min(
+                3.33,
+                anchoDisponible / (columnas * 16),
+                altoDisponible / (filas * 16 + extraSuperior)
+            );
+            this.tilesize = 16 * this.pixelmultiplier;
+            const anchoTablero = columnas * this.tilesize;
+            const altoTablero = filas * this.tilesize;
+            const extra = extraSuperior * this.pixelmultiplier;
+            this.offsetX =
+                (this.scale.width - anchoTablero) / 2 +
+                this.tilesize;
+            this.offsetY =
+                this.altoBarra +
+                margen +
+                (altoDisponible - altoTablero - extra) / 2 +
+                extra +
+                this.tilesize;
+
 
         for (let y = 0; y<this.staticRows.length; y++) {
             for (let x = 0; x<this.staticRows[y].length; x++){

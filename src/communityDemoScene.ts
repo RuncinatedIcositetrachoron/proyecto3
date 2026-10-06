@@ -154,8 +154,6 @@ export class CommunityDemoScene extends InterfazDemo {
       }
     }
 
-    // Compatibilidad con publicaciones creadas antes de usar nivelOriginalId.
-    // Se enlazan una sola vez por autor + nombre.
     for (let i = 0; i < demo.niveles.length; i++) {
       const publicacion: any = demo.niveles[i];
 
@@ -871,9 +869,12 @@ export class CommunityDemoScene extends InterfazDemo {
         150,
         "Test",
         () => {
-          this.scene.start("game", {
-            nivelId: nivel.id
+          this.scene.launch("game", {
+            nivelId: nivel.id,
+            escenaAnterior: "communityDemo",
+            testeando: true
           });
+          this.scene.sleep();
         },
         0xb39ddb
       );

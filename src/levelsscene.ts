@@ -537,10 +537,12 @@ export class LevelsScene extends Phaser.Scene {
         "Test",
         () => {
           this.cerrarNombre(true);
-
-          this.scene.start("game", {
-            nivelId: nivel.id
+          this.scene.launch("game", {
+            nivelId: nivel.id,
+            escenaAnterior: "LevelsScene",
+            testeando: true
           });
+          this.scene.sleep();
         },
         0xe6c56a
       );
@@ -670,7 +672,7 @@ export class LevelsScene extends Phaser.Scene {
     input.style.height = "36px";
     input.style.boxSizing = "border-box";
     input.style.margin = "0";
-    input.style.fontFamily = '"Fuente", monospace';
+    input.style.fontFamily = '"Fuente"';
     input.style.fontSize = "16px";
     input.style.lineHeight = "32px";
     input.style.backgroundColor = "#171a2e";

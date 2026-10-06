@@ -1,3 +1,5 @@
+import type { Nivel } from "./niveles";
+
 export type Usuario = {
   id: number;
   nombre: string;
@@ -27,21 +29,34 @@ export const demo: {
   usuarios: Usuario[];
   usuarioActual: Usuario | null;
   niveles: NivelDemo[];
+  nivelesCreados: Nivel[];
   descargas: DescargaDemo[];
 } = {
-  usuarios: [{ id: 1, nombre: 'demo', contrasena: '1234' }],
+  usuarios: [{ id: 1, nombre: "demo", contrasena: "1234" }],
   usuarioActual: null,
+
   niveles: [
-    { id: 676, nombre: 'Mi primer nivel', autorId: 1,
-      autor: 'demo', publicado: true, descargas: 100, version: 1 },
-    { id: 2, nombre: 'Laberinto', autorId: 2,
-      autor: 'Darío', publicado: true, descargas: 42, version: 1 },
-    { id: 3, nombre: 'Muchas cajas', autorId: 3,
-      autor: 'Ivo', publicado: true, descargas: 208, version: 1 },
-    { id: 4, nombre: 'Ataque láser', autorId: 3,
-      autor: 'Ivo', publicado: true, descargas: 17, version: 1 },
-    { id: 5, nombre: 'Espejos', autorId: 4,
-      autor: 'Bruno Fiszelew', publicado: true, descargas: 9, version: 1 },
+    {
+      id: 676, nombre: "Mi primer nivel", autorId: 1,
+      autor: "demo", publicado: true, descargas: 100, version: 1
+    },
+    {
+      id: 2, nombre: "Laberinto", autorId: 2,
+      autor: "Darío", publicado: true, descargas: 42, version: 1
+    },
+    {
+      id: 3, nombre: "Muchas cajas", autorId: 3,
+      autor: "Ivo", publicado: true, descargas: 208, version: 1
+    },
+    {
+      id: 4, nombre: "Ataque láser", autorId: 3,
+      autor: "Ivo", publicado: true, descargas: 17, version: 1
+    },
+    {
+      id: 5, nombre: "Espejos", autorId: 4,
+      autor: "Bruno Fiszelew", publicado: true, descargas: 9, version: 1
+    }
   ],
-  descargas: [],
+  nivelesCreados: [],
+  descargas: []
 };

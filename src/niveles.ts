@@ -1,44 +1,119 @@
-//EXPERIMENTACION DE BACK
-
 import Phaser from "phaser";
 import { MAX_NOMBRE_NIVEL } from "./camposTexto";
+import { demo } from "./datosDemo";
 
 export type Nivel = {
-    id: string;
-    nombre: string;
-    tablero: number[][];
-    ultimaModificacion: number;
-    ancho?: number;
-    largo?: number;
-    portales?: number[][];
-    links?: number[][];
-  };
+  id: string;
+  autorId: number;
+  nombre: string;
+  tablero: number[][];
+  ultimaModificacion: number;
+  ancho?: number;
+  largo?: number;
+  portales?: number[][];
+  links?: number[][];
+};
 
-export function guardarNiveles(niveles: Nivel[]): void {
-  localStorage.setItem("nivelesCreados", JSON.stringify(niveles));
-}
-  
-export function obtenerNiveles(): Nivel[] {
-  const texto = localStorage.getItem("nivelesCreados");
-  if (texto === null) {
-    return [];
-  }
-  const niveles: Nivel[] = JSON.parse(texto);
-  for (const nivel of niveles) {
-    if (nivel.portales === undefined) {
-      nivel.portales = crearPortalesVacios(
-        nivel.tablero.length,
-        nivel.tablero[0].length,
-      );
+let proximaIdNivel = 1;
+
+function crearIdNivel(): string {
+  for (const nivel of demo.nivelesCreados) {
+    const idNumerica = Number(nivel.id);
+
+    if (idNumerica >= proximaIdNivel) {
+      proximaIdNivel = idNumerica + 1;
     }
   }
+
+  const id = proximaIdNivel.toString();
+  proximaIdNivel++;
+  return id;
+}
+
+function copiarNivel(nivel: Nivel): Nivel {
+  let portales: number[][] = [];
+  let links: number[][] = [];
+
+  if (nivel.portales !== undefined) {
+    portales = copiarMatriz(nivel.portales);
+  } else if (nivel.tablero.length > 0) {
+    portales = crearPortalesVacios(
+      nivel.tablero.length,
+      nivel.tablero[0].length
+    );
+  }
+
+  if (nivel.links !== undefined) {
+    links = copiarMatriz(nivel.links);
+  }
+
+  return {
+    id: nivel.id,
+    autorId: nivel.autorId,
+    nombre: nivel.nombre,
+    tablero: copiarMatriz(nivel.tablero),
+    ultimaModificacion: nivel.ultimaModificacion,
+    ancho: nivel.ancho,
+    largo: nivel.largo,
+    portales: portales,
+    links: links
+  };
+}
+
+export function guardarNiveles(niveles: Nivel[]): void {
+  const usuario = demo.usuarioActual;
+
+  if (usuario === null) {
+    return;
+  }
+
+  const todos: Nivel[] = [];
+
+  for (const nivel of demo.nivelesCreados) {
+    if (nivel.autorId !== usuario.id) {
+      todos.push(nivel);
+    }
+  }
+
+  for (const nivel of niveles) {
+    if (nivel.autorId !== usuario.id) {
+      return;
+    }
+
+    todos.push(copiarNivel(nivel));
+  }
+
+  demo.nivelesCreados = todos;
+}
+
+export function obtenerNiveles(): Nivel[] {
+  const usuario = demo.usuarioActual;
+  const niveles: Nivel[] = [];
+
+  if (usuario === null) {
+    return niveles;
+  }
+
+  for (const nivel of demo.nivelesCreados) {
+    if (nivel.autorId === usuario.id) {
+      niveles.push(copiarNivel(nivel));
+    }
+  }
+
   niveles.sort((nivelA, nivelB) => {
     return nivelB.ultimaModificacion - nivelA.ultimaModificacion;
   });
+
   return niveles;
 }
 
-export function crearNivel(filas: number, columnas: number): Nivel {
+export function crearNivel(filas: number, columnas: number): Nivel | undefined {
+  const usuario = demo.usuarioActual;
+
+  if (usuario === null) {
+    return undefined;
+  }
+
   const niveles = obtenerNiveles();
   const tablero: number[][] = [];
 
@@ -55,31 +130,29 @@ export function crearNivel(filas: number, columnas: number): Nivel {
   tablero[1][1] = 7;
   tablero[filas - 2][columnas - 2] = 6;
 
-  let nuevaId = 1;
+  let numeroNombre = 0;
+  let nombreOcupado = true;
 
-  for (const nivel of niveles) {
-    const idNumerica = Number(nivel.id);
+  while (nombreOcupado) {
+    nombreOcupado = false;
 
-    if (idNumerica >= nuevaId) {
-      nuevaId = idNumerica + 1;
+    for (const nivel of niveles) {
+      if (nivel.nombre === "Untitled Level " + numeroNombre) {
+        nombreOcupado = true;
+        numeroNombre++;
+        break;
+      }
     }
   }
 
-  let numeroNombre = 0;
-
-  while (niveles.some((nivel) => {
-    return nivel.nombre === "Untitled Level " + numeroNombre.toString();
-  })) {
-    numeroNombre++;
-  }
-
   const nivel: Nivel = {
-    id: nuevaId.toString(),
-    nombre: "Untitled Level " + numeroNombre.toString(),
+    id: crearIdNivel(),
+    autorId: usuario.id,
+    nombre: "Untitled Level " + numeroNombre,
     tablero: tablero,
     ultimaModificacion: Date.now(),
     portales: crearPortalesVacios(filas, columnas),
-    links: [],
+    links: []
   };
 
   niveles.push(nivel);
@@ -88,37 +161,51 @@ export function crearNivel(filas: number, columnas: number): Nivel {
   return nivel;
 }
 
-  export function eliminarNivel(id: string): void {
-    const nivelesLista = obtenerNiveles();
-    const nivelesRestantes = nivelesLista.filter((nivel) => {
-      return nivel.id !== id;
-    });
-    guardarNiveles(nivelesRestantes);
+export function eliminarNivel(id: string): void {
+  const niveles = obtenerNiveles();
+  const restantes: Nivel[] = [];
+
+  for (const nivel of niveles) {
+    if (nivel.id !== id) {
+      restantes.push(nivel);
+    }
   }
 
-  export function obtenerNivel(id: string): Nivel | undefined {
-    const niveles = obtenerNiveles();
-    return niveles.find((item) => {
-      return item.id === id;
-    });
+  guardarNiveles(restantes);
+}
+
+export function obtenerNivel(id: string): Nivel | undefined {
+  const niveles = obtenerNiveles();
+
+  for (const nivel of niveles) {
+    if (nivel.id === id) {
+      return nivel;
+    }
   }
 
-  export function actualizarNivel(nivelActualizado: Nivel): void {
-    const nivelesLista = obtenerNiveles();
-    const indice = nivelesLista.findIndex((item) => {
-      return item.id === nivelActualizado.id;
-    });
-    if (indice === -1) {
+  return undefined;
+}
+
+export function actualizarNivel(nivelActualizado: Nivel): void {
+  const usuario = demo.usuarioActual;
+
+  if (usuario === null || nivelActualizado.autorId !== usuario.id) {
+    return;
+  }
+
+  const niveles = obtenerNiveles();
+
+  for (let i = 0; i < niveles.length; i++) {
+    if (niveles[i].id === nivelActualizado.id) {
+      nivelActualizado.ultimaModificacion = Date.now();
+      niveles[i] = nivelActualizado;
+      guardarNiveles(niveles);
       return;
     }
-    nivelActualizado.ultimaModificacion = Date.now();
-    nivelesLista[indice] = nivelActualizado;
-    guardarNiveles(nivelesLista);
   }
+}
 
-
-
- export function crearBoton(escena: Phaser.Scene, x: number, y: number, ancho: number, texto: string, accion: () => void): Phaser.GameObjects.Rectangle {
+export function crearBoton(escena: Phaser.Scene, x: number, y: number, ancho: number, texto: string, accion: () => void): Phaser.GameObjects.Rectangle {
   escena.add.rectangle(x + 3, y + 3, ancho + 4, 44, 0x14121e);
   const fondo = escena.add.rectangle(x, y, ancho, 40, 0xcbdbfc);
   fondo.setStrokeStyle(4, 0x222034);
@@ -127,7 +214,6 @@ export function crearNivel(filas: number, columnas: number): Nivel {
     fontSize: "16px",
     color: "#222034",
     fontFamily: "Fuente",
-    resolution: 1
   }).setOrigin(0.5);
 
   const colorHover = 0x95add6;
@@ -148,7 +234,6 @@ export function crearNivel(filas: number, columnas: number): Nivel {
     color: "#cbdbfc",
     backgroundColor: "#171a2e",
     padding: { left: 8, right: 8, top: 6, bottom: 6 },
-    resolution: 1
   }).setDepth(1000).setVisible(false);
 
   const mostrarTooltip = () => {
@@ -218,7 +303,7 @@ export function crearNivel(filas: number, columnas: number): Nivel {
 
 
 
-  export function renombrarNivel(
+export function renombrarNivel(
   id: string,
   nuevoNombre: string,
 ): void {
@@ -275,17 +360,10 @@ export function duplicarNivel(id: string): Nivel | undefined {
   const niveles = obtenerNiveles();
 
   let original: Nivel | undefined = undefined;
-  let nuevaId = 1;
 
   for (const nivel of niveles) {
     if (nivel.id === id) {
       original = nivel;
-    }
-
-    const idNumerica = Number(nivel.id);
-
-    if (idNumerica >= nuevaId) {
-      nuevaId = idNumerica + 1;
     }
   }
 
@@ -346,20 +424,10 @@ export function duplicarNivel(id: string): Nivel | undefined {
     }
   }
 
-  let linksCopiados: number[][] = [];
-
-  if (original.links !== undefined) {
-    linksCopiados = copiarMatriz(original.links);
-  }
-
-  const duplicado: Nivel = {
-    id: nuevaId.toString(),
-    nombre: nuevoNombre,
-    tablero: copiarMatriz(original.tablero),
-    portales: copiarMatriz(original.portales),
-    ultimaModificacion: Date.now(),
-    links: linksCopiados,
-  };
+  const duplicado = copiarNivel(original);
+  duplicado.id = crearIdNivel();
+  duplicado.nombre = nuevoNombre;
+  duplicado.ultimaModificacion = Date.now();
 
   niveles.push(duplicado);
   guardarNiveles(niveles);
@@ -378,6 +446,3 @@ export function crearPortalesVacios(filas: number, columnas: number): number[][]
   }
   return portales;
 }
-  
-   
-
