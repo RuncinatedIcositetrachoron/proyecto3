@@ -83,8 +83,8 @@ export class GameScene extends Phaser.Scene {
     private emitterQueue: Entity[] = [];
     private firedEmitters: Entity[] = [];
     private tempstorage: Entity | undefined;
-    private tempstorage2a: Phaser.GameObjects.Sprite;
-    private tempstorage2b: Phaser.GameObjects.Sprite;
+    private tempstorage2a: Phaser.GameObjects.Sprite | undefined;
+    private tempstorage2b: Phaser.GameObjects.Sprite | undefined;
     private tempstorage3: Entity | undefined;
     private movenumber: Boolean = false;
     private playerMoving = false;
@@ -107,7 +107,7 @@ export class GameScene extends Phaser.Scene {
     private offsetY = 0;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private staticRows: any;
-    private deathmessage: Phaser.GameObjects.Text;
+    private deathmessage: Phaser.GameObjects.Text | undefined;
 
     ////////////////////////
     //BRUNO COSAS DEL MENU//
@@ -266,7 +266,7 @@ nombre.setOrigin(0, 0.5);
         xDeshacer,
         y,
         anchoBoton,
-        "Deshacer",
+        "Undo",
         0x9ccc65,
         903,
         () => {
@@ -298,7 +298,7 @@ nombre.setOrigin(0, 0.5);
         xPausa,
         y,
         anchoBoton,
-        "Pausa",
+        "Pause",
         0xb39ddb,
         903,
         () => {
@@ -431,7 +431,7 @@ nombre.setOrigin(0, 0.5);
         if (this.menuup == 2) {
             this.menuup = 0;
             this.menuOverlay.setVisible(false);
-            this.deathmessage.setVisible(false);
+            if (this.deathmessage) this.deathmessage.setVisible(false);
         }
     }
 
@@ -488,7 +488,7 @@ private abrirMenuPausa() {
     const titulo = this.add.text(
         centroX,
         centroY - 105,
-        "PAUSA",
+        "PAUSE",
         {
             fontFamily: "Fuente",
             fontSize: "26px",
@@ -506,7 +506,7 @@ private abrirMenuPausa() {
         centroX,
         centroY - 35,
         260,
-        "Continuar",
+        "Continue",
         0xcbdbfc,
         1004,
         () => {
@@ -522,7 +522,7 @@ private abrirMenuPausa() {
         centroX,
         centroY + 25,
         260,
-        "Reiniciar",
+        "Reset",
         0xe6c56a,
         1004,
         () => {
@@ -539,7 +539,7 @@ private abrirMenuPausa() {
         centroX,
         centroY + 85,
         260,
-        "Salir",
+        "Exit",
         0xe57373,
         1004,
         () => {
@@ -725,6 +725,7 @@ private cerrarMenuPausa() {
     
     private lindseyDeath(): boolean {
         const player = this.entities.find(entity => entity.type === "player");
+        if (player === undefined) {console.log("ERROR: there is no player, idiot."); return true;}
         const currX = player.x;
         const currY = player.y;
         if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY-1) * 16*this.pixelmultiplier && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
@@ -1018,11 +1019,9 @@ private cerrarMenuPausa() {
 
                     if (this.tempstorage2a) {
                         this.tempstorage2a.destroy();
-                        this.tempstorage2a = undefined;
                     }
                     if (this.tempstorage2b) {
                         this.tempstorage2b.destroy();
-                        this.tempstorage2b = undefined;
                     }
                     return false;
                 }
@@ -1192,7 +1191,7 @@ private cerrarMenuPausa() {
         if (this.lindseyDeath()){
             this.menuup = 2;
             this.menuOverlay.setVisible(true);
-            this.deathmessage.setVisible(true);
+            if (this.deathmessage) this.deathmessage.setVisible(true);
         }
 
         const flag = this.entities.find(entity => entity.type === "flag");
@@ -1348,6 +1347,7 @@ private cerrarMenuPausa() {
             case 3: maskW = portalX*this.tilesize - this.tilesize; break;
         }
         const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
+        if (!this.tempstorage2a) return;
         const masks = Phaser.Actions.AddMaskShape(this.tempstorage2a, {
             shape: "rectangle",
             region: region
@@ -1370,7 +1370,6 @@ private cerrarMenuPausa() {
 
             onComplete: () => {
                 if (this.tempstorage2a) this.tempstorage2a.destroy();
-                this.tempstorage2a = undefined;
             }
         });
         this.portalTweens.push(tween);
@@ -1384,7 +1383,6 @@ private cerrarMenuPausa() {
 
                 onComplete: () => {
                     if (this.tempstorage2b) this.tempstorage2b.destroy();
-                    this.tempstorage2b = undefined;
                 }
             });
             this.portalTweens.push(tween2);
@@ -1403,6 +1401,7 @@ private cerrarMenuPausa() {
             case 3: maskW = portalX*this.tilesize - this.tilesize; break;
         }
         const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
+        if (!this.tempstorage2a) {console.log ("fuck you"); return;}
         const masks = Phaser.Actions.AddMaskShape(this.tempstorage2a, {
             shape: "rectangle",
             region: region
@@ -1421,11 +1420,11 @@ private cerrarMenuPausa() {
             ease: "Linear",
 
             onComplete: () => {
+                if (!this.tempstorage2a) {console.log ("fuck you"); return;}
                 if(this.tempstorage2a.filters) this.tempstorage2a.filters.external.remove(maskFilter);
                 maskShape.destroy();
 
                 if (this.tempstorage2a) this.tempstorage2a.destroy();
-                this.tempstorage2a = undefined;
             }
         });
         this.portalTweens.push(tween);
@@ -1445,10 +1444,10 @@ private cerrarMenuPausa() {
                 ease: "Linear",
 
                 onComplete: () => {
+                    if (!this.tempstorage2b) {console.log ("fuck you"); return;}
                     if(this.tempstorage2b.filters) this.tempstorage2b.filters.external.remove(maskFilter);
                     maskShape2.destroy();
                     if (this.tempstorage2b) this.tempstorage2b.destroy();
-                    this.tempstorage2b = undefined;
                 }
             });
             this.portalTweens.push(tween2);
@@ -2342,17 +2341,6 @@ private cerrarMenuPausa() {
             this.menuup = 0;
             this.scene.start("game", {level: this.levelNumber+1});
         }
-<<<<<<< HEAD
-
-=======
-        if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.menuup == 0) {
-            this.menuup = 1;
-            this.selected = 0;
-            this.menuOverlay.setVisible(true);
-            for (const item of this.menuItems) item.setVisible(true);
-            this.updateMenu();
-        }
->>>>>>> cac7251 (laser animations?? unbelievable. also no they do not work.)
         if (Phaser.Input.Keyboard.JustDown(this.zKey) && this.menuup !== 1) {
             this.undoMove();
             return;
