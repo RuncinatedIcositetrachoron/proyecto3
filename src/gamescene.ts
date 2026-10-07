@@ -745,16 +745,16 @@ private cerrarMenuPausa() {
         }
     
         if (dir === 2) {
-            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.laser.play("laser-vertical");
+            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-vertical");
         }
         if (dir === 0) {
-            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.laser.play("laser-vertical2");
+            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-vertical2");
         }
         if (dir === 3) {
-            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.laser.play("laser-horizontal2");
+            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-horizontal2");
         }
         if (dir === 1) {
-            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.laser.play("laser-horizontal");
+            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-horizontal");
         }
         this.laser.setData("laserDir", dir);
         this.lasers.push(this.laser);
@@ -767,6 +767,15 @@ private cerrarMenuPausa() {
         if (!this.emitterQueue.includes(entity) && !this.firedEmitters.includes(entity)) {
             this.emitterQueue.push(entity);
         }
+    }
+
+    private playLaserAnimation(laser: Phaser.GameObjects.Sprite, animation: string) {
+        const frameRate = this.animationspeed * 1.5;
+        const totalFrames = 8;
+        const millisecondsPerFrame = 1000 / frameRate;
+        const frame = Math.floor(this.time.now / millisecondsPerFrame) % totalFrames;
+
+        laser.play({key: animation, startFrame: frame});
     }
         
     private raycast() {
@@ -792,16 +801,16 @@ private cerrarMenuPausa() {
         if (player === undefined) {console.log("ERROR: there is no player, idiot."); return true;}
         const currX = player.x;
         const currY = player.y;
-        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY-1) * 16*this.pixelmultiplier && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
+        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY-1) * 16*this.pixelmultiplier && laser.anims.currentAnim.key === "laser-vertical")) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX+1) * 16*this.pixelmultiplier && String(laser.frame.name) === "4")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
+        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX+1) * 16*this.pixelmultiplier && laser.anims.currentAnim.key === "laser-horizontal2")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY+1) * 16*this.pixelmultiplier && String(laser.frame.name) === "8")) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
+        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY+1) * 16*this.pixelmultiplier && laser.anims.currentAnim.key === "laser-vertical2")) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX-1) * 16*this.pixelmultiplier && String(laser.frame.name) === "4")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
+        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX-1) * 16*this.pixelmultiplier && laser.anims.currentAnim.key === "laser-horizontal")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
             return true;
         }
         return false;
@@ -1720,7 +1729,8 @@ private cerrarMenuPausa() {
         this.load.spritesheet("lindsey", "assets/lindsey.walking.anim.sheet.png", {
             frameWidth: 16,
             frameHeight: 28,
-        });this.load.spritesheet("lindseyi", "assets/lindsey.idle.spr.png", {
+        });
+        this.load.spritesheet("lindseyi", "assets/lindsey.idle.spr.png", {
             frameWidth: 16,
             frameHeight: 28,
         });
@@ -1740,6 +1750,10 @@ private cerrarMenuPausa() {
             frameWidth: 16,
             frameHeight: 16,
         });
+        this.load.spritesheet("laserTail", "assets/laser.tail.spritesheet.png", {
+            frameWidth: 16,
+            frameHeight: 16,
+        });
         this.load.spritesheet("tileset-fogo", "./tileset.png", {
             frameWidth: 16,
             frameHeight: 16,
@@ -1747,7 +1761,7 @@ private cerrarMenuPausa() {
         if (this.modoTest === false && this.nivelId === "") {
             this.load.text(
                 "level",
-                "assets/levels/level" + this.levelNumber + ".txt"
+                "assets/level" + this.levelNumber + ".txt"
             );
         }
     }
@@ -1965,6 +1979,7 @@ private cerrarMenuPausa() {
         const directionRows = directionLayer.trim().split("\n");
         
         //CALCULO DE MEDIDAS // HOLA LUCAS!!! // WHO DOESN'T LOVE SOFTCODING?
+        // I DON'T!!! YOU RUINED MY BEAUTIFUL CODE!!!!!!
 
             const margen = 12;
             const columnas = this.staticRows[0].length;
