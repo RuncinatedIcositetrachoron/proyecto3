@@ -26,6 +26,17 @@ interface GameState {
     }[];
 }
 
+interface LaserVisual {
+    body: Phaser.GameObjects.Sprite;
+    cap?: Phaser.GameObjects.Sprite;
+    tail?: Phaser.GameObjects.Sprite;
+    maskFilter?: any;
+    maskShape?: Phaser.GameObjects.Rectangle;
+    maskFilter2?: any;
+    maskShape2?: Phaser.GameObjects.Rectangle;
+    dir: number;
+}
+
 const Tile = {
     Empty: 0,
     Flag0: 1,
@@ -134,7 +145,7 @@ export class GameScene extends Phaser.Scene {
     private zKey!: Phaser.Input.Keyboard.Key;
     private escKey!: Phaser.Input.Keyboard.Key;
     private entities: Entity[] = [];
-    private lasers: Phaser.GameObjects.Sprite[] = [];
+    private lasers: LaserVisual[] = [];
     private offsetX = 0;
     private offsetY = 0;
     private altoBarra = 68;
@@ -483,7 +494,7 @@ nombre.setOrigin(0, 0.5);
             if (entity.sprite2) entity.sprite2.setDepth(2*entity.y+1);
         }
         for (const laser of this.lasers) {
-            laser.destroy();
+            this.destroyLaser(laser);
         }
         this.laserFunction();
         if (this.menuup == 2) {
@@ -601,8 +612,8 @@ private abrirMenuPausa() {
         1004,
         () => {
             this.entities = [];
-            for (let i = 0; i < this.lasers.length; i++) {
-                this.lasers[i].destroy();
+            for (const laser of this.lasers) {
+                this.destroyLaser(laser);
             }
             this.lasers = [];
             this.menuup = 0;
@@ -684,7 +695,113 @@ private cerrarMenuPausa() {
         return (this.entities.find(entity => entity.portal !== undefined && entity.group === group && entity !== exclude));
     }
     
-    private addLaser(x: number, y: number, dir: number) {
+    private createLaserBody(x: number, y: number, dir: number): LaserVisual {
+        let frame = 0;
+        let animation = "";
+
+        if (dir === 0) {
+            frame = 1;
+            animation = "laser-vertical2";
+        }
+
+        if (dir === 1) {
+            frame = 0;
+            animation = "laser-horizontal";
+        }
+
+        if (dir === 2) {
+            frame = 1;
+            animation = "laser-vertical";
+        }
+
+        if (dir === 3) {
+            frame = 0;
+            animation = "laser-horizontal2";
+        }
+
+        const body = this.add.sprite(this.offsetX + x * this.tilesize, this.offsetY + y * this.tilesize, "laserBody", frame);
+        body.setOrigin(1, 1);
+        body.setScale(this.pixelmultiplier);
+        this.playLaserAnimation(body, animation);
+        const visual: LaserVisual = {body: body, dir: dir};
+
+        return visual;
+    }
+    
+    private addLaserCap(laser: LaserVisual) {
+        const body = laser.body;       
+        let frame = 0;
+        let originb = 0;
+
+        switch (laser.dir) {
+            case 0: frame = 1.5*Math.PI; originb = 0.751; break;
+            case 1: frame = 0; originb = 0.8; break;
+            case 2: frame = 0.5*Math.PI; originb = 0.8; break;
+            case 3: frame = Math.PI; originb = 0.178; break;
+        }
+        const cap = this.add.sprite(body.x, body.y, "laserheads", 1).setRotation(frame);
+
+        cap.setOrigin(0, originb);
+        cap.setScale(this.pixelmultiplier);
+        cap.setDepth(body.depth + 6); 
+        this.playLaserAnimation(cap, "laserhead");
+        laser.cap = cap;
+    }
+    
+    private addLaserTail(laser: LaserVisual) {
+        const body = laser.body;
+        let frame = 4;
+        switch (laser.dir) {
+            case 0: frame = 3; break;
+            case 1: frame = 0; break;
+            case 2: frame = 2; break;
+            case 3: frame = 1; break;
+        }
+        const tail = this.add.sprite(body.x, body.y, "lasertails", frame);
+
+        tail.setOrigin(1, 1);
+        tail.setScale(this.pixelmultiplier);
+        tail.setDepth(body.depth);
+
+        const cut = 4 * this.pixelmultiplier;
+
+        let maskX = body.x - this.tilesize;
+        let maskY = body.y - this.tilesize;
+        let maskW = this.tilesize;
+        let maskH = this.tilesize;
+
+        switch(laser.dir) {
+            case 2:
+                maskY += cut;
+                maskH -= cut;
+                break;
+            case 3:
+                maskW -= cut;
+                break;
+            case 0:
+                maskH -= cut;
+                break;
+            case 1:
+                maskX += cut;
+                maskW -= cut;
+                break;
+        }
+        const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
+
+        const masks = Phaser.Actions.AddMaskShape(body, {
+                shape: "rectangle",
+                region: region
+            }
+        );
+        const maskFilter = masks[0];
+        const maskShape = maskFilter.maskGameObject as Phaser.GameObjects.Rectangle;
+
+        laser.tail = tail;
+        laser.maskFilter2 = maskFilter;
+        laser.maskShape2 = maskShape;
+    }
+
+    private addLaser(x: number, y: number, dir: number, first: boolean = false): LaserVisual | undefined {
         let dx = 0;
         let dy = 0;
         switch (dir) {
@@ -746,38 +863,66 @@ private cerrarMenuPausa() {
             }
             }
         }
-    
-        if (dir === 2) {
-            if (this.getEmitterAt(x, y, 2)) {
-                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserTail", 2).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "lasertail-down");
-            } else {
-                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-vertical");
-            }
+        const laser = this.createLaserBody(nextX, nextY, dir);
+        this.lasers.push(laser);
+        if (first) {
+            this.addLaserTail(laser);
         }
-        if (dir === 0) {
-            if (this.getEmitterAt(x, y, 0)) {
-                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserTail", 3).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "lasertail-up");
-            } else {
-                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-vertical2");
-            }
+        const nextLaser = this.addLaser(nextX, nextY, dir, false);
+        let last: boolean;
+        if (!nextLaser) last = false;
+        else last = true;
+        if (last === false) {
+            this.addLaserCap(laser);
         }
-        if (dir === 3) {
-            if (this.getEmitterAt(x, y, 3)) {
-                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserTail", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "lasertail-left");
-            } else {
-                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-horizontal2");
-            }
+        return laser;
+    }
+
+    private destroyLaser(laser: LaserVisual) {
+
+        if (laser.cap) {
+            laser.cap.destroy();
+            laser.cap = undefined;
         }
-        if (dir === 1) {
-            if (this.getEmitterAt(x, y, 1)) {
-                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserTail", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "lasertail-right");
-            } else {
-                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-horizontal");
-            }
+
+        if (laser.tail) {
+            laser.tail.destroy();
+            laser.tail = undefined;
         }
-        this.laser.setData("laserDir", dir);
-        this.lasers.push(this.laser);
-        this.addLaser(nextX, nextY, dir);
+
+        laser.body.destroy();
+
+        if (laser.maskFilter) {
+            if (laser.body.filters) {
+                laser.body.filters.external.remove(
+                    laser.maskFilter
+                );
+            }
+
+            laser.maskFilter = undefined;
+        }
+
+        if (laser.maskFilter2) {
+            if (laser.body.filters) {
+                laser.body.filters.external.remove(
+                    laser.maskFilter2
+                );
+            }
+
+            laser.maskFilter2 = undefined;
+        }
+
+        if (laser.maskShape) {
+            laser.maskShape.destroy();
+            laser.maskShape = undefined;
+        }
+
+        if (laser.maskShape2) {
+            laser.maskShape2.destroy();
+            laser.maskShape2 = undefined;
+        }
+
+        laser.body.destroy();
     }
 
     private setEmitting(entity: Entity, dir: number | undefined) {
@@ -807,10 +952,15 @@ private cerrarMenuPausa() {
 
             this.firedEmitters.push(emitter);
 
+            let first = false;
+            if (emitter.type === "laserEmissor") {
+                first = true;
+            }
             this.addLaser(
                 emitter.x,
                 emitter.y,
-                emitter.emitting
+                emitter.emitting,
+                first
             );
         }
     }
@@ -820,16 +970,16 @@ private cerrarMenuPausa() {
         if (player === undefined) {console.log("ERROR: there is no player, idiot."); return true;}
         const currX = player.x;
         const currY = player.y;
-        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY-1) * 16*this.pixelmultiplier && (laser.anims.currentAnim.key === "laser-vertical" || laser.anims.currentAnim.key === "lasertail-down"))) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
+        if (this.lasers.find((laser) => (laser.body.x === this.offsetX + currX * this.tilesize && laser.body.y === this.offsetY + (currY-1) * this.tilesize && laser.dir === 2)) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX+1) * 16*this.pixelmultiplier && (laser.anims.currentAnim.key === "laser-horizontal2" || laser.anims.currentAnim.key === "lasertail-left"))) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
+        if (this.lasers.find((laser) => (laser.body.y === this.offsetY + currY * this.tilesize && laser.body.x === this.offsetX + (currX+1) * this.tilesize && laser.dir == 3)) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY+1) * 16*this.pixelmultiplier && (laser.anims.currentAnim.key === "laser-vertical2" || laser.anims.currentAnim.key === "lasertail-up"))) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
+        if (this.lasers.find((laser) => (laser.body.x === this.offsetX + currX * this.tilesize && laser.body.y === this.offsetY + (currY+1) * this.tilesize && laser.dir == 0)) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX-1) * 16*this.pixelmultiplier && (laser.anims.currentAnim.key === "laser-horizontal" || laser.anims.currentAnim.key === "lasertail-right"))) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
+        if (this.lasers.find((laser) => (laser.body.y === this.offsetY + currY * this.tilesize && laser.body.x === this.offsetX + (currX-1) * this.tilesize && laser.dir == 1)) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
             return true;
         }
         return false;
@@ -837,7 +987,7 @@ private cerrarMenuPausa() {
 
     private laserFunction() {
         for (const laser of this.lasers) {
-            laser.destroy();
+            this.destroyLaser(laser);
         }
         this.lasers = [];
         this.emitterQueue = [];
@@ -894,9 +1044,9 @@ private cerrarMenuPausa() {
             case 0:
                 if (
                     this.lasers.find((laser) =>
-                        laser.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
-                        laser.y === this.offsetY + (currY - 1) * 16 * this.pixelmultiplier &&
-                        String(laser.frame.name) === "8"
+                        laser.body.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
+                        laser.body.y === this.offsetY + (currY - 1) * 16 * this.pixelmultiplier &&
+                        laser.dir === 2
                     ) ||
                     this.entities.find((emissor) =>
                         emissor.y === currY - 1 &&
@@ -910,9 +1060,9 @@ private cerrarMenuPausa() {
             case 1:
                 if (
                     this.lasers.find((laser) =>
-                        laser.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
-                        laser.x === this.offsetX + (currX + 1) * 16 * this.pixelmultiplier &&
-                        String(laser.frame.name) === "4"
+                        laser.body.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
+                        laser.body.x === this.offsetX + (currX + 1) * 16 * this.pixelmultiplier &&
+                        laser.dir === 3
                     ) ||
                     this.entities.find((emissor) =>
                         emissor.y === currY &&
@@ -926,9 +1076,9 @@ private cerrarMenuPausa() {
             case 2:
                 if (
                     this.lasers.find((laser) =>
-                        laser.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
-                        laser.y === this.offsetY + (currY + 1) * 16 * this.pixelmultiplier &&
-                        String(laser.frame.name) === "8"
+                        laser.body.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
+                        laser.body.y === this.offsetY + (currY + 1) * 16 * this.pixelmultiplier &&
+                        laser.dir === 0
                     ) ||
                     this.entities.find((emissor) =>
                         emissor.y === currY + 1 &&
@@ -942,9 +1092,9 @@ private cerrarMenuPausa() {
             case 3:
                 if (
                     this.lasers.find((laser) =>
-                        laser.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
-                        laser.x === this.offsetX + (currX - 1) * 16 * this.pixelmultiplier &&
-                        String(laser.frame.name) === "4"
+                        laser.body.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
+                        laser.body.x === this.offsetX + (currX - 1) * 16 * this.pixelmultiplier &&
+                        laser.dir === 1
                     ) ||
                     this.entities.find((emissor) =>
                         emissor.y === currY &&
@@ -1336,7 +1486,7 @@ private cerrarMenuPausa() {
         const flag = this.entities.find(entity => entity.type === "flag");
         if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
             this.entities = [];
-            for (const laser of this.lasers) laser.destroy();
+            for (const laser of this.lasers) this.destroyLaser(laser);
             this.lasers = [];
             this.scene.start("game", {level: this.levelNumber+1});
         }
@@ -1769,9 +1919,13 @@ private cerrarMenuPausa() {
             frameWidth: 16,
             frameHeight: 16,
         });
-        this.load.spritesheet("laserTail", "assets/laser.tail.spritesheet.png", {
+        this.load.spritesheet("lasertails", "assets/laser.tail.spritesheet.png", {
             frameWidth: 16,
             frameHeight: 16,
+        });
+        this.load.spritesheet("laserheads", "assets/laser.head.spritesheet.png", {
+            frameWidth: 20,
+            frameHeight: 28,
         });
         this.load.spritesheet("tileset-fogo", "./tileset.png", {
             frameWidth: 16,
@@ -1969,65 +2123,20 @@ private cerrarMenuPausa() {
                 repeat: -1
             });
         }
-        if (!this.anims.exists("lasertail-up")) {
+        if (!this.anims.exists("laserhead")) {
             this.anims.create({
-                key: "lasertail-right",
+                key: "laserhead",
                 frames: [
-                    { key: "laserTail", frame: 12 },
-                    { key: "laserTail", frame: 16 },
-                    { key: "laserTail", frame: 20 },
-                    { key: "laserTail", frame: 24 },
-                    { key: "laserTail", frame: 28 },
-                    { key: "laserTail", frame: 0 },
-                    { key: "laserTail", frame: 4 },
-                    { key: "laserTail", frame: 8 },
+                    { key: "laserheads", frame: 0 },
+                    { key: "laserheads", frame: 1 },
+                    { key: "laserheads", frame: 0 },
+                    { key: "laserheads", frame: 1 },
+                    { key: "laserheads", frame: 0 },
+                    { key: "laserheads", frame: 1 },
+                    { key: "laserheads", frame: 0 },
+                    { key: "laserheads", frame: 1 }
                 ],
-                frameRate: this.animationspeed*1.5,
-                repeat: -1
-            });
-            this.anims.create({
-                key: "lasertail-left",
-                frames: [
-                    { key: "laserTail", frame: 13 },
-                    { key: "laserTail", frame: 17 },
-                    { key: "laserTail", frame: 21 },
-                    { key: "laserTail", frame: 25 },
-                    { key: "laserTail", frame: 29 },
-                    { key: "laserTail", frame: 1 },
-                    { key: "laserTail", frame: 5 },
-                    { key: "laserTail", frame: 9 },
-                ],
-                frameRate: this.animationspeed*1.5,
-                repeat: -1
-            });
-            this.anims.create({
-                key: "lasertail-down",
-                frames: [
-                    { key: "laserTail", frame: 14 },
-                    { key: "laserTail", frame: 18 },
-                    { key: "laserTail", frame: 22 },
-                    { key: "laserTail", frame: 26 },
-                    { key: "laserTail", frame: 30 },
-                    { key: "laserTail", frame: 2 },
-                    { key: "laserTail", frame: 6 },
-                    { key: "laserTail", frame: 10 },
-                ],
-                frameRate: this.animationspeed*1.5,
-                repeat: -1
-            });
-            this.anims.create({
-                key: "lasertail-up",
-                frames: [
-                    { key: "laserTail", frame: 15 },
-                    { key: "laserTail", frame: 19 },
-                    { key: "laserTail", frame: 23 },
-                    { key: "laserTail", frame: 27 },
-                    { key: "laserTail", frame: 31 },
-                    { key: "laserTail", frame: 3 },
-                    { key: "laserTail", frame: 7 },
-                    { key: "laserTail", frame: 11 },
-                ],
-                frameRate: this.animationspeed*1.5,
+                frameRate: this.animationspeed*1.2,
                 repeat: -1
             });
         }
@@ -2484,7 +2593,7 @@ private cerrarMenuPausa() {
         }
 
         for (const laser of this.lasers) {
-            laser.destroy();
+            this.destroyLaser(laser);
         }
         
         this.lasers = [];
@@ -2613,7 +2722,7 @@ private cerrarMenuPausa() {
         if (Phaser.Input.Keyboard.JustDown(this.qKey) && this.menuup !== 1) {
             this.entities = [];
             for (const laser of this.lasers) {
-                laser.destroy();
+                this.destroyLaser(laser);
             }
             this.lasers = [];
             this.menuup = 0;
