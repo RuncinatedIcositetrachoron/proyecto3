@@ -670,6 +670,9 @@ private cerrarMenuPausa() {
     private getEntityAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
     }
+    private getEmitterAt(x: number, y: number, dir: number): Entity | undefined {
+        return this.entities.find(entity => entity.type === "laserEmissor" && entity.x === x && entity.y === y && entity.dir === dir);
+    }
     private getAnythingAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.x === x && entity.y === y);
     }
@@ -745,16 +748,32 @@ private cerrarMenuPausa() {
         }
     
         if (dir === 2) {
-            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-vertical");
+            if (this.getEmitterAt(x, y, 2)) {
+                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserTail", 2).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "lasertail-down");
+            } else {
+                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-vertical");
+            }
         }
         if (dir === 0) {
-            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-vertical2");
+            if (this.getEmitterAt(x, y, 0)) {
+                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserTail", 3).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "lasertail-up");
+            } else {
+                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-vertical2");
+            }
         }
         if (dir === 3) {
-            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-horizontal2");
+            if (this.getEmitterAt(x, y, 3)) {
+                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserTail", 1).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "lasertail-left");
+            } else {
+                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-horizontal2");
+            }
         }
         if (dir === 1) {
-            this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-horizontal");
+            if (this.getEmitterAt(x, y, 1)) {
+                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserTail", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "lasertail-right");
+            } else {
+                this.laser = this.add.sprite(this.offsetX + nextX * this.tilesize, this.offsetY + nextY * this.tilesize, "laserBody", 0).setOrigin(1,1).setScale(this.pixelmultiplier); this.playLaserAnimation(this.laser, "laser-horizontal");
+            }
         }
         this.laser.setData("laserDir", dir);
         this.lasers.push(this.laser);
@@ -801,16 +820,16 @@ private cerrarMenuPausa() {
         if (player === undefined) {console.log("ERROR: there is no player, idiot."); return true;}
         const currX = player.x;
         const currY = player.y;
-        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY-1) * 16*this.pixelmultiplier && laser.anims.currentAnim.key === "laser-vertical")) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
+        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY-1) * 16*this.pixelmultiplier && (laser.anims.currentAnim.key === "laser-vertical" || laser.anims.currentAnim.key === "lasertail-down"))) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX+1) * 16*this.pixelmultiplier && laser.anims.currentAnim.key === "laser-horizontal2")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
+        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX+1) * 16*this.pixelmultiplier && (laser.anims.currentAnim.key === "laser-horizontal2" || laser.anims.currentAnim.key === "lasertail-left"))) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY+1) * 16*this.pixelmultiplier && laser.anims.currentAnim.key === "laser-vertical2")) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
+        if (this.lasers.find((laser) => (laser.x === this.offsetX + currX * 16*this.pixelmultiplier && laser.y === this.offsetY + (currY+1) * 16*this.pixelmultiplier && (laser.anims.currentAnim.key === "laser-vertical2" || laser.anims.currentAnim.key === "lasertail-up"))) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX-1) * 16*this.pixelmultiplier && laser.anims.currentAnim.key === "laser-horizontal")) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
+        if (this.lasers.find((laser) => (laser.y === this.offsetY + currY * 16*this.pixelmultiplier && laser.x === this.offsetX + (currX-1) * 16*this.pixelmultiplier && (laser.anims.currentAnim.key === "laser-horizontal" || laser.anims.currentAnim.key === "lasertail-right"))) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
             return true;
         }
         return false;
@@ -838,10 +857,10 @@ private cerrarMenuPausa() {
             for (const emissor of emissors) {
                 this.setEmitting(emissor, emissor.dir);
                 switch(emissor.dir) {
-                    case 0: emissor.sprite.setTexture("tiles", Tile.LaserEmissorW); break;
-                    case 1: emissor.sprite.setTexture("tiles", Tile.LaserEmissorD); break;
-                    case 2: emissor.sprite.setTexture("tiles", Tile.LaserEmissorS); break;
-                    case 3: emissor.sprite.setTexture("tiles", Tile.LaserEmissorA); break;
+                    case 0: emissor.sprite.setTexture("tileset-fogo", 10); break;
+                    case 1: emissor.sprite.setTexture("tileset-fogo", 13); break;
+                    case 2: emissor.sprite.setTexture("tileset-fogo", 11); break;
+                    case 3: emissor.sprite.setTexture("tileset-fogo", 12); break;
                 }
             }
         }
@@ -1772,7 +1791,7 @@ private cerrarMenuPausa() {
         this.lasers = [];
         this.menuup = 0;
         this.objetosMenuPausa = [];
-                this.entities = [];
+        this.entities = [];
         this.history = [];
         this.lasers = [];
         this.menuup = 0;
@@ -1950,6 +1969,68 @@ private cerrarMenuPausa() {
                 repeat: -1
             });
         }
+        if (!this.anims.exists("lasertail-up")) {
+            this.anims.create({
+                key: "lasertail-right",
+                frames: [
+                    { key: "laserTail", frame: 12 },
+                    { key: "laserTail", frame: 16 },
+                    { key: "laserTail", frame: 20 },
+                    { key: "laserTail", frame: 24 },
+                    { key: "laserTail", frame: 28 },
+                    { key: "laserTail", frame: 0 },
+                    { key: "laserTail", frame: 4 },
+                    { key: "laserTail", frame: 8 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lasertail-left",
+                frames: [
+                    { key: "laserTail", frame: 13 },
+                    { key: "laserTail", frame: 17 },
+                    { key: "laserTail", frame: 21 },
+                    { key: "laserTail", frame: 25 },
+                    { key: "laserTail", frame: 29 },
+                    { key: "laserTail", frame: 1 },
+                    { key: "laserTail", frame: 5 },
+                    { key: "laserTail", frame: 9 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lasertail-down",
+                frames: [
+                    { key: "laserTail", frame: 14 },
+                    { key: "laserTail", frame: 18 },
+                    { key: "laserTail", frame: 22 },
+                    { key: "laserTail", frame: 26 },
+                    { key: "laserTail", frame: 30 },
+                    { key: "laserTail", frame: 2 },
+                    { key: "laserTail", frame: 6 },
+                    { key: "laserTail", frame: 10 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lasertail-up",
+                frames: [
+                    { key: "laserTail", frame: 15 },
+                    { key: "laserTail", frame: 19 },
+                    { key: "laserTail", frame: 23 },
+                    { key: "laserTail", frame: 27 },
+                    { key: "laserTail", frame: 31 },
+                    { key: "laserTail", frame: 3 },
+                    { key: "laserTail", frame: 7 },
+                    { key: "laserTail", frame: 11 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+        }
 
         this.qKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
         this.rKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
@@ -2104,7 +2185,7 @@ private cerrarMenuPausa() {
                         dir: 0,
                         emitting: 0,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.LaserEmissorW).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 10).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "a":
@@ -2115,7 +2196,7 @@ private cerrarMenuPausa() {
                         dir: 3,
                         emitting: 3,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.LaserEmissorA).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 12).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "s":
@@ -2126,7 +2207,7 @@ private cerrarMenuPausa() {
                         dir: 2,
                         emitting: 2,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.LaserEmissorS).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 11).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "d":
@@ -2137,7 +2218,7 @@ private cerrarMenuPausa() {
                         dir: 1,
                         emitting: 1,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.LaserEmissorD).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 13).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "i":
@@ -2147,7 +2228,7 @@ private cerrarMenuPausa() {
                         y: y,
                         dir: 0,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.Reciever).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 6).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "j":
@@ -2157,7 +2238,7 @@ private cerrarMenuPausa() {
                         y: y,
                         dir: 3,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.Reciever).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 8).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "k":
@@ -2167,7 +2248,7 @@ private cerrarMenuPausa() {
                         y: y,
                         dir: 2,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.Reciever).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 7).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "l":
@@ -2177,7 +2258,7 @@ private cerrarMenuPausa() {
                         y: y,
                         dir: 1,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.Reciever).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 9).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "t":
