@@ -694,7 +694,7 @@ private cerrarMenuPausa() {
         return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror");
     }
     private getViableMirrorAt(x: number, y: number, dir: number): Entity | undefined {
-        return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror" && (entity.dir === this.opposite(dir) || this.opposite(dir+1)));
+        return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror" && (entity.dir === this.opposite(dir) || this.opposite(dir-1)));
     }
 
     private findPair(group: number | undefined, exclude: Entity | undefined): Entity | undefined {
@@ -877,9 +877,14 @@ private cerrarMenuPausa() {
         }
         const nextLaser = this.addLaser(nextX, nextY, dir, false);
         let last: boolean;
+        let portall: boolean = false;
+        const portalll = this.getPortalAt(nextX + dx, nextY + dy);
+        if (portalll) {
+            if (portalll.dir === dir) portall = true;
+        }
         if (!nextLaser) last = true;
         else last = false;
-        if (last === true && !this.getPortalAt(nextX + dx, nextY + dy) && !this.getViableMirrorAt(nextX + dx, nextY + dy, dir)) {
+        if (last === true && !portall === true  && !this.getViableMirrorAt(nextX + dx, nextY + dy, dir)) {
             this.addLaserCap(laser);
         }
         return laser;
