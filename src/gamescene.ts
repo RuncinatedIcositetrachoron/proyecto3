@@ -12,6 +12,7 @@ interface Entity {
     portal?: number;
     group?: number;
     pushable: boolean;
+    secret?: string;
     sprite: Phaser.GameObjects.Sprite;
     sprite2?: Phaser.GameObjects.Sprite;
 }
@@ -427,7 +428,6 @@ nombre.setOrigin(0, 0.5);
     );
 }
 
-
     private reiniciarNivel() {
         this.scene.restart({
             modoTest: this.modoTest,
@@ -492,6 +492,7 @@ nombre.setOrigin(0, 0.5);
             }
             entity.sprite.setDepth(2*entity.y);
             if (entity.sprite2) entity.sprite2.setDepth(2*entity.y+1);
+            if (entity.type === "goal") entity.sprite.setDepth(-0.5)
         }
         for (const laser of this.lasers) {
             this.destroyLaser(laser);
@@ -649,15 +650,18 @@ private cerrarMenuPausa() {
     this.objetosMenuPausa = [];
 }
 
+    ////////////////////////
+    //LUCAS COSAS DEL GAME//
+    ////////////////////////
 
-    private opposite(dir: number): number | undefined {
+    private opposite(dir: number): number {
         switch(dir) {
             case 0: return 2;
             case 1: return 3;
             case 2: return 0;
             case 3: return 1;
         }
-        return undefined;
+        return 4;
     }
 
     private isWall(x: number, y: number): boolean {
@@ -677,7 +681,6 @@ private cerrarMenuPausa() {
             return this.entities.find(entity => entity.portal !== undefined && entity.x === x && entity.y === y );
         }
     }
-
     private getEntityAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
     }
@@ -689,6 +692,9 @@ private cerrarMenuPausa() {
     }
     private getMirrorAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror");
+    }
+    private getViableMirrorAt(x: number, y: number, dir: number): Entity | undefined {
+        return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror" && (entity.dir === this.opposite(dir) || this.opposite(dir+1)));
     }
 
     private findPair(group: number | undefined, exclude: Entity | undefined): Entity | undefined {
@@ -731,17 +737,18 @@ private cerrarMenuPausa() {
     private addLaserCap(laser: LaserVisual) {
         const body = laser.body;       
         let frame = 0;
+        let origina = 0;
         let originb = 0;
 
         switch (laser.dir) {
             case 0: frame = 1.5*Math.PI; originb = 0.751; break;
-            case 1: frame = 0; originb = 0.8; break;
-            case 2: frame = 0.5*Math.PI; originb = 0.8; break;
+            case 1: frame = 0; origina = 0.8; originb = 0.8; break;
+            case 2: frame = 0.5*Math.PI; origina = 0.8; originb = 0.178; break;
             case 3: frame = Math.PI; originb = 0.178; break;
         }
         const cap = this.add.sprite(body.x, body.y, "laserheads", 1).setRotation(frame);
 
-        cap.setOrigin(0, originb);
+        cap.setOrigin(origina, originb);
         cap.setScale(this.pixelmultiplier);
         cap.setDepth(body.depth + 6); 
         this.playLaserAnimation(cap, "laserhead");
@@ -832,22 +839,22 @@ private cerrarMenuPausa() {
                 switch(mirror.dir) {
                     case 0: return;
                     case 1: return;
-                    case 2: this.setEmitting(mirror, 1); mirror.sprite.setTexture("tiles", Tile.MirrorRFront); break;
-                    case 3: this.setEmitting(mirror, 3); mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
+                    case 2: this.setEmitting(mirror, 1); break;
+                    case 3: this.setEmitting(mirror, 3); break;
                 }
                 return;
             case 1:
                 switch(mirror.dir) {
-                    case 0: this.setEmitting(mirror, 0); mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
+                    case 0: this.setEmitting(mirror, 0); break;
                     case 1: return;
                     case 2: return;
-                    case 3: this.setEmitting(mirror, 2); mirror.sprite.setTexture("tiles", Tile.MirrorLFront); break;
+                    case 3: this.setEmitting(mirror, 2); break;
                 }
                 return;
             case 2:
                 switch(mirror.dir) {
-                    case 0: this.setEmitting(mirror, 3); mirror.sprite.setTexture("tiles", Tile.MirrorRBack); break;
-                    case 1: this.setEmitting(mirror, 1); mirror.sprite.setTexture("tiles", Tile.MirrorLBack); break;
+                    case 0: this.setEmitting(mirror, 3); break;
+                    case 1: this.setEmitting(mirror, 1); break;
                     case 2: return;
                     case 3: return;
                 }
@@ -855,8 +862,8 @@ private cerrarMenuPausa() {
             case 3:
                 switch(mirror.dir) {
                     case 0: return;
-                    case 1: this.setEmitting(mirror, 0); mirror.sprite.setTexture("tiles", Tile.MirrorLBack);  break;
-                    case 2: this.setEmitting(mirror, 2); mirror.sprite.setTexture("tiles", Tile.MirrorRFront);  break;
+                    case 1: this.setEmitting(mirror, 0);  break;
+                    case 2: this.setEmitting(mirror, 2);  break;
                     case 3: return;
                 }   
                 return;
@@ -870,9 +877,9 @@ private cerrarMenuPausa() {
         }
         const nextLaser = this.addLaser(nextX, nextY, dir, false);
         let last: boolean;
-        if (!nextLaser) last = false;
-        else last = true;
-        if (last === false) {
+        if (!nextLaser) last = true;
+        else last = false;
+        if (last === true && !this.getPortalAt(nextX + dx, nextY + dy) && !this.getViableMirrorAt(nextX + dx, nextY + dy, dir)) {
             this.addLaserCap(laser);
         }
         return laser;
@@ -996,10 +1003,6 @@ private cerrarMenuPausa() {
         if (mirrors) {
             for (const mirror of mirrors) {
                 mirror.emitting = undefined;
-                switch(mirror.dir) {
-                    case 0: case 2: mirror.sprite.setTexture("tiles", Tile.MirrorREmpty); break;
-                    case 1: case 3: mirror.sprite.setTexture("tiles", Tile.MirrorLEmpty); break;
-                }
             }
         }
         const emissors = this.entities.filter(entity => entity.type === "laserEmissor");
@@ -1026,7 +1029,7 @@ private cerrarMenuPausa() {
     private winConditionsMet(): boolean {
         const goals = this.entities.filter(entity => entity.type === "goal");
         for (const goal of goals) {
-            const box = this.entities.find(entity => entity.type === "box" && entity.x === goal.x && entity.y === goal.y);
+            const box = this.entities.find(entity => entity.pushable ===true && entity.x === goal.x && entity.y === goal.y);
             if (!box) {
                 return false;
             }
@@ -1114,16 +1117,19 @@ private cerrarMenuPausa() {
 }
 
     private flagCheck() {
-        const flag = this.entities.find(entity => entity.type === "flag");
+        const flag = this.entities.find(entity => entity.secret === "flag");
         if (!flag) {
             return;
         }
         if (!this.winConditionsMet()) {
             flag.sprite.setTexture("tiles", Tile.Flag0).setScale(this.pixelmultiplier/2);
+            flag.type = "wall";
         } else if (!this.winConditionsMet2()) {
 	        flag.sprite.setTexture("tiles", Tile.Flag0).setScale(this.pixelmultiplier/2);
+            flag.type = "wall";
         } else {
             flag.sprite.setTexture("tiles", Tile.Flag1).setScale(this.pixelmultiplier/2);
+            flag.type = "flag";
         }
     }
 
@@ -1911,10 +1917,6 @@ private cerrarMenuPausa() {
             frameWidth: 16,
             frameHeight: 23,
         });
-        this.load.spritesheet("floor", "assets/floor.spr.png", {
-            frameWidth: 16,
-            frameHeight: 16,
-        });
         this.load.spritesheet("laserBody", "assets/laser.body.spritesheet.png", {
             frameWidth: 16,
             frameHeight: 16,
@@ -1926,6 +1928,10 @@ private cerrarMenuPausa() {
         this.load.spritesheet("laserheads", "assets/laser.head.spritesheet.png", {
             frameWidth: 20,
             frameHeight: 28,
+        });
+        this.load.spritesheet("laserTurn", "assets/laser.turn.spritesheet.png", {
+            frameWidth: 16,
+            frameHeight: 16,
         });
         this.load.spritesheet("tileset-fogo", "./tileset.png", {
             frameWidth: 16,
@@ -2106,7 +2112,6 @@ private cerrarMenuPausa() {
                 frameRate: this.animationspeed*1.5,
                 repeat: -1
             });
-
             this.anims.create({
                 key: "laser-vertical2",
                 frames: [
@@ -2118,6 +2123,66 @@ private cerrarMenuPausa() {
                     { key: "laserBody", frame: 5 },
                     { key: "laserBody", frame: 3 },
                     { key: "laserBody", frame: 1 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lasermirrorse",
+                frames: [
+                    { key: "laserTurn", frame: 0 },
+                    { key: "laserTurn", frame: 4 },
+                    { key: "laserTurn", frame: 8 },
+                    { key: "laserTurn", frame: 12 },
+                    { key: "laserTurn", frame: 16 },
+                    { key: "laserTurn", frame: 20 },
+                    { key: "laserTurn", frame: 24 },
+                    { key: "laserTurn", frame: 28 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lasermirrorse",
+                frames: [
+                    { key: "laserTurn", frame: 1 },
+                    { key: "laserTurn", frame: 5 },
+                    { key: "laserTurn", frame: 9 },
+                    { key: "laserTurn", frame: 13 },
+                    { key: "laserTurn", frame: 17 },
+                    { key: "laserTurn", frame: 21 },
+                    { key: "laserTurn", frame: 25 },
+                    { key: "laserTurn", frame: 29 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lasermirrorse",
+                frames: [
+                    { key: "laserTurn", frame: 2 },
+                    { key: "laserTurn", frame: 6 },
+                    { key: "laserTurn", frame: 10 },
+                    { key: "laserTurn", frame: 14 },
+                    { key: "laserTurn", frame: 18 },
+                    { key: "laserTurn", frame: 22 },
+                    { key: "laserTurn", frame: 26 },
+                    { key: "laserTurn", frame: 30 },
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lasermirrorse",
+                frames: [
+                    { key: "laserTurn", frame: 3 },
+                    { key: "laserTurn", frame: 7 },
+                    { key: "laserTurn", frame: 11 },
+                    { key: "laserTurn", frame: 15 },
+                    { key: "laserTurn", frame: 19 },
+                    { key: "laserTurn", frame: 23 },
+                    { key: "laserTurn", frame: 27 },
+                    { key: "laserTurn", frame: 31 },
                 ],
                 frameRate: this.animationspeed*1.5,
                 repeat: -1
@@ -2199,7 +2264,7 @@ private cerrarMenuPausa() {
 
         for (let y = 0; y<this.staticRows.length; y++) {
             for (let x = 0; x<this.staticRows[y].length; x++){
-                this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "floor", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-1);
+                this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 14).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-1);
                 const thistile = this.staticRows[y][x];
                 switch(thistile) {
                     case "#":
@@ -2240,15 +2305,16 @@ private cerrarMenuPausa() {
                         x: x,
                         y: y,
                         pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.Goal).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 1).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
                     case "f":
                         this.entities.push ({
-                        type: "flag",
+                        type: "wall",
                         x: x,
                         y: y,
                         pushable: false,
+                        secret: "flag",
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.Flag1).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
                         });
                         break;
@@ -2377,7 +2443,7 @@ private cerrarMenuPausa() {
                         y: y,
                         dir: 0,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.MirrorREmpty).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 4).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "f":
@@ -2387,7 +2453,7 @@ private cerrarMenuPausa() {
                         y: y,
                         dir: 3,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.MirrorLEmpty).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 3).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "g":
@@ -2397,7 +2463,7 @@ private cerrarMenuPausa() {
                         y: y,
                         dir: 2,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.MirrorREmpty).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 2).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                     case "h":
@@ -2407,7 +2473,7 @@ private cerrarMenuPausa() {
                         y: y,
                         dir: 1,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.MirrorLEmpty).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 5).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                 }
