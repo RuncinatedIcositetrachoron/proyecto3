@@ -28,14 +28,19 @@ interface GameState {
 }
 
 interface LaserVisual {
-    body: Phaser.GameObjects.Sprite;
+    sprite: Phaser.GameObjects.Sprite;
+
+    incomingDir: number;
+    outgoingDir: number;
+
     cap?: Phaser.GameObjects.Sprite;
     tail?: Phaser.GameObjects.Sprite;
+
     maskFilter?: any;
     maskShape?: Phaser.GameObjects.Rectangle;
+
     maskFilter2?: any;
     maskShape2?: Phaser.GameObjects.Rectangle;
-    dir: number;
 }
 
 const Tile = {
@@ -650,9 +655,9 @@ private cerrarMenuPausa() {
     this.objetosMenuPausa = [];
 }
 
-    ////////////////////////
-    //LUCAS COSAS DEL GAME//
-    ////////////////////////
+    //////////////////////////
+    //LUCAS HELPERS DEL GAME//
+    //////////////////////////
 
     private opposite(dir: number): number {
         switch(dir) {
@@ -663,7 +668,6 @@ private cerrarMenuPausa() {
         }
         return 4;
     }
-
     private isWall(x: number, y: number): boolean {
         if (y < 0 || y >= this.staticRows.length || x < 0 || x >= this.staticRows[y].length) {
             return true;
@@ -673,7 +677,6 @@ private cerrarMenuPausa() {
         }
         return false;
     }
-
     private getPortalAt(x: number, y: number, dir?: number): Entity | undefined {
         if (dir !== undefined) {
             return this.entities.find(entity => entity.portal === dir && entity.x === x && entity.y === y );
@@ -684,9 +687,6 @@ private cerrarMenuPausa() {
     private getEntityAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
     }
-    private getEmitterAt(x: number, y: number, dir: number): Entity | undefined {
-        return this.entities.find(entity => entity.type === "laserEmissor" && entity.x === x && entity.y === y && entity.dir === dir);
-    }
     private getAnythingAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.x === x && entity.y === y);
     }
@@ -694,13 +694,23 @@ private cerrarMenuPausa() {
         return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror");
     }
     private getViableMirrorAt(x: number, y: number, dir: number): Entity | undefined {
-        return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror" && (entity.dir === this.opposite(dir) || this.opposite(dir-1)));
+        let dir2: number;
+        switch(dir) {
+            case 0: dir2 = 3; break;
+            case 1: dir2 = 0; break;
+            case 2: dir2 = 1; break;
+            case 3: dir2 = 2; break;
+        }
+        return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror" && (entity.dir === this.opposite(dir) || this.opposite(dir2)));
     }
-
     private findPair(group: number | undefined, exclude: Entity | undefined): Entity | undefined {
         return (this.entities.find(entity => entity.portal !== undefined && entity.group === group && entity !== exclude));
     }
     
+    /////////////////////
+    //FUNCIONES LASERES//
+    /////////////////////
+
     private createLaserBody(x: number, y: number, dir: number): LaserVisual {
         let frame = 0;
         let animation = "";
@@ -729,18 +739,18 @@ private cerrarMenuPausa() {
         body.setOrigin(1, 1);
         body.setScale(this.pixelmultiplier);
         this.playLaserAnimation(body, animation);
-        const visual: LaserVisual = {body: body, dir: dir};
+        const visual: LaserVisual = {sprite: body, incomingDir: dir, outgoingDir: dir};
 
         return visual;
     }
     
     private addLaserCap(laser: LaserVisual) {
-        const body = laser.body;       
+        const body = laser.sprite;       
         let frame = 0;
         let origina = 0;
         let originb = 0;
 
-        switch (laser.dir) {
+        switch (laser.outgoingDir) {
             case 0: frame = 1.5*Math.PI; originb = 0.751; break;
             case 1: frame = 0; origina = 0.8; originb = 0.8; break;
             case 2: frame = 0.5*Math.PI; origina = 0.8; originb = 0.178; break;
@@ -756,9 +766,9 @@ private cerrarMenuPausa() {
     }
     
     private addLaserTail(laser: LaserVisual) {
-        const body = laser.body;
+        const body = laser.sprite;
         let frame = 4;
-        switch (laser.dir) {
+        switch (laser.incomingDir) {
             case 0: frame = 3; break;
             case 1: frame = 0; break;
             case 2: frame = 2; break;
@@ -777,7 +787,7 @@ private cerrarMenuPausa() {
         let maskW = this.tilesize;
         let maskH = this.tilesize;
 
-        switch(laser.dir) {
+        switch(laser.incomingDir) {
             case 2:
                 maskY += cut;
                 maskH -= cut;
@@ -834,40 +844,42 @@ private cerrarMenuPausa() {
         if (this.getMirrorAt(nextX, nextY)) {
             const mirror = this.getMirrorAt(nextX, nextY);
             if (mirror){
-            switch(dir) {
-            case 0:
-                switch(mirror.dir) {
-                    case 0: return;
-                    case 1: return;
-                    case 2: this.setEmitting(mirror, 1); break;
-                    case 3: this.setEmitting(mirror, 3); break;
+                let outgoingDir = -1;
+
+                switch(dir) {
+                    case 0:
+                        switch(mirror.dir) {
+                            case 2: outgoingDir = 1; break;
+                            case 3: outgoingDir = 3; break;
+                        }
+                        break;
+                    case 1:
+                        switch(mirror.dir) {
+                            case 0: outgoingDir = 0; break;
+                            case 3: outgoingDir = 2; break;
+                        }
+                        break;
+                    case 2:
+                        switch(mirror.dir) {
+                            case 0: outgoingDir = 3; break;
+                            case 1: outgoingDir = 1; break;
+                        }
+                        break;
+                    case 3:
+                        switch(mirror.dir) {
+                            case 1: outgoingDir = 0; break;
+                            case 2: outgoingDir = 2; break;
+                        }
+                        break;
                 }
-                return;
-            case 1:
-                switch(mirror.dir) {
-                    case 0: this.setEmitting(mirror, 0); break;
-                    case 1: return;
-                    case 2: return;
-                    case 3: this.setEmitting(mirror, 2); break;
+                if (outgoingDir === -1) {
+                    return;
                 }
-                return;
-            case 2:
-                switch(mirror.dir) {
-                    case 0: this.setEmitting(mirror, 3); break;
-                    case 1: this.setEmitting(mirror, 1); break;
-                    case 2: return;
-                    case 3: return;
-                }
-                return;
-            case 3:
-                switch(mirror.dir) {
-                    case 0: return;
-                    case 1: this.setEmitting(mirror, 0);  break;
-                    case 2: this.setEmitting(mirror, 2);  break;
-                    case 3: return;
-                }   
-                return;
-            }
+                const turn = this.addLaserTurn(mirror, dir, outgoingDir);
+                this.lasers.push(turn);
+                if (first) this.addLaserTail(turn);
+                this.setEmitting(mirror, outgoingDir);
+                return turn;
             }
         }
         const laser = this.createLaserBody(nextX, nextY, dir);
@@ -876,18 +888,45 @@ private cerrarMenuPausa() {
             this.addLaserTail(laser);
         }
         const nextLaser = this.addLaser(nextX, nextY, dir, false);
-        let last: boolean;
-        let portall: boolean = false;
-        const portalll = this.getPortalAt(nextX + dx, nextY + dy);
-        if (portalll) {
-            if (portalll.dir === dir) portall = true;
-        }
-        if (!nextLaser) last = true;
-        else last = false;
-        if (last === true && !portall === true  && !this.getViableMirrorAt(nextX + dx, nextY + dy, dir)) {
+        const portalAhead = this.getPortalAt(nextX + dx, nextY + dy, this.opposite(dir));
+        if (!nextLaser && !portalAhead) {
             this.addLaserCap(laser);
         }
         return laser;
+    }
+
+    private addLaserTurn(mirror: Entity, incomingDir: number, outgoingDir: number): LaserVisual {
+        let animation = "";
+        let sprite: number;
+        const entrySide = this.opposite(incomingDir);
+        if (entrySide === 4) return;
+        if ((entrySide === 2 && outgoingDir === 1) || (entrySide === 1 && outgoingDir === 2)) {
+           animation = "lasermirrorse";
+           sprite = 0;
+        }
+        if ((entrySide === 2 && outgoingDir === 3) || (entrySide === 3 && outgoingDir === 2)) {
+            animation = "lasermirrorsw";
+           sprite = 1;
+        }
+        if ((entrySide === 0 && outgoingDir === 1) || (entrySide === 1 && outgoingDir === 0)) {
+            animation = "lasermirrorne";
+           sprite = 3;
+        }
+        if ((entrySide === 0 && outgoingDir === 3) || (entrySide === 3 && outgoingDir === 0)) {
+            animation = "lasermirrornw";
+           sprite = 2;
+        }
+        if (animation === "") {
+            return;
+        }
+        const turn = this.add.sprite(mirror.sprite.x, mirror.sprite.y, "laserTurn", sprite).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(mirror.sprite.depth + 6);
+        this.playLaserAnimation(turn, animation);
+        const visual: LaserVisual = {
+            sprite: turn,
+            incomingDir: incomingDir,
+            outgoingDir: outgoingDir
+        };
+        return visual;
     }
 
     private destroyLaser(laser: LaserVisual) {
@@ -902,11 +941,11 @@ private cerrarMenuPausa() {
             laser.tail = undefined;
         }
 
-        laser.body.destroy();
+        laser.sprite.destroy();
 
         if (laser.maskFilter) {
-            if (laser.body.filters) {
-                laser.body.filters.external.remove(
+            if (laser.sprite.filters) {
+                laser.sprite.filters.external.remove(
                     laser.maskFilter
                 );
             }
@@ -915,8 +954,8 @@ private cerrarMenuPausa() {
         }
 
         if (laser.maskFilter2) {
-            if (laser.body.filters) {
-                laser.body.filters.external.remove(
+            if (laser.sprite.filters) {
+                laser.sprite.filters.external.remove(
                     laser.maskFilter2
                 );
             }
@@ -934,7 +973,7 @@ private cerrarMenuPausa() {
             laser.maskShape2 = undefined;
         }
 
-        laser.body.destroy();
+        laser.sprite.destroy();
     }
 
     private setEmitting(entity: Entity, dir: number | undefined) {
@@ -982,16 +1021,16 @@ private cerrarMenuPausa() {
         if (player === undefined) {console.log("ERROR: there is no player, idiot."); return true;}
         const currX = player.x;
         const currY = player.y;
-        if (this.lasers.find((laser) => (laser.body.x === this.offsetX + currX * this.tilesize && laser.body.y === this.offsetY + (currY-1) * this.tilesize && laser.dir === 2)) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
+        if (this.lasers.find((laser) => (laser.sprite.x === this.offsetX + currX * this.tilesize && laser.sprite.y === this.offsetY + (currY-1) * this.tilesize && laser.outgoingDir === 2)) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.body.y === this.offsetY + currY * this.tilesize && laser.body.x === this.offsetX + (currX+1) * this.tilesize && laser.dir == 3)) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
+        if (this.lasers.find((laser) => (laser.sprite.y === this.offsetY + currY * this.tilesize && laser.sprite.x === this.offsetX + (currX+1) * this.tilesize && laser.outgoingDir == 3)) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.body.x === this.offsetX + currX * this.tilesize && laser.body.y === this.offsetY + (currY+1) * this.tilesize && laser.dir == 0)) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
+        if (this.lasers.find((laser) => (laser.sprite.x === this.offsetX + currX * this.tilesize && laser.sprite.y === this.offsetY + (currY+1) * this.tilesize && laser.outgoingDir == 0)) || this.entities.find((emissor) => (emissor.y === currY+1 && emissor.x === currX && emissor.emitting === 0))) {
             return true;
         }
-        if (this.lasers.find((laser) => (laser.body.y === this.offsetY + currY * this.tilesize && laser.body.x === this.offsetX + (currX-1) * this.tilesize && laser.dir == 1)) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
+        if (this.lasers.find((laser) => (laser.sprite.y === this.offsetY + currY * this.tilesize && laser.sprite.x === this.offsetX + (currX-1) * this.tilesize && laser.outgoingDir == 1)) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX-1 && emissor.emitting === 1))) {
             return true;
         }
         return false;
@@ -1008,6 +1047,12 @@ private cerrarMenuPausa() {
         if (mirrors) {
             for (const mirror of mirrors) {
                 mirror.emitting = undefined;
+                switch(mirror.dir) {
+                    case 0: mirror.sprite.setTexture("tileset-fogo", 4); break;
+                    case 1: mirror.sprite.setTexture("tileset-fogo", 5); break;
+                    case 2: mirror.sprite.setTexture("tileset-fogo", 2); break;
+                    case 3: mirror.sprite.setTexture("tileset-fogo", 3); break;
+                }
             }
         }
         const emissors = this.entities.filter(entity => entity.type === "laserEmissor");
@@ -1022,6 +1067,17 @@ private cerrarMenuPausa() {
                 }
             }
         }
+        const recievers = this.entities.filter(entity => entity.type === "laserReciever");
+        if (recievers) {
+            for (const emissor of recievers) {
+                switch(emissor.dir) {
+                    case 0: emissor.sprite.setTexture("tileset-fogo", 6); break;
+                    case 1: emissor.sprite.setTexture("tileset-fogo", 9); break;
+                    case 2: emissor.sprite.setTexture("tileset-fogo", 7); break;
+                    case 3: emissor.sprite.setTexture("tileset-fogo", 8); break;
+                }
+            }
+        }
         const portals = this.entities.filter(entity => entity.portal !== undefined);
         if (portals) {
             for (const portal of portals) {
@@ -1031,17 +1087,6 @@ private cerrarMenuPausa() {
         this.raycast();
     }
 
-    private winConditionsMet(): boolean {
-        const goals = this.entities.filter(entity => entity.type === "goal");
-        for (const goal of goals) {
-            const box = this.entities.find(entity => entity.pushable ===true && entity.x === goal.x && entity.y === goal.y);
-            if (!box) {
-                return false;
-            }
-        }
-        return true;
-    }
-    
     private winConditionsMet2(): boolean {
     const recievers = this.entities.filter(entity => entity.type === "laserReciever");
     for (const reciever of recievers) {
@@ -1052,9 +1097,9 @@ private cerrarMenuPausa() {
             case 0:
                 if (
                     this.lasers.find((laser) =>
-                        laser.body.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
-                        laser.body.y === this.offsetY + (currY - 1) * 16 * this.pixelmultiplier &&
-                        laser.dir === 2
+                        laser.sprite.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
+                        laser.sprite.y === this.offsetY + (currY - 1) * 16 * this.pixelmultiplier &&
+                        laser.outgoingDir === 2
                     ) ||
                     this.entities.find((emissor) =>
                         emissor.y === currY - 1 &&
@@ -1068,9 +1113,9 @@ private cerrarMenuPausa() {
             case 1:
                 if (
                     this.lasers.find((laser) =>
-                        laser.body.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
-                        laser.body.x === this.offsetX + (currX + 1) * 16 * this.pixelmultiplier &&
-                        laser.dir === 3
+                        laser.sprite.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
+                        laser.sprite.x === this.offsetX + (currX + 1) * 16 * this.pixelmultiplier &&
+                        laser.outgoingDir === 3
                     ) ||
                     this.entities.find((emissor) =>
                         emissor.y === currY &&
@@ -1084,9 +1129,9 @@ private cerrarMenuPausa() {
             case 2:
                 if (
                     this.lasers.find((laser) =>
-                        laser.body.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
-                        laser.body.y === this.offsetY + (currY + 1) * 16 * this.pixelmultiplier &&
-                        laser.dir === 0
+                        laser.sprite.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
+                        laser.sprite.y === this.offsetY + (currY + 1) * 16 * this.pixelmultiplier &&
+                        laser.outgoingDir === 0
                     ) ||
                     this.entities.find((emissor) =>
                         emissor.y === currY + 1 &&
@@ -1100,9 +1145,9 @@ private cerrarMenuPausa() {
             case 3:
                 if (
                     this.lasers.find((laser) =>
-                        laser.body.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
-                        laser.body.x === this.offsetX + (currX - 1) * 16 * this.pixelmultiplier &&
-                        laser.dir === 1
+                        laser.sprite.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
+                        laser.sprite.x === this.offsetX + (currX - 1) * 16 * this.pixelmultiplier &&
+                        laser.outgoingDir === 1
                     ) ||
                     this.entities.find((emissor) =>
                         emissor.y === currY &&
@@ -1119,17 +1164,29 @@ private cerrarMenuPausa() {
         }
     }
     return true;
-}
+    }
+
+    ///////////////////////////////
+    //FUNCIONES GATE & MOVIMIENTO//
+    ///////////////////////////////
+
+    private winConditionsMet(): boolean {
+        const goals = this.entities.filter(entity => entity.type === "goal");
+        for (const goal of goals) {
+            const box = this.entities.find(entity => entity.pushable ===true && entity.x === goal.x && entity.y === goal.y);
+            if (!box) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     private flagCheck() {
         const flag = this.entities.find(entity => entity.secret === "flag");
         if (!flag) {
             return;
         }
-        if (!this.winConditionsMet()) {
-            flag.sprite.setTexture("tiles", Tile.Flag0).setScale(this.pixelmultiplier/2);
-            flag.type = "wall";
-        } else if (!this.winConditionsMet2()) {
+        if (!this.winConditionsMet2()) {
 	        flag.sprite.setTexture("tiles", Tile.Flag0).setScale(this.pixelmultiplier/2);
             flag.type = "wall";
         } else {
@@ -1574,6 +1631,10 @@ private cerrarMenuPausa() {
         return true;
     }
 
+    /////////////////////////
+    //FUNCIONES ANIMACIONES//
+    /////////////////////////
+
     private duplicateSprite(sprite: Phaser.GameObjects.Sprite): Phaser.GameObjects.Sprite {
         const copy = this.add.sprite(sprite.x, sprite.y, sprite.texture.key, sprite.frame.name);
         copy.setOrigin(sprite.originX, sprite.originY);
@@ -1897,9 +1958,9 @@ private cerrarMenuPausa() {
         super("game");
     }
 
-    ////////////////////////////////
-    //PRELOAD & CREATE STARTS HERE//
-    ////////////////////////////////
+    ////////////////////
+    //PRELOAD & CREATE//
+    ////////////////////
 
     preload() {
         this.load.spritesheet("tiles", "assets/placeholders.png", {
@@ -2136,58 +2197,58 @@ private cerrarMenuPausa() {
                 key: "lasermirrorse",
                 frames: [
                     { key: "laserTurn", frame: 0 },
-                    { key: "laserTurn", frame: 4 },
-                    { key: "laserTurn", frame: 8 },
-                    { key: "laserTurn", frame: 12 },
-                    { key: "laserTurn", frame: 16 },
-                    { key: "laserTurn", frame: 20 },
-                    { key: "laserTurn", frame: 24 },
                     { key: "laserTurn", frame: 28 },
+                    { key: "laserTurn", frame: 24 },
+                    { key: "laserTurn", frame: 20 },
+                    { key: "laserTurn", frame: 16 },
+                    { key: "laserTurn", frame: 12 },
+                    { key: "laserTurn", frame: 8 },
+                    { key: "laserTurn", frame: 4 },
                 ],
                 frameRate: this.animationspeed*1.5,
                 repeat: -1
             });
             this.anims.create({
-                key: "lasermirrorse",
+                key: "lasermirrorsw",
                 frames: [
                     { key: "laserTurn", frame: 1 },
-                    { key: "laserTurn", frame: 5 },
-                    { key: "laserTurn", frame: 9 },
-                    { key: "laserTurn", frame: 13 },
-                    { key: "laserTurn", frame: 17 },
-                    { key: "laserTurn", frame: 21 },
-                    { key: "laserTurn", frame: 25 },
                     { key: "laserTurn", frame: 29 },
+                    { key: "laserTurn", frame: 25 },
+                    { key: "laserTurn", frame: 21 },
+                    { key: "laserTurn", frame: 17 },
+                    { key: "laserTurn", frame: 13 },
+                    { key: "laserTurn", frame: 9 },
+                    { key: "laserTurn", frame: 5 },
                 ],
                 frameRate: this.animationspeed*1.5,
                 repeat: -1
             });
             this.anims.create({
-                key: "lasermirrorse",
+                key: "lasermirrornw",
                 frames: [
                     { key: "laserTurn", frame: 2 },
-                    { key: "laserTurn", frame: 6 },
-                    { key: "laserTurn", frame: 10 },
-                    { key: "laserTurn", frame: 14 },
-                    { key: "laserTurn", frame: 18 },
-                    { key: "laserTurn", frame: 22 },
-                    { key: "laserTurn", frame: 26 },
                     { key: "laserTurn", frame: 30 },
+                    { key: "laserTurn", frame: 26 },
+                    { key: "laserTurn", frame: 22 },
+                    { key: "laserTurn", frame: 18 },
+                    { key: "laserTurn", frame: 14 },
+                    { key: "laserTurn", frame: 10 },
+                    { key: "laserTurn", frame: 6 },
                 ],
                 frameRate: this.animationspeed*1.5,
                 repeat: -1
             });
             this.anims.create({
-                key: "lasermirrorse",
+                key: "lasermirrorne",
                 frames: [
                     { key: "laserTurn", frame: 3 },
-                    { key: "laserTurn", frame: 7 },
-                    { key: "laserTurn", frame: 11 },
-                    { key: "laserTurn", frame: 15 },
-                    { key: "laserTurn", frame: 19 },
-                    { key: "laserTurn", frame: 23 },
-                    { key: "laserTurn", frame: 27 },
                     { key: "laserTurn", frame: 31 },
+                    { key: "laserTurn", frame: 27 },
+                    { key: "laserTurn", frame: 23 },
+                    { key: "laserTurn", frame: 19 },
+                    { key: "laserTurn", frame: 15 },
+                    { key: "laserTurn", frame: 11 },
+                    { key: "laserTurn", frame: 7 },
                 ],
                 frameRate: this.animationspeed*1.5,
                 repeat: -1
@@ -2241,31 +2302,19 @@ private cerrarMenuPausa() {
         //CALCULO DE MEDIDAS // HOLA LUCAS!!! // WHO DOESN'T LOVE SOFTCODING?
         // I DON'T!!! YOU RUINED MY BEAUTIFUL CODE!!!!!!
 
-            const margen = 12;
-            const columnas = this.staticRows[0].length;
-            const filas = this.staticRows.length;
-            const anchoDisponible = this.scale.width - margen * 2;
-            const altoDisponible = this.scale.height - this.altoBarra - margen * 2;
-            const extraSuperior = 8;
-            this.pixelmultiplier = Math.min(
-                3.33,
-                anchoDisponible / (columnas * 16),
-                altoDisponible / (filas * 16 + extraSuperior)
-            );
-            this.tilesize = 16 * this.pixelmultiplier;
-            const anchoTablero = columnas * this.tilesize;
-            const altoTablero = filas * this.tilesize;
-            const extra = extraSuperior * this.pixelmultiplier;
-            this.offsetX =
-                (this.scale.width - anchoTablero) / 2 +
-                this.tilesize;
-            this.offsetY =
-                this.altoBarra +
-                margen +
-                (altoDisponible - altoTablero - extra) / 2 +
-                extra +
-                this.tilesize;
-
+        const margen = 12;
+        const columnas = this.staticRows[0].length;
+        const filas = this.staticRows.length;
+        const anchoDisponible = this.scale.width - margen * 2;
+        const altoDisponible = this.scale.height - this.altoBarra - margen * 2;
+        const extraSuperior = 8;
+        this.pixelmultiplier = Math.min(3.33, anchoDisponible / (columnas * 16), altoDisponible / (filas * 16 + extraSuperior));
+        this.tilesize = 16 * this.pixelmultiplier;
+        const anchoTablero = columnas * this.tilesize;
+        const altoTablero = filas * this.tilesize;
+        const extra = extraSuperior * this.pixelmultiplier;
+        this.offsetX = (this.scale.width - anchoTablero) / 2 + this.tilesize;
+        this.offsetY = this.altoBarra + margen + (altoDisponible - altoTablero - extra) / 2 + extra + this.tilesize;
 
         for (let y = 0; y<this.staticRows.length; y++) {
             for (let x = 0; x<this.staticRows[y].length; x++){
