@@ -13,6 +13,7 @@ interface Entity {
     group?: number;
     pushable: boolean;
     secret?: string;
+    laserPhase?: number;
     sprite: Phaser.GameObjects.Sprite;
     sprite2?: Phaser.GameObjects.Sprite;
 }
@@ -29,16 +30,14 @@ interface GameState {
 
 interface LaserVisual {
     sprite: Phaser.GameObjects.Sprite;
-
     incomingDir: number;
     outgoingDir: number;
-
+    incomingPhase: number;
+    outgoingPhase: number;
     cap?: Phaser.GameObjects.Sprite;
     tail?: Phaser.GameObjects.Sprite;
-
     maskFilter?: any;
     maskShape?: Phaser.GameObjects.Rectangle;
-
     maskFilter2?: any;
     maskShape2?: Phaser.GameObjects.Rectangle;
 }
@@ -126,9 +125,8 @@ export class GameScene extends Phaser.Scene {
     private objetosMenuPausa: Phaser.GameObjects.GameObject[] = [];
     private pixelmultiplier: number = 3.33                     // TODO: make this adjustable in settings
     private tilesize: number = this.pixelmultiplier*16;                   // TODO: make this adjustable in settings
-    private animationspeed: number = 18;
-    private lindseyspeed: number = this.animationspeed*11.94;  
-    private laser: any;
+    private animationspeed: number = 3;
+    private lindseyspeed: number = this.animationspeed*11.94;
     private emitterQueue: Entity[] = [];
     private firedEmitters: Entity[] = [];
     private tempstorage: Entity | undefined;
@@ -693,16 +691,6 @@ private cerrarMenuPausa() {
     private getMirrorAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror");
     }
-    private getViableMirrorAt(x: number, y: number, dir: number): Entity | undefined {
-        let dir2: number;
-        switch(dir) {
-            case 0: dir2 = 3; break;
-            case 1: dir2 = 0; break;
-            case 2: dir2 = 1; break;
-            case 3: dir2 = 2; break;
-        }
-        return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror" && (entity.dir === this.opposite(dir) || this.opposite(dir2)));
-    }
     private findPair(group: number | undefined, exclude: Entity | undefined): Entity | undefined {
         return (this.entities.find(entity => entity.portal !== undefined && entity.group === group && entity !== exclude));
     }
@@ -711,7 +699,7 @@ private cerrarMenuPausa() {
     //FUNCIONES LASERES//
     /////////////////////
 
-    private createLaserBody(x: number, y: number, dir: number): LaserVisual {
+    private createLaserBody(x: number, y: number, dir: number, phase: number): LaserVisual {
         let frame = 0;
         let animation = "";
 
@@ -738,8 +726,8 @@ private cerrarMenuPausa() {
         const body = this.add.sprite(this.offsetX + x * this.tilesize, this.offsetY + y * this.tilesize, "laserBody", frame);
         body.setOrigin(1, 1);
         body.setScale(this.pixelmultiplier);
-        this.playLaserAnimation(body, animation);
-        const visual: LaserVisual = {sprite: body, incomingDir: dir, outgoingDir: dir};
+        this.playLaserAnimation(body, animation, phase);
+        const visual: LaserVisual = {sprite: body, incomingDir: dir, outgoingDir: dir, incomingPhase: phase, outgoingPhase: phase};
 
         return visual;
     }
@@ -761,7 +749,7 @@ private cerrarMenuPausa() {
         cap.setOrigin(origina, originb);
         cap.setScale(this.pixelmultiplier);
         cap.setDepth(body.depth + 6); 
-        this.playLaserAnimation(cap, "laserhead");
+        this.playLaserAnimation(cap, "laserhead", laser.outgoingPhase);
         laser.cap = cap;
     }
     
@@ -818,7 +806,7 @@ private cerrarMenuPausa() {
         laser.maskShape2 = maskShape;
     }
 
-    private addLaser(x: number, y: number, dir: number, first: boolean = false): LaserVisual | undefined {
+    private addLaser(x: number, y: number, dir: number, first: boolean = false, phase: number = 0): LaserVisual | undefined {
         let dx = 0;
         let dy = 0;
         switch (dir) {
@@ -834,7 +822,7 @@ private cerrarMenuPausa() {
             const entry = this.getPortalAt(nextX, nextY);
             if (entry !== undefined) {
             const exit = this.findPair(entry.group, entry);
-            if (exit) this.setEmitting(exit, exit.portal);
+            if (exit) this.setEmitting(exit, exit.portal, phase);
             return;
             }
         }
@@ -875,19 +863,20 @@ private cerrarMenuPausa() {
                 if (outgoingDir === -1) {
                     return;
                 }
-                const turn = this.addLaserTurn(mirror, dir, outgoingDir);
+                const turn = this.addLaserTurn(mirror, dir, outgoingDir, phase);
                 this.lasers.push(turn);
+                const newPhase = (phase + 3) % 8;
                 if (first) this.addLaserTail(turn);
-                this.setEmitting(mirror, outgoingDir);
+                this.setEmitting(mirror, outgoingDir, newPhase);
                 return turn;
             }
         }
-        const laser = this.createLaserBody(nextX, nextY, dir);
+        const laser = this.createLaserBody(nextX, nextY, dir, phase);
         this.lasers.push(laser);
         if (first) {
             this.addLaserTail(laser);
         }
-        const nextLaser = this.addLaser(nextX, nextY, dir, false);
+        const nextLaser = this.addLaser(nextX, nextY, dir, false, phase);
         const portalAhead = this.getPortalAt(nextX + dx, nextY + dy, this.opposite(dir));
         if (!nextLaser && !portalAhead) {
             this.addLaserCap(laser);
@@ -895,9 +884,10 @@ private cerrarMenuPausa() {
         return laser;
     }
 
-    private addLaserTurn(mirror: Entity, incomingDir: number, outgoingDir: number): LaserVisual {
+    private addLaserTurn(mirror: Entity, incomingDir: number, outgoingDir: number, phase: number): LaserVisual {
         let animation = "";
         let sprite: number;
+        const outgoingPhase = (phase + 3) % 8;
         const entrySide = this.opposite(incomingDir);
         if (entrySide === 4) return;
         if ((entrySide === 2 && outgoingDir === 1) || (entrySide === 1 && outgoingDir === 2)) {
@@ -920,11 +910,13 @@ private cerrarMenuPausa() {
             return;
         }
         const turn = this.add.sprite(mirror.sprite.x, mirror.sprite.y, "laserTurn", sprite).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(mirror.sprite.depth + 6);
-        this.playLaserAnimation(turn, animation);
+        this.playLaserAnimation(turn, animation, phase);
         const visual: LaserVisual = {
             sprite: turn,
             incomingDir: incomingDir,
-            outgoingDir: outgoingDir
+            outgoingDir: outgoingDir,
+            incomingPhase: phase,
+            outgoingPhase: outgoingPhase
         };
         return visual;
     }
@@ -976,19 +968,21 @@ private cerrarMenuPausa() {
         laser.sprite.destroy();
     }
 
-    private setEmitting(entity: Entity, dir: number | undefined) {
+    private setEmitting(entity: Entity, dir: number | undefined, phase: number = 0) {
         entity.emitting = dir;
+        entity.laserPhase = phase;
 
         if (!this.emitterQueue.includes(entity) && !this.firedEmitters.includes(entity)) {
             this.emitterQueue.push(entity);
         }
     }
 
-    private playLaserAnimation(laser: Phaser.GameObjects.Sprite, animation: string) {
+    private playLaserAnimation(laser: Phaser.GameObjects.Sprite, animation: string, phase: number = 0) {
         const frameRate = this.animationspeed * 1.5;
         const totalFrames = 8;
         const millisecondsPerFrame = 1000 / frameRate;
-        const frame = Math.floor(this.time.now / millisecondsPerFrame) % totalFrames;
+        const globalFrame = Math.floor(this.time.now / millisecondsPerFrame);
+        const frame = (globalFrame + phase) % totalFrames;
 
         laser.play({key: animation, startFrame: frame});
     }
@@ -998,6 +992,10 @@ private cerrarMenuPausa() {
             const emitter = this.emitterQueue.shift();
 
             if (!emitter) continue;
+            let phase = 0;
+            if (emitter.laserPhase !== undefined) {
+                phase = emitter.laserPhase;
+            }
             if (this.firedEmitters.includes(emitter)) continue;
             if (emitter.emitting === undefined) continue;
 
@@ -1007,12 +1005,22 @@ private cerrarMenuPausa() {
             if (emitter.type === "laserEmissor") {
                 first = true;
             }
-            this.addLaser(
-                emitter.x,
-                emitter.y,
-                emitter.emitting,
-                first
-            );
+            const nextLaser = this.addLaser(emitter.x, emitter.y, emitter.emitting, first, phase);
+            if (emitter.type === "mirror" && !nextLaser) {
+                const turn = this.lasers.find (laser => laser.sprite.x === emitter.sprite.x &&  laser.sprite.y === emitter.sprite.y && laser.outgoingDir === emitter.emitting && laser.incomingDir !== laser.outgoingDir);
+                if (turn) {
+                    let dx = 0;
+                    let dy = 0;
+                    switch(emitter.emitting) {
+                        case 0: dy = -1; break;
+                        case 1: dx = 1; break;
+                        case 2: dy = 1; break;
+                        case 3: dx = -1; break;
+                    }
+                    const portalAhead = this.getPortalAt(emitter.x + dx, emitter.y + dy, this.opposite(emitter.emitting));
+                    if (!portalAhead) this.addLaserCap(turn);
+                }
+            }
         }
     }
     
@@ -1058,7 +1066,7 @@ private cerrarMenuPausa() {
         const emissors = this.entities.filter(entity => entity.type === "laserEmissor");
         if (emissors) {
             for (const emissor of emissors) {
-                this.setEmitting(emissor, emissor.dir);
+                this.setEmitting(emissor, emissor.dir, 0);
                 switch(emissor.dir) {
                     case 0: emissor.sprite.setTexture("tileset-fogo", 10); break;
                     case 1: emissor.sprite.setTexture("tileset-fogo", 13); break;
