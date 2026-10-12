@@ -1,7 +1,36 @@
-import { editorAApi, apiAEditor } from "./parserApi";
+import { editorAApi } from "./parserApi";
 import type { ElementoAPI, NivelEditor } from "./parserApi";
 
 const API = "http://localhost:3000";
+
+async function pedir(ruta: string, metodo = "GET", datos?: any): Promise<any> {
+  const opciones: RequestInit = { method: metodo };
+  if (datos !== undefined) {
+    opciones.headers = { "Content-Type": "application/json" };
+    opciones.body = JSON.stringify(datos);
+  }
+
+  const respuesta = await fetch(API + ruta, opciones);
+  const texto = await respuesta.text();
+  let resultado: any = null;
+
+  if (texto !== "") {
+    try {
+      resultado = JSON.parse(texto);
+    } catch {
+      throw new Error(metodo + " " + ruta + " devolvio HTML o texto en vez de JSON (HTTP " + respuesta.status + ").");
+    }
+  }
+
+  if (respuesta.ok === false) {
+    let mensaje = "Error del servidor";
+    if (resultado !== null && typeof resultado.estatus === "string") {
+      mensaje = resultado.estatus;
+    }
+    throw new Error(metodo + " " + ruta + " (HTTP " + respuesta.status + "): " + mensaje);
+  }
+  return resultado;
+}
 
 export type NivelBackend = {
   id: number;
@@ -11,401 +40,18 @@ export type NivelBackend = {
   version: number;
   elementos: ElementoAPI[];
   usuariosQueCompletaron: string[];
+  descargas: string[];
+  cantidadDescargas: number;
 };
 
-export async function leerPublicaciones(): Promise<NivelBackend[]> {
-  const respuesta = await fetch(API + "/loadLevels");
-  if (respuesta.ok === false) {
-    throw new Error(String(respuesta.status));
-  }
-  const niveles = await respuesta.json();
-  return niveles;
-}
-
-export async function leerNivelesUsuario(
-  usuario: string
-): Promise<NivelBackend[]> {
-  const respuesta = await fetch(API + "/" + encodeURIComponent(usuario));
-  const resultado = await respuesta.json();
-
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-
-  return resultado.createdLevels;
-}
-
-export async function leerArchivoGuardadoBackend(usuario: string) {
-  const respuesta = await fetch(API + "/saveFile/" + encodeURIComponent(usuario));
-  const resultado = await respuesta.json();
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-  return resultado;
-}
-
-export async function leerNivelesCreadosBackend(usuario: string): Promise<NivelBackend[]> {
-  const archivo = await leerArchivoGuardadoBackend(usuario);
-  return archivo.nivelesCreados;
-}
-
-export function esNivelDelEditorBackend(nivel: NivelBackend): boolean {
-  for (let i = 0; i < nivel.elementos.length; i++) {
-    const elemento = nivel.elementos[i];
-    if (elemento !== null) {
-      const propiedad = elemento.tipo.propiedadEspecial;
-      if (typeof propiedad === "string" && propiedad.startsWith("community/editor/1:")) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-export async function leerNivelesGuardadosBackend(usuario: string): Promise<NivelBackend[]> {
-  const archivo = await leerArchivoGuardadoBackend(usuario);
-  const texto = localStorage.getItem("nivelesGuardados:" + usuario);
-  let niveles: NivelBackend[] = [];
-  if (texto !== null) {
-    niveles = JSON.parse(texto);
-  }
-  for (let i = 0; i < archivo.nivelesGuardados.length; i++) {
-    const recibido = archivo.nivelesGuardados[i];
-    let indice = -1;
-    for (let j = 0; j < niveles.length; j++) {
-      if (niveles[j].id === recibido.id && niveles[j].usuario === recibido.usuario) {
-        indice = j;
-      }
-    }
-    if (indice === -1) {
-      niveles.push(recibido);
-    } else if (recibido.version > niveles[indice].version) {
-      niveles[indice] = recibido;
-    }
-  }
-  localStorage.setItem("nivelesGuardados:" + usuario, JSON.stringify(niveles));
-  return niveles;
-}
-
-export async function guardarNivelCreadoBackend(
-  usuario: string,
-  nombre: string,
-  nivel?: NivelEditor
-): Promise<NivelBackend> {
-  const creados = await leerNivelesCreadosBackend(usuario);
-  if (nivel === undefined) {
-    for (let i = 0; i < creados.length; i++) {
-      if (creados[i].nombre === nombre && creados[i].elementos.length > 0) {
-        return creados[i];
-      }
-    }
-    throw new Error("Faltan los datos del nivel. Guarda el tablero antes de publicar.");
-  }
-  for (let i = 0; i < creados.length; i++) {
-    if (creados[i].nombre === nombre) {
-      if (esNivelDelEditorBackend(creados[i]) === false || apiAEditor(creados[i]).id !== nivel.id) {
-        throw new Error("Ya existe otro nivel creado con ese nombre. Recarga Mis niveles.");
-      }
-    } else if (esNivelDelEditorBackend(creados[i]) && apiAEditor(creados[i]).id === nivel.id) {
-      throw new Error("El nombre cambio en el servidor. Recarga Mis niveles antes de guardar.");
-    }
-  }
-  const datos = editorAApi(nivel, usuario);
-  datos.nombre = nombre;
-  await leerNivelesGuardadosBackend(usuario);
-  const respuesta = await fetch(API + "/saveLevel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(datos)
-  });
-  const resultado = await respuesta.json();
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-  const guardados = await leerNivelesCreadosBackend(usuario);
-  for (let i = 0; i < guardados.length; i++) {
-    if (guardados[i].nombre === nombre) {
-      return guardados[i];
-    }
-  }
-  throw new Error("No se encontro el nivel despues de guardarlo.");
-}
-
-async function comprobarIdCreadoBackend(usuario: string, id: number, idLocal?: string) {
-  const niveles = await leerNivelesCreadosBackend(usuario);
-  let cantidad = 0;
-  for (let i = 0; i < niveles.length; i++) {
-    if (niveles[i].id === id) {
-      cantidad++;
-    }
-  }
-  if (cantidad === 0) {
-    throw new Error("No se encontro el nivel creado.");
-  }
-  if (cantidad > 1) {
-    throw new Error("El backend repitio este ID. No se puede renombrar o borrar con seguridad.");
-  }
-  if (idLocal !== undefined) {
-    for (let i = 0; i < niveles.length; i++) {
-      if (niveles[i].id === id) {
-        if (esNivelDelEditorBackend(niveles[i]) === false || apiAEditor(niveles[i]).id !== idLocal) {
-          throw new Error("El nivel cambio en el servidor. Recarga Mis niveles.");
-        }
-      }
-    }
-  }
-}
-
-export async function renombrarNivelCreadoBackend(usuario: string, id: number, nombre: string, idLocal?: string) {
-  await comprobarIdCreadoBackend(usuario, id, idLocal);
-  const niveles = await leerNivelesCreadosBackend(usuario);
-  for (let i = 0; i < niveles.length; i++) {
-    if (niveles[i].id !== id && niveles[i].nombre === nombre) {
-      throw new Error("Ya existe otro nivel creado con ese nombre.");
-    }
-  }
-  const respuesta = await fetch(API + "/level/name/offline/" + id, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: usuario, nombre: nombre })
-  });
-  const resultado = await respuesta.json();
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-}
-
-export async function eliminarNivelCreadoBackend(usuario: string, id: number, idLocal?: string) {
-  await comprobarIdCreadoBackend(usuario, id, idLocal);
-  const respuesta = await fetch(API + "/level/delete/" + id, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: usuario })
-  });
-  const resultado = await respuesta.json();
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-}
-
-export async function publicarNivelBackend(usuario: string, nombre: string, nivel?: NivelEditor): Promise<void> {
-  if (nivel !== undefined) {
-    await guardarNivelCreadoBackend(usuario, nombre, nivel);
-  }
-  const niveles = await leerNivelesUsuario(usuario);
-  for (let i = 0; i < niveles.length; i++) {
-    const nivelPublicado = niveles[i];
-    if (nivelPublicado.usuario === usuario && nivelPublicado.nombre === nombre) {
-      if (nivelPublicado.publicado === false) {
-        const respuesta = await fetch(API + "/level/show/" + encodeURIComponent(nombre), { method: "PUT" });
-        const resultado = await respuesta.json();
-        if (respuesta.ok === false) {
-          throw new Error(resultado.estatus);
-        }
-        const visibles = await leerPublicaciones();
-        let publicado = false;
-        for (let j = 0; j < visibles.length; j++) {
-          if (visibles[j].id === nivelPublicado.id && visibles[j].publicado === true) {
-            publicado = true;
-            break;
-          }
-        }
-        if (publicado === false) {
-          throw new Error("El backend no guardó el cambio de showLevel: el nivel sigue oculto.");
-        }
-      }
-      return;
-    }
-  }
-  await guardarNivelCreadoBackend(usuario, nombre);
-  const respuesta = await fetch(API + "/publishLevel/" + encodeURIComponent(usuario), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nombre: nombre })
-  });
-  const resultado = await respuesta.json();
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-}
-
-export async function despublicarNivelBackend(
-  nombre: string
-): Promise<void> {
-  const respuesta = await fetch(
-    API + "/level/hide/" + encodeURIComponent(nombre),
-    { method: "PUT" }
-  );
-
-  const resultado = await respuesta.json();
-
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-
-  const visibles = await leerPublicaciones();
-
-  for (let i = 0; i < visibles.length; i++) {
-    if (visibles[i].nombre === nombre && visibles[i].publicado === true) {
-      throw new Error(
-        "El backend no guardó la despublicación"
-      );
-    }
-  }
-}
-
-export async function renombrarPublicacionBackend(
-  id: number,
-  nombre: string
-): Promise<void> {
-  const respuesta = await fetch(API + "/level/name/online/" + id, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ nombre: nombre })
-  });
-
-  const resultado = await respuesta.json();
-
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-}
-
-export async function leerNivelPublicadoBackend(nombre: string): Promise<NivelBackend> {
-  const respuesta = await fetch(API + "/loadLevels/level/" + encodeURIComponent(nombre));
-  const resultado = await respuesta.json();
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-  return resultado;
-}
-
-export async function actualizarPublicacionBackend(usuario: string, nivel: NivelEditor, publicacion: NivelBackend) {
-  if (publicacion.usuario !== usuario) {
-    throw new Error("La publicacion pertenece a otro usuario.");
-  }
-  const visibles = await leerPublicaciones();
-  for (let i = 0; i < visibles.length; i++) {
-    if (visibles[i].nombre === nivel.nombre && visibles[i].id !== publicacion.id) {
-      throw new Error("Ya existe otra publicacion con ese nombre.");
-    }
-  }
-  await guardarNivelCreadoBackend(usuario, nivel.nombre, nivel);
-  const datos = editorAApi(nivel, usuario, publicacion);
-  const respuesta = await fetch(API + "/level/" + encodeURIComponent(publicacion.nombre), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(datos)
-  });
-  const resultado = await respuesta.json();
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-}
-
-export async function descargarNivelBackend(usuario: string, nombre: string): Promise<NivelBackend> {
-  const actual = await leerNivelPublicadoBackend(nombre);
-  apiAEditor(actual);
-  const guardados = await leerNivelesGuardadosBackend(usuario);
-  for (let i = 0; i < guardados.length; i++) {
-    if (guardados[i].id === actual.id && guardados[i].usuario === actual.usuario) {
-      if (guardados[i].version === actual.version) {
-        return guardados[i];
-      }
-      const respuestaAnterior = await fetch(API + "/deleteLevelUser/" + encodeURIComponent(guardados[i].nombre), {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: usuario })
-      });
-      const resultadoAnterior = await respuestaAnterior.json();
-      if (respuestaAnterior.ok === false) {
-        throw new Error(resultadoAnterior.estatus);
-      }
-    }
-  }
-  const respuesta = await fetch(API + "/saveLevelUser/" + encodeURIComponent(nombre), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: usuario })
-  });
-  const resultado = await respuesta.json();
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-  await leerNivelesGuardadosBackend(usuario);
-  return actual;
-}
-
-export async function eliminarNivelGuardadoBackend(usuario: string, id: number) {
-  const guardados = await leerNivelesGuardadosBackend(usuario);
-  const restantes: NivelBackend[] = [];
-  for (let i = 0; i < guardados.length; i++) {
-    const nivel = guardados[i];
-    if (nivel.id === id) {
-      const respuesta = await fetch(API + "/deleteLevelUser/" + encodeURIComponent(nivel.nombre), {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: usuario })
-      });
-      const resultado = await respuesta.json();
-      if (respuesta.ok === false) {
-        throw new Error(resultado.estatus);
-      }
-    } else {
-      restantes.push(nivel);
-    }
-  }
-  localStorage.setItem("nivelesGuardados:" + usuario, JSON.stringify(restantes));
-}
-
-let completandoNivel = false;
-
-export async function completarNivelDescargadoBackend(usuario: string, id: number) {
-  if (completandoNivel) {
-    return;
-  }
-  completandoNivel = true;
-  try {
-    const guardados = await leerNivelesGuardadosBackend(usuario);
-    const publicados = await leerPublicaciones();
-    for (let i = 0; i < guardados.length; i++) {
-      const guardado = guardados[i];
-      if (guardado.id !== id) {
-        continue;
-      }
-      for (let j = 0; j < publicados.length; j++) {
-        const actual = publicados[j];
-        if (actual.id !== id || actual.usuario !== guardado.usuario) {
-          continue;
-        }
-        if (actual.version !== guardado.version) {
-          throw new Error("Actualiza la descarga antes de guardar el progreso.");
-        }
-        if (actual.usuariosQueCompletaron.indexOf(usuario) === -1) {
-          const respuesta = await fetch(API + "/level/" + encodeURIComponent(actual.nombre), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: usuario })
-          });
-          const resultado = await respuesta.json();
-          if (respuesta.ok === false) {
-            throw new Error(resultado.estatus);
-          }
-        }
-        if (guardado.usuariosQueCompletaron.indexOf(usuario) === -1) {
-          guardado.usuariosQueCompletaron.push(usuario);
-        }
-        localStorage.setItem("nivelesGuardados:" + usuario, JSON.stringify(guardados));
-        return;
-      }
-    }
-    throw new Error("No se encontro la descarga o su publicacion.");
-  } finally {
-    completandoNivel = false;
-  }
-}
+export type ArchivoGuardadoBackend = {
+  username: string;
+  nivelesCreados: NivelBackend[];
+  nivelesGuardados: NivelBackend[];
+  nivelesOG1: boolean[];
+  nivelesOG2: boolean[];
+  nivelesOG3: boolean[];
+};
 
 export type PerfilBackend = {
   username: string;
@@ -420,126 +66,264 @@ export type ConfiguracionBackend = {
   user: string;
 };
 
-export async function registrarPerfil(
-  nombre: string,
-  contrasena: string
-) {
-  const datos = {
-    username: nombre,
-    password: contrasena
-  };
+// USUARIOS Y CONFIGURACION
 
-  const respuesta = await fetch(
-    "http://localhost:3000/saveProfile",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(datos)
-    }
-  );
-
-  const resultado = await respuesta.json();
-
+export async function comprobarBackendActivo(): Promise<boolean> {
+  const respuesta = await fetch(API + "/health");
   if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
+    throw new Error("No se pudo conectar con el backend (HTTP " + respuesta.status + ").");
   }
+  return (await respuesta.text()).trim() === "OK";
 }
 
-export async function obtenerPerfil(nombre: string) {
-  const respuesta = await fetch(
-    "http://localhost:3000/" + encodeURIComponent(nombre)
-  );
-
-  const resultado = await respuesta.json();
-
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-
-  const perfil: PerfilBackend = resultado.profileData;
-
-  return perfil;
+export async function registrarPerfil(nombre: string, contrasena: string): Promise<void> {
+  await pedir("/saveProfile", "POST", { username: nombre, password: contrasena });
 }
 
-export async function autenticarPerfil(
-  nombre: string,
-  contrasena: string
-) {
-  const datos = {
-    username: nombre,
-    password: contrasena
-  };
-
-  const respuesta = await fetch(
-    "http://localhost:3000/logProfile",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(datos)
-    }
-  );
-
-  const resultado = await respuesta.json();
-
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-
-  const perfil = await obtenerPerfil(nombre);
-
-  return perfil;
+export async function obtenerPerfil(nombre: string): Promise<PerfilBackend> {
+  const datos = await pedir("/" + encodeURIComponent(nombre));
+  return datos.profileData;
 }
 
-export async function obtenerConfiguracion(nombre: string) {
-  const respuesta = await fetch(
-    "http://localhost:3000/" +
-    encodeURIComponent(nombre) +
-    "/configs"
-  );
+export async function autenticarPerfil(nombre: string, contrasena: string): Promise<PerfilBackend> {
+  await pedir("/logProfile", "POST", { username: nombre, password: contrasena });
+  return await obtenerPerfil(nombre);
+}
 
-  const resultado = await respuesta.json();
-
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
-  }
-
-  const configuracion: ConfiguracionBackend = resultado;
-
-  return configuracion;
+export async function obtenerConfiguracion(nombre: string): Promise<ConfiguracionBackend> {
+  return await pedir("/" + encodeURIComponent(nombre) + "/configs");
 }
 
 export async function guardarConfiguracion(
-  nombre: string,
-  tema: string,
-  volumen: number,
-  resolucion: string
-) {
-  const datos = {
-    theme: tema,
-    volume: volumen,
-    resolution: resolucion
-  };
+  nombre: string, tema: string, volumen: number, resolucion: string
+): Promise<void> {
+  await pedir("/" + encodeURIComponent(nombre) + "/saveConfigs", "POST", {
+    theme: tema, volume: volumen, resolution: resolucion
+  });
+}
 
-  const respuesta = await fetch(
-    "http://localhost:3000/" +
-    encodeURIComponent(nombre) +
-    "/saveConfigs",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(datos)
+// PUBLICACIONES Y NIVELES CREADOS
+
+export async function leerPublicaciones(): Promise<NivelBackend[]> {
+  return await pedir("/loadLevels");
+}
+
+export async function leerPublicacionesUsuarioBackend(usuario: string): Promise<NivelBackend[]> {
+  try {
+    return await pedir("/loadLevels/" + encodeURIComponent(usuario));
+  } catch (error: any) {
+    const mensaje = String(error);
+    if (mensaje.indexOf("No-se-han-encontrado-niveles-a-nombre-de-ese-usuario") !== -1 ||
+        mensaje.indexOf("No-se-ha-encontrado-el-usuario-marcado") !== -1) {
+      return [];
     }
-  );
-
-  const resultado = await respuesta.json();
-
-  if (respuesta.ok === false) {
-    throw new Error(resultado.estatus);
+    throw error;
   }
+}
+
+export async function leerNivelesUsuario(usuario: string): Promise<NivelBackend[]> {
+  const datos = await pedir("/" + encodeURIComponent(usuario));
+  return datos.createdLevels;
+}
+
+export async function leerArchivoGuardadoBackend(usuario: string): Promise<ArchivoGuardadoBackend> {
+  return await pedir("/saveFile/" + encodeURIComponent(usuario));
+}
+
+export async function leerNivelesCreadosBackend(usuario: string): Promise<NivelBackend[]> {
+  const archivo = await leerArchivoGuardadoBackend(usuario);
+  return archivo.nivelesCreados;
+}
+
+export function esNivelDelEditorBackend(nivel: NivelBackend): boolean {
+  if (nivel === null || !Array.isArray(nivel.elementos)) return false;
+  for (let i = 0; i < nivel.elementos.length; i++) {
+    const elemento = nivel.elementos[i];
+    if (elemento !== null && elemento.tipo !== undefined) {
+      const propiedad = elemento.tipo.propiedadEspecial;
+      if (typeof propiedad === "string" && propiedad.startsWith("community/editor/1:")) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export async function guardarNivelCreadoBackend(
+  usuario: string, nombre: string, nivel?: NivelEditor
+): Promise<NivelBackend> {
+  if (nivel !== undefined) {
+    const datos = editorAApi(nivel, usuario);
+    datos.nombre = nombre;
+    await pedir("/saveLevel", "POST", datos);
+  }
+
+  const creados = await leerNivelesCreadosBackend(usuario);
+  for (let i = 0; i < creados.length; i++) {
+    if (creados[i].nombre === nombre) return creados[i];
+  }
+  throw new Error("No se encontro el nivel creado: " + nombre);
+}
+
+export async function renombrarNivelCreadoBackend(
+  usuario: string, id: number, nombre: string, _idLocal?: string
+): Promise<void> {
+  await pedir("/level/name/offline/" + id, "PATCH", { username: usuario, nombre: nombre });
+}
+
+export async function eliminarNivelCreadoBackend(
+  usuario: string, id: number, _idLocal?: string
+): Promise<void> {
+  await pedir("/level/delete/" + id, "DELETE", { username: usuario });
+}
+
+export async function leerNivelPublicadoBackend(nombre: string): Promise<NivelBackend> {
+  return await pedir("/loadLevels/level/" + encodeURIComponent(nombre));
+}
+
+export async function publicarNivelBackend(
+  usuario: string, nombre: string, nivel?: NivelEditor
+): Promise<void> {
+  await guardarNivelCreadoBackend(usuario, nombre, nivel);
+  const publicaciones = await leerNivelesUsuario(usuario);
+
+  for (let i = 0; i < publicaciones.length; i++) {
+    if (publicaciones[i].nombre === nombre) {
+      if (publicaciones[i].publicado === false) {
+        await pedir("/level/show/" + encodeURIComponent(nombre), "PUT");
+      }
+      return;
+    }
+  }
+
+  await pedir("/publishLevel/" + encodeURIComponent(usuario), "POST", { nombre: nombre });
+}
+
+export async function despublicarNivelBackend(nombre: string): Promise<void> {
+  await pedir("/level/hide/" + encodeURIComponent(nombre), "PUT");
+}
+
+export async function renombrarPublicacionBackend(id: number, nombre: string): Promise<void> {
+  await pedir("/level/name/online/" + id, "PATCH", { nombre: nombre });
+}
+
+export async function actualizarPublicacionBackend(
+  usuario: string, nivel: NivelEditor, publicacion: NivelBackend
+): Promise<void> {
+  if (publicacion.usuario !== usuario) {
+    throw new Error("Esta publicacion pertenece a otro usuario.");
+  }
+
+  await guardarNivelCreadoBackend(usuario, nivel.nombre, nivel);
+  const datos = editorAApi(nivel, usuario);
+  await pedir("/level/" + encodeURIComponent(publicacion.nombre), "PUT", {
+    nombre: nivel.nombre,
+    elementos: datos.elementos
+  });
+}
+
+// DESCARGAS Y PROGRESO DE COMMUNITY
+
+export async function leerNivelesGuardadosBackend(usuario: string): Promise<NivelBackend[]> {
+  const archivo = await leerArchivoGuardadoBackend(usuario);
+  return archivo.nivelesGuardados;
+}
+
+export async function descargarNivelBackend(usuario: string, nombre: string): Promise<NivelBackend> {
+  const publicado = await leerNivelPublicadoBackend(nombre);
+  const guardados = await leerNivelesGuardadosBackend(usuario);
+
+  for (let i = 0; i < guardados.length; i++) {
+    const anterior = guardados[i];
+    if (anterior.id === publicado.id && anterior.usuario === publicado.usuario) {
+      if (anterior.version === publicado.version && anterior.nombre === publicado.nombre) {
+        return anterior;
+      }
+
+      await pedir("/deleteLevelUser/" + encodeURIComponent(anterior.nombre), "DELETE", {
+        username: usuario
+      });
+      break;
+    }
+  }
+
+  await pedir("/saveLevelUser/" + encodeURIComponent(publicado.nombre), "POST", {
+    username: usuario
+  });
+
+  const nuevas = await leerNivelesGuardadosBackend(usuario);
+  for (let i = 0; i < nuevas.length; i++) {
+    if (nuevas[i].id === publicado.id && nuevas[i].usuario === publicado.usuario) {
+      return nuevas[i];
+    }
+  }
+  throw new Error("El backend no registro la descarga.");
+}
+
+export async function eliminarNivelGuardadoBackend(usuario: string, id: number): Promise<void> {
+  const guardados = await leerNivelesGuardadosBackend(usuario);
+  for (let i = 0; i < guardados.length; i++) {
+    if (guardados[i].id === id) {
+      await pedir("/deleteLevelUser/" + encodeURIComponent(guardados[i].nombre), "DELETE", {
+        username: usuario
+      });
+      return;
+    }
+  }
+  throw new Error("No se encontro la descarga a desinstalar.");
+}
+
+export async function completarNivelDescargadoBackend(usuario: string, id: number): Promise<void> {
+  const guardados = await leerNivelesGuardadosBackend(usuario);
+  let descarga: NivelBackend | null = null;
+
+  for (let i = 0; i < guardados.length; i++) {
+    if (guardados[i].id === id) {
+      descarga = guardados[i];
+      break;
+    }
+  }
+
+  if (descarga === null) throw new Error("No se encontro el nivel descargado.");
+  if (descarga.usuariosQueCompletaron.indexOf(usuario) !== -1) return;
+
+  await pedir("/level/" + encodeURIComponent(descarga.nombre), "POST", { username: usuario });
+
+  const actualizados = await leerNivelesGuardadosBackend(usuario);
+  for (let i = 0; i < actualizados.length; i++) {
+    if (actualizados[i].id === id &&
+        actualizados[i].usuariosQueCompletaron.indexOf(usuario) !== -1) {
+      return;
+    }
+  }
+  throw new Error("El servidor no guardo el progreso de la descarga.");
+}
+
+// NIVELES ORIGINALES (OG)
+
+export async function leerNivelesOriginalesBackend(): Promise<NivelBackend[]> {
+  return await pedir("/loadLevels/original/all");
+}
+
+export async function leerNivelOriginalBackend(numero: number): Promise<NivelBackend> {
+  return await pedir("/level/original/" + numero);
+}
+
+export async function completarNivelOriginalBackend(
+  usuario: string, numero: number, archivo: number
+): Promise<void> {
+  await pedir("/level/original/" + numero, "POST", {
+    username: usuario,
+    saveFile: String(archivo)
+  });
+}
+
+export async function leerProgresoOriginalBackend(
+  usuario: string, archivo: number
+): Promise<boolean[]> {
+  const guardado = await leerArchivoGuardadoBackend(usuario);
+  if (archivo === 1) return guardado.nivelesOG1;
+  if (archivo === 2) return guardado.nivelesOG2;
+  if (archivo === 3) return guardado.nivelesOG3;
+  throw new Error("El archivo de guardado debe ser 1, 2 o 3.");
 }

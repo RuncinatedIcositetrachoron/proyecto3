@@ -61,8 +61,8 @@ export const demo: {
   descargas: []
 };
 
-const CLAVE_USUARIOS = "laserSokobanUsuarios";
-const CLAVE_SESION = "laserSokobanSesion";
+const CLAVE_USUARIOS = "LindseysLasersUsuarios";
+const CLAVE_SESION = "LindseysLasersSesion";
 
 export function esInvitado(): boolean {
   if (demo.usuarioActual === null) {

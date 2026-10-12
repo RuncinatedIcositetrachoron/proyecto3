@@ -1,10 +1,16 @@
 import Phaser from "phaser";
 
-import { obtenerNivel } from "./niveles";
+import { obtenerNivel, crearBoton } from "./niveles";
 import { convertirNivel } from "./parser";
 
 import { demo } from "./datosDemo";
-import { completarNivelDescargadoBackend } from "./api";
+import {
+    completarNivelDescargadoBackend,
+    leerNivelesOriginalesBackend,
+    leerNivelOriginalBackend
+} from "./api";
+import { apiAEditor } from "./parserApi";
+
 
 interface Entity {
     type: string;
@@ -81,9 +87,13 @@ export class GameScene extends Phaser.Scene {
         this.nivelTest = "";
         this.nivelId = "";
         this.levelNumber = 1;
+        this.nombreNivelOficial = "";
+        this.idsNivelesOficiales = [];
+        this.cargandoNivel = true;
         this.escenaAnterior = "menu";
         this.idGlobalDescargado = null;
         this.victoriaDescargadaEnCurso = false;
+        
         if (data && typeof data.idGlobal === "number") {
         this.idGlobalDescargado = data.idGlobal;
         }
@@ -109,6 +119,9 @@ export class GameScene extends Phaser.Scene {
         if (typeof data.level === "number") {
             this.levelNumber = data.level;
         }
+        if (Array.isArray(data.idsNivelesOficiales)) {
+            this.idsNivelesOficiales = data.idsNivelesOficiales.slice();
+        }
         if (data.history !== undefined) {
             this.history = data.history;
         }
@@ -122,9 +135,13 @@ export class GameScene extends Phaser.Scene {
 
     private idGlobalDescargado: number | null = null;
     private victoriaDescargadaEnCurso = false;
+    private nombreNivelOficial = "";
+    private idsNivelesOficiales: number[] = [];
+    private cargandoNivel = true;
+    private numeroCarga = 0;
 
     private menuup = 0;
-    private menuOverlay!: Phaser.GameObjects.Rectangle;
+    private pantallaMuerte!: Phaser.GameObjects.Container;
     private objetosMenuPausa: Phaser.GameObjects.GameObject[] = [];
     private pixelmultiplier: number = 3.33                     // TODO: make this adjustable in settings
     private tilesize: number = this.pixelmultiplier*16;                   // TODO: make this adjustable in settings
@@ -159,7 +176,6 @@ export class GameScene extends Phaser.Scene {
     private altoBarra = 68;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private staticRows: any;
-    private deathmessage: Phaser.GameObjects.Text;
 
     private nivelDescargado: any = null;
     private saliendoDelNivel = false;
@@ -190,26 +206,50 @@ export class GameScene extends Phaser.Scene {
         if (this.modoTest) {
             return "Untitled Level";
         }
+        if (this.nombreNivelOficial !== "") {
+            return this.nombreNivelOficial;
+        }
         return "Nivel " + this.levelNumber;
     }
 
     private async registrarVictoriaDescargada(): Promise<void> {
-        if (this.victoriaDescargadaEnCurso || this.idGlobalDescargado === null) return;
-        this.victoriaDescargadaEnCurso = true;
-        try {
-          const usuario = demo.usuarioActual;
-          if (usuario === null || usuario === undefined) {
+    if (this.victoriaDescargadaEnCurso || this.idGlobalDescargado === null) {
+        return;
+    }
+    this.victoriaDescargadaEnCurso = true;
+    try {
+        const usuario = demo.usuarioActual;
+
+        if (usuario === null || usuario === undefined) {
             throw new Error("No hay sesion activa.");
-          }
-          await completarNivelDescargadoBackend(usuario.nombre, this.idGlobalDescargado);
-        } catch (error: any) {
-          let mensaje = String(error);
-          if (error && typeof error.message === "string") mensaje = error.message;
-          window.alert("Se gano el nivel, pero no se pudo guardar el progreso:\n\n" + mensaje);
         }
-        this.scene.wake("communityDemo");
-        this.scene.stop();
-      }
+
+        await completarNivelDescargadoBackend(
+            usuario.nombre,
+            this.idGlobalDescargado
+        );
+        for (let i = 0; i < demo.descargas.length; i++) {
+            const descarga = demo.descargas[i];
+            if (
+                descarga.usuarioId === usuario.id &&
+                descarga.nivelId === this.idGlobalDescargado
+            ) {
+                descarga.completado = true;
+            }
+        }
+        if (this.nivelDescargado !== null) {
+            this.nivelDescargado.completado = true;
+        }
+    } catch (error: any) {
+        window.alert(
+            "Se gano el nivel, pero no se pudo guardar el progreso:\n\n" +
+            String(error)
+        );
+    }
+
+    this.scene.wake("communityDemo");
+    this.scene.stop();
+}
       
     private crearBotonJuego(
         x: number,
@@ -220,53 +260,57 @@ export class GameScene extends Phaser.Scene {
         profundidad: number,
         accion: () => void
     ) {
-    const objetos: Phaser.GameObjects.GameObject[] = [];
-    const sombra = this.add.rectangle(
-        x + 3,
-        y + 3,
-        ancho + 4,
-        44,
-        0x14121e
-    );
-    sombra.setDepth(profundidad);
-    objetos.push(sombra);
-    const fondo = this.add.rectangle(
-        x,
-        y,
-        ancho,
-        40,
-        color
-    );
-    fondo.setStrokeStyle(4, 0x222034);
-    fondo.setDepth(profundidad + 1);
-    fondo.setInteractive({
-        useHandCursor: true
-    });
-    objetos.push(fondo);
-    const etiqueta = this.add.text(
-        x,
-        y,
-        texto,
-        {
-            fontFamily: "Fuente",
-            fontSize: "16px",
-            color: "#222034",
+        const cantidadAnterior = this.children.list.length;
+        const fondo = crearBoton(this, x, y, ancho, texto, accion);
+
+        fondo.setFillStyle(color);
+
+        if (texto === "Deshacer") {
+            fondo.setData("atajo", "Z");
         }
-    );
-    etiqueta.setOrigin(0.5);
-    etiqueta.setDepth(profundidad + 2);
-    objetos.push(etiqueta);
-    fondo.on("pointerover", () => {
-        fondo.setAlpha(0.8);
-    });
-    fondo.on("pointerout", () => {
-        fondo.setAlpha(1);
-    });
-    fondo.on("pointerdown", () => {
-        accion();
-    });
-    return objetos;
-}
+
+        if (texto === "Reset") {
+            fondo.setData("atajo", "R");
+        }
+
+        if (texto === "Pausa" || texto === "Continuar") {
+            fondo.setData("atajo", "Esc");
+        }
+
+        const objetos: Phaser.GameObjects.GameObject[] = [];
+
+        for (let i = cantidadAnterior; i < this.children.list.length; i++) {
+            const objeto = this.children.list[i] as
+                Phaser.GameObjects.Rectangle | Phaser.GameObjects.Text;
+
+            objeto.setDepth(profundidad + i - cantidadAnterior);
+            objetos.push(objeto);
+        }
+
+        fondo.on("pointerover", () => {
+            fondo.setFillStyle(color);
+            fondo.setAlpha(0.8);
+        });
+
+        fondo.on("pointerout", () => {
+            fondo.setAlpha(1);
+        });
+
+        const teclado = this.input.keyboard;
+        const ocultarTooltip = () => {
+            fondo.emit("ocultarTooltip");
+        };
+
+        if (teclado) {
+            teclado.on("keydown", ocultarTooltip);
+
+            fondo.once("destroy", () => {
+                teclado.off("keydown", ocultarTooltip);
+            });
+        }
+
+        return objetos;
+    }
 
 private crearBarraSuperior() {
     const alto = this.altoBarra;
@@ -469,7 +513,8 @@ nombre.setOrigin(0, 0.5);
             nivelDescargado: this.nivelDescargado,
             escenaAnterior: this.escenaAnterior,
             level: this.levelNumber,
-            idGlobal: this.idGlobalDescargado
+            idGlobal: this.idGlobalDescargado,
+            idsNivelesOficiales: this.idsNivelesOficiales
         });
         }
 
@@ -504,18 +549,36 @@ nombre.setOrigin(0, 0.5);
                 this.registrarVictoriaDescargada();
                 return;
             }
-            if (
-                this.modoTest ||
-                this.testeando ||
-                this.nivelId !== ""
-            ) {
+            if (this.modoTest || this.testeando || this.nivelId !== "") {
                 this.volver();
                 return;
             }
+
             this.saliendoDelNivel = true;
+            if (this.escenaAnterior === "selectscene") {
+                const selector: any = this.scene.get("selectscene");
+                if (typeof selector.marcarNivelCompletado === "function") {
+                    selector.marcarNivelCompletado(this.levelNumber);
+                }
+            }
+
+            let siguienteNivel = 0;
+
+            for (let i = 0; i < this.idsNivelesOficiales.length; i++) {
+                const id = this.idsNivelesOficiales[i];
+                if (id > this.levelNumber && (siguienteNivel === 0 || id < siguienteNivel)) {
+                    siguienteNivel = id;
+                }
+            }
+            if (siguienteNivel === 0) {
+                this.saliendoDelNivel = false;
+                this.volver();
+                return;
+            }
             this.scene.start("game", {
-                level: this.levelNumber + 1,
-                escenaAnterior: this.escenaAnterior
+                level: siguienteNivel,
+                escenaAnterior: this.escenaAnterior,
+                idsNivelesOficiales: this.idsNivelesOficiales
             });
         }
 
@@ -581,10 +644,157 @@ nombre.setOrigin(0, 0.5);
         this.laserFunction();
         if (this.menuup == 2) {
             this.menuup = 0;
-            this.menuOverlay.setVisible(false);
-            this.deathmessage.setVisible(false);
+
+            for (let i = 0; i < this.pantallaMuerte.list.length; i++) {
+                const objeto = this.pantallaMuerte.list[i];
+                objeto.emit("ocultarTooltip");
+                objeto.emit("pointerout");
+            }
+
+            this.pantallaMuerte.setVisible(false);
         }
     }
+
+    private crearPantallaMuerte() {
+        const centroX = this.scale.width / 2;
+        const centroY = this.scale.height / 2;
+
+        this.pantallaMuerte = this.add.container(0, 0);
+        this.pantallaMuerte.setDepth(1000).setVisible(false);
+
+        const capa = this.add.rectangle(
+            centroX,
+            centroY,
+            this.scale.width,
+            this.scale.height,
+            0x080b17,
+            0.72
+        );
+        capa.setInteractive();
+        this.pantallaMuerte.add(capa);
+
+        const sombra = this.add.rectangle(
+            centroX + 6,
+            centroY + 6,
+            424,
+            324,
+            0x080b17
+        );
+        this.pantallaMuerte.add(sombra);
+
+        const panel = this.add.rectangle(
+            centroX,
+            centroY,
+            420,
+            320,
+            0x171a2e
+        );
+        panel.setStrokeStyle(4, 0xe57373);
+        this.pantallaMuerte.add(panel);
+
+        const titulo = this.add.text(
+            centroX,
+            centroY - 112,
+            "HAS MUERTO",
+            {
+                fontFamily: "Fuente",
+                fontSize: "26px",
+                color: "#e57373"
+            }
+        ).setOrigin(0.5);
+        this.pantallaMuerte.add(titulo);
+
+        const mensaje = this.add.text(
+            centroX,
+            centroY - 70,
+            "Podés deshacer el último movimiento.",
+            {
+                fontFamily: "Fuente",
+                fontSize: "16px",
+                color: "#cbdbfc",
+                align: "center",
+                wordWrap: { width: 356 }
+            }
+        ).setOrigin(0.5);
+        this.pantallaMuerte.add(mensaje);
+
+        const crearBotonMuerte = (
+            y: number,
+            texto: string,
+            color: number,
+            atajo: string,
+            accion: () => void
+        ) => {
+            const cantidadAnterior = this.children.list.length;
+
+            const boton = crearBoton(
+                this,
+                centroX,
+                y,
+                260,
+                texto,
+                accion
+            );
+
+            boton.setFillStyle(color);
+            boton.setData("atajo", atajo);
+
+            const objetos: Phaser.GameObjects.GameObject[] = [];
+
+            for (let i = cantidadAnterior; i < this.children.list.length; i++) {
+                objetos.push(this.children.list[i]);
+            }
+
+            this.pantallaMuerte.add(objetos);
+
+            boton.on("pointerover", () => {
+                boton.setFillStyle(color);
+                boton.setAlpha(0.8);
+
+                for (let i = 3; i < objetos.length; i++) {
+                    this.pantallaMuerte.bringToTop(objetos[i]);
+                }
+            });
+
+            boton.on("pointerout", () => {
+                boton.setAlpha(1);
+            });
+        };
+
+        crearBotonMuerte(
+            centroY - 10,
+            "Deshacer",
+            0x9ccc65,
+            "Z",
+            () => {
+                if (this.playerMoving || this.history.length === 0) {
+                    return;
+                }
+                this.undoMove();
+            }
+        );
+
+        crearBotonMuerte(
+            centroY + 50,
+            "Reiniciar",
+            0xe6c56a,
+            "R",
+            () => {
+                this.reiniciarNivel();
+            }
+        );
+
+        crearBotonMuerte(
+            centroY + 110,
+            "Salir",
+            0xe57373,
+            "",
+            () => {
+                this.volver();
+            }
+        );
+    }
+
 
 private abrirMenuPausa() {
     if (this.menuup != 0) {
@@ -1382,8 +1592,9 @@ private cerrarMenuPausa() {
         this.laserFunction();
         if (this.lindseyDeath()){
             this.menuup = 2;
-            this.menuOverlay.setVisible(true);
-            this.deathmessage.setVisible(true);
+            this.inputBuffer = "";
+            this.holdBufferOpen = false;
+            this.pantallaMuerte.setVisible(true);
         }
         const flag = this.entities.find(entity => entity.type === "flag");
         if (
@@ -1828,15 +2039,18 @@ private cerrarMenuPausa() {
             frameWidth: 16,
             frameHeight: 16,
         });
-        if(this.modoTest === false && this.nivelId === "" && this.nivelDescargado === null) {
-            this.load.text(
-                "level",
-                "assets/level" + this.levelNumber + ".txt"
-            );
-        }
     }
 
-    create() {
+async create() {
+    
+    this.cargandoNivel = true;
+    const cargaActual = ++this.numeroCarga;
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        this.numeroCarga++;
+        this.cargandoNivel = true;
+    });
+
+    this.entities = [];
         this.entities = [];
         this.history = [];
         this.lasers = [];
@@ -2042,9 +2256,39 @@ private cerrarMenuPausa() {
 
             level = convertirNivel(nivel);
         } else {
-            level = this.cache.text.get("level");
+            const textoCarga = this.add.text(
+                this.scale.width / 2,
+                this.scale.height / 2,
+                "Cargando nivel...",
+                { fontFamily: "Fuente", fontSize: "20px", color: "#cbdbfc" }
+            ).setOrigin(0.5);
+            try {
+                if (this.idsNivelesOficiales.length === 0) {
+                    const oficiales = await leerNivelesOriginalesBackend();
+                    if (cargaActual !== this.numeroCarga) {
+                        return;
+                    }
+                    for (let i = 0; i < oficiales.length; i++) {
+                        this.idsNivelesOficiales.push(oficiales[i].id);
+                    }
+                }
+                const nivel = await leerNivelOriginalBackend(this.levelNumber);
+                if (cargaActual !== this.numeroCarga) {
+                    return;
+                }
+                this.nombreNivelOficial = nivel.nombre;
+                level = convertirNivel(apiAEditor(nivel));
+                textoCarga.destroy();
+            } catch (error) {
+                if (cargaActual !== this.numeroCarga) {
+                    return;
+                }
+                window.alert("No se pudo abrir el nivel oficial:\n\n" + String(error));
+                this.volver();
+                return;
+            }
         }
-
+        
         const [staticLayer, dynamicLayer, laserLayer, portalLayer, directionLayer] = level.split("^");
         this.staticRows = staticLayer.trim().split("\n");
         const dynamicRows = dynamicLayer.trim().split("\n");
@@ -2413,14 +2657,10 @@ private cerrarMenuPausa() {
             }
         }
         this.cursors = this.input.keyboard!.createCursorKeys();
-        this.menuOverlay = this.add.rectangle(0, 0, 5000, 5000, 0x222034, 0.6).setVisible(false).setDepth(100);
-        this.deathmessage = this.add.text(400, 250, "you died", {
-            fontFamily: "biysmall",
-            fontSize: "16px",
-            color: "#ffffff",
-        }).setOrigin(0.5).setVisible(false).setDepth(101);
+        this.crearPantallaMuerte();
         this.laserFunction();
         this.crearBarraSuperior();
+        this.cargandoNivel = false;
     }
 
     //////////////////////////////
@@ -2474,7 +2714,7 @@ private cerrarMenuPausa() {
             this.updatePosition(0, 1, 0);
             this.playerVertical = true; 
         }
-        if (this.saliendoDelNivel) {
+        if (this.saliendoDelNivel || this.cargandoNivel) {
             return;
         }
         for (const laser of this.lasers) {
