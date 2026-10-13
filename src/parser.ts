@@ -2,6 +2,7 @@ interface NivelParseable {
     tablero: number[][];
     portales?: number[][];
     links?: number[][];
+    darkLayer?: number[][]; // Frames de assets/dark.spr.png; -1 significa vacio
   }
   
   interface ConversionTile {
@@ -101,6 +102,34 @@ interface NivelParseable {
     { capa: -1, caracter: "" }  // 67 Relieve del jugador
   ];
   
+  // La sexta capa usa el mismo codigo de caracteres que GameScene.
+  // Cada numero representa un frame del spritesheet "dark".
+  const tablaDark: string[] = [];
+  const caracteresDark = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!?@";
+  const framesDark: number[] = [];
+  
+  for (let frame = 0; frame <= 36; frame++) {
+    framesDark.push(frame);
+  }
+  
+  framesDark.push(42);
+  framesDark.push(48);
+  
+  for (let frame = 54; frame <= 65; frame++) {
+    framesDark.push(frame);
+  }
+  
+  for (let frame = 72; frame <= 83; frame++) {
+    framesDark.push(frame);
+  }
+  
+  framesDark.push(90);
+  framesDark.push(96);
+  
+  for (let i = 0; i < framesDark.length; i++) {
+    tablaDark[framesDark[i]] = caracteresDark[i];
+  }
+  
   const tablaPortales: string[] = [];
   
   tablaPortales[50] = "w";
@@ -152,6 +181,7 @@ interface NivelParseable {
     const laser = crearCapa(filas, columnas);
     const portales = crearCapa(filas, columnas);
     const grupos = crearCapa(filas, columnas);
+    const oscuridad = crearCapa(filas, columnas);
   
     for (let y = 0; y < filas; y++) {
       for (let x = 0; x < columnas; x++) {
@@ -263,6 +293,23 @@ interface NivelParseable {
       }
     }
   
+    // Un nivel antiguo no tiene darkLayer: se agrega una capa vacia compatible.
+    if (nivel.darkLayer !== undefined) {
+      for (let y = 0; y < filas; y++) {
+        if (nivel.darkLayer[y] === undefined) {
+          continue;
+        }
+  
+        for (let x = 0; x < columnas; x++) {
+          const frame = nivel.darkLayer[y][x];
+  
+          if (tablaDark[frame] !== undefined) {
+            oscuridad[y][x] = tablaDark[frame];
+          }
+        }
+      }
+    }
+  
     return capaATexto(estatica) +
         "\n^\n" +
         capaATexto(dinamica) +
@@ -271,6 +318,8 @@ interface NivelParseable {
         "\n^\n" +
         capaATexto(portales) +
         "\n^\n" +
-        capaATexto(grupos);
+        capaATexto(grupos) +
+        "\n^\n" +
+        capaATexto(oscuridad);
   }
   
