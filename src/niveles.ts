@@ -98,9 +98,26 @@ export async function crearNivel(filas: number, columnas: number): Promise<Nivel
 
     tablero.push(nuevaFila);
   }
-
-  tablero[1][1] = 66; //TILE JUGADOR
-  tablero[filas - 2][columnas - 2] = 25; //TILE BANDERA
+  for (let x = 0; x < columnas; x++) {
+    tablero[0][x] = 39;
+    tablero[filas - 1][x] = 39;
+  }
+  for (let y = 0; y < filas; y++) {
+    tablero[y][0] = 39;
+    tablero[y][columnas - 1] = 39;
+  }
+  tablero[1][1] = 66; // TILE JUGADOR
+  tablero[0][Math.floor(columnas/2)] = 25; // TILE SALIDA
+  for (let y = 1; y < filas; y++) {
+    for (let x = 0; x < columnas; x++) {
+      if (
+        tablero[y][x] === 39 &&
+        (tablero[y - 1][x] === 39 || tablero[y - 1][x] === 64)
+      ) {
+        tablero[y][x] = 64;
+      }
+    }
+  }
 
   const nuevaId = crearIdLocal(niveles);
 
@@ -204,7 +221,6 @@ export async function actualizarNivel(nivel: Nivel): Promise<void> {
   .setDepth(999)
   .setVisible(false);
 
-
   const tooltip = escena.add.text(0, 0, "", {
     fontFamily: "Fuente",
     fontSize: "16px",
@@ -278,8 +294,6 @@ export async function actualizarNivel(nivel: Nivel): Promise<void> {
 
   return fondo;
 }
-
-
 
   export async function renombrarNivel(
   id: string,
@@ -434,7 +448,7 @@ export async function duplicarNivel(id: string): Promise<Nivel | undefined> {
 
   return duplicado;
 }
-  
+
 export function crearPortalesVacios(filas: number, columnas: number): number[][] {
   const portales: number[][] = [];
   for (let fila = 0; fila < filas; fila++) {
@@ -446,6 +460,3 @@ export function crearPortalesVacios(filas: number, columnas: number): number[][]
   }
   return portales;
 }
-  
-   
-

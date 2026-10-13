@@ -252,7 +252,7 @@ export class LevelsScene extends Phaser.Scene {
       () => {
         this.operar(async () => {
           await this.cerrarNombre(true);
-          const nivel = await crearNivel(10, 16);
+          const nivel = await crearNivel(9, 15);
           this.scene.start("editor", { nivelId: nivel.id });
         });
       }
