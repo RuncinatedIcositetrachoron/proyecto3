@@ -77,7 +77,7 @@ const Tile = {
 export class GameScene extends Phaser.Scene {    
     private levelNumber = 1;
     private history: GameState[] = [];
-    //private levelMode = 0;
+    private community: boolean = false;
 
     init(data: any) {
         this.nivelDescargado = null;
@@ -151,8 +151,8 @@ export class GameScene extends Phaser.Scene {
     private emitterQueue: Entity[] = [];
     private firedEmitters: Entity[] = [];
     private tempstorage: Entity | undefined;
-    private tempstorage2a: Phaser.GameObjects.Sprite;
-    private tempstorage2b: Phaser.GameObjects.Sprite;
+    private tempstorage2a: Phaser.GameObjects.Sprite | undefined;
+    private tempstorage2b: Phaser.GameObjects.Sprite | undefined;
     private tempstorage3: Entity | undefined;
     private movenumber: Boolean = false;
     private playerMoving = false;
@@ -176,9 +176,9 @@ export class GameScene extends Phaser.Scene {
     private altoBarra = 68;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private staticRows: any;
-
     private nivelDescargado: any = null;
     private saliendoDelNivel = false;
+    private finishinglevel: any;
 
 
     //TEST
@@ -348,7 +348,7 @@ private crearBarraSuperior() {
         0x171a2e
     );
 
-    barra.setDepth(900);
+    barra.setDepth(-0.000002);
 
     const bordeInferior = this.add.rectangle(
         this.scale.width / 2,
@@ -358,7 +358,7 @@ private crearBarraSuperior() {
         0x6f87b0
     );
 
-    bordeInferior.setDepth(901);
+    bordeInferior.setDepth(-0.0000000002);
 
     const nombreCompleto = this.obtenerNombreNivel();
 
@@ -653,6 +653,7 @@ nombre.setOrigin(0, 0.5);
 
             this.pantallaMuerte.setVisible(false);
         }
+        this.flagCheck(true);
     }
 
     private crearPantallaMuerte() {
@@ -1165,7 +1166,8 @@ private cerrarMenuPausa() {
                     )
                 ) {
                     activated = true;
-                }
+                    reciever.sprite.setTexture("tileset-fogo", 6).setScale(this.pixelmultiplier);
+                } else reciever.sprite.setTexture("tileset-fogo", 26).setScale(this.pixelmultiplier);
                 break;
             case 1:
                 if (
@@ -1181,7 +1183,8 @@ private cerrarMenuPausa() {
                     )
                 ) {
                     activated = true;
-                }
+                    reciever.sprite.setTexture("tileset-fogo", 9).setScale(this.pixelmultiplier);
+                } else reciever.sprite.setTexture("tileset-fogo", 29).setScale(this.pixelmultiplier);
                 break;
             case 2:
                 if (
@@ -1197,7 +1200,8 @@ private cerrarMenuPausa() {
                     )
                 ) {
                     activated = true;
-                }
+                    reciever.sprite.setTexture("tileset-fogo", 7).setScale(this.pixelmultiplier);
+                } else reciever.sprite.setTexture("tileset-fogo", 27).setScale(this.pixelmultiplier);
                 break;
             case 3:
                 if (
@@ -1213,7 +1217,8 @@ private cerrarMenuPausa() {
                     )
                 ) {
                     activated = true;
-                }
+                    reciever.sprite.setTexture("tileset-fogo", 8).setScale(this.pixelmultiplier);
+                } else reciever.sprite.setTexture("tileset-fogo", 28).setScale(this.pixelmultiplier);
                 break;
         }
         if (activated === false) {
@@ -1228,12 +1233,18 @@ private cerrarMenuPausa() {
         if (!flag) {
             return;
         }
-        if (!this.winConditionsMet()) {
-            flag.sprite.setTexture("tiles", Tile.Flag0).setScale(this.pixelmultiplier/2);
-        } else if (!this.winConditionsMet2()) {
-	        flag.sprite.setTexture("tiles", Tile.Flag0).setScale(this.pixelmultiplier/2);
+        if (!this.winConditionsMet2()) {
+            if (flag.type !== "wall") {
+                flag.sprite.play({key: "doorclose", startFrame: 0});
+	            flag.sprite.setTexture("door", 11).setScale(this.pixelmultiplier);
+                flag.type = "wall";
+            }
         } else {
-            flag.sprite.setTexture("tiles", Tile.Flag1).setScale(this.pixelmultiplier/2);
+            if (flag.type === "wall") {
+                flag.sprite.play({key: "dooropen", startFrame: 0});
+                flag.type = "flag";
+	            flag.sprite.setTexture("door", 0).setScale(this.pixelmultiplier);
+            }
         }
     }
 
@@ -1588,24 +1599,19 @@ private cerrarMenuPausa() {
 
         const facing = this.opposite(dir);
         player.sprite.setScale(this.pixelmultiplier).setDepth(2*player.y);
-        this.animatePlayer(player, facing);
         this.laserFunction();
+        const flag = this.entities.find(entity => entity.type === "flag");
+        if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
+            this.animateLindseyExit(player);
+            this.ganarNivel();
+            return true;
+        }
+        this.animatePlayer(player, facing);
         if (this.lindseyDeath()){
             this.menuup = 2;
             this.inputBuffer = "";
             this.holdBufferOpen = false;
             this.pantallaMuerte.setVisible(true);
-        }
-        const flag = this.entities.find(entity => entity.type === "flag");
-        if (
-            this.menuup === 0 &&
-            flag &&
-            player.x === flag.x &&
-            player.y === flag.y &&
-            this.winConditionsMet() &&
-            this.winConditionsMet2()
-        ) {
-            this.ganarNivel();
         }
         return true;
         }
@@ -1999,6 +2005,91 @@ private cerrarMenuPausa() {
         });
     }
 
+    private animateEntrance() {
+        const player = this.entities.find(entity => entity.type === "player");
+        if (!player) return;
+        const finalX = this.offsetX + player.x * this.tilesize;
+        const finalY = this.offsetY + player.y * this.tilesize;
+        let startY: number;
+        let maskShape: Phaser.GameObjects.Rectangle;
+        let maskFilter: any;
+        let speed: number;
+        if (this.community == true) { startY = finalY - 4 * this.tilesize; speed = this.lindseyspeed*3}
+        else {startY = finalY + 3 * this.tilesize; speed = this.lindseyspeed*3}
+        player.sprite.setPosition(finalX, startY);
+        player.sprite.setDepth(2 * player.y);
+        if (this.community == false) {
+        const region = new Phaser.Geom.Rectangle(0, 0, this.scale.width, this.scale.height-6*this.pixelmultiplier);
+        const masks = Phaser.Actions.AddMaskShape(player.sprite,{
+            shape: "rectangle",
+            region: region
+        });
+        maskFilter = masks[0];
+        maskShape = maskFilter.maskGameObject as Phaser.GameObjects.Rectangle;
+        }
+
+        this.playerMoving = true;
+        if (this.community == false) {
+            player.sprite.play(
+                "lindsey-up"
+            ); 
+        } else {
+            player.sprite.play(
+                "lindseyenter"
+            )
+        }
+
+        this.playerTween = this.tweens.add({
+            targets: player.sprite,
+            x: finalX,
+            y: finalY,
+            duration: speed,
+            ease: "Linear",
+            onComplete: () => {
+                player.sprite.stop();
+                player.sprite.setTexture("lindseyi", 0);
+                player.dir = 0;
+                if (this.community == false) {
+                if (player.sprite.filters) {
+                    player.sprite.filters.external.remove(maskFilter);
+                }
+                maskShape.destroy();
+                }
+                this.playerMoving = false;
+                this.playerTween = undefined;
+            }
+        });
+    }
+
+    private animateLindseyExit(player: Entity) {
+        player.sprite.setDepth(-0.01)
+        if (this.finishinglevel) return;
+        this.finishinglevel = true;
+        this.playerMoving = true;
+        this.inputBuffer = "";
+        player.sprite.play("lindsey-up");
+        const finalX = player.sprite.x;
+        const finalY = player.sprite.y - this.tilesize * 3;
+
+        this.playerTween = this.tweens.add({
+            targets: player.sprite,
+            x: finalX,
+            y: finalY,
+            duration: this.lindseyspeed * 3,
+            ease: "Linear",
+
+            onComplete: () => {
+                player.sprite.stop();
+                this.entities = [];
+                for (const laser of this.lasers) {
+                    this.destroyLaser(laser);
+                }
+                this.lasers = [];
+                this.scene.start("game", {level: this.levelNumber + 1});
+            }
+        });
+    }
+
     constructor() {
         super("game");
     }
@@ -2039,6 +2130,20 @@ private cerrarMenuPausa() {
             frameWidth: 16,
             frameHeight: 16,
         });
+        this.load.spritesheet("dark", "assets/dark.spr.png", {
+            frameWidth: 16,
+            frameHeight: 28,
+        });
+        this.load.spritesheet("door", "assets/door.anim1.png", {
+            frameWidth: 16,
+            frameHeight: 43,
+        });
+        if (this.modoTest === false && this.nivelId === "") {
+            this.load.text(
+                "level",
+                "assets/level" + this.levelNumber + ".txt"
+            );
+        }
     }
 
 async create() {
@@ -2078,6 +2183,7 @@ async create() {
         this.tempstorage3 = undefined;
         this.emitterQueue = [];
         this.firedEmitters = [];
+        this.finishinglevel = false;
 
         if (!this.anims.exists("lindsey-up")) {
             this.anims.create({
@@ -2168,8 +2274,18 @@ async create() {
                 frameRate: this.animationspeed,
                 repeat: -1
             });
+            this.anims.create({
+                key: "lindseyenter",
+                frames: [
+                    { key: "lindseyi", frame: 0 },
+                    { key: "lindseyi", frame: 1 },
+                    { key: "lindseyi", frame: 2 },
+                    { key: "lindseyi", frame: 3 }
+                ],
+                frameRate: this.animationspeed / 2.4,
+                repeat: -1
+            });
         }
-
         if (!this.anims.exists("laser-horizontal")) {
             this.anims.create({
                 key: "laser-horizontal",
@@ -2233,6 +2349,47 @@ async create() {
                 frameRate: this.animationspeed*1.5,
                 repeat: -1
             });
+        }
+        if (!this.anims.exists("dooropen")) {
+            this.anims.create({
+                key: "dooropen",
+                frames: [
+                    { key: "door", frame: 0 },
+                    { key: "door", frame: 1 },
+                    { key: "door", frame: 2 },
+                    { key: "door", frame: 3 },
+                    { key: "door", frame: 4 },
+                    { key: "door", frame: 5 },
+                    { key: "door", frame: 6 },
+                    { key: "door", frame: 7 },
+                    { key: "door", frame: 8 },
+                    { key: "door", frame: 9 },
+                    { key: "door", frame: 10 },
+                    { key: "door", frame: 11 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: 0
+            });
+            this.anims.create({
+                key: "doorclose",
+                frames: [
+                    { key: "door", frame: 11 },
+                    { key: "door", frame: 10 },
+                    { key: "door", frame: 9 },
+                    { key: "door", frame: 8 },
+                    { key: "door", frame: 7 },
+                    { key: "door", frame: 6 },
+                    { key: "door", frame: 5 },
+                    { key: "door", frame: 4 },
+                    { key: "door", frame: 3 },
+                    { key: "door", frame: 2 },
+                    { key: "door", frame: 1 },
+                    { key: "door", frame: 0 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: 0
+            });
+
         }
 
         this.qKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
@@ -2376,7 +2533,8 @@ async create() {
                         x: x,
                         y: y,
                         pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.Flag1).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        secret: "flag",
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "door", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                 }
@@ -2636,6 +2794,208 @@ async create() {
                 }
             }
         }
+        for (let y = 0; y<darkRows.length; y++) {
+            for (let x = 0; x<darkRows[y].length; x++){
+                const thistile = darkRows[y][x];                
+                switch(thistile) {
+                    case "0":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "1":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 1).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "2":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 2).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "3":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 3).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "4":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 4).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "5":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 5).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "6":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 6).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "7":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 7).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "8":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 8).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "9":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 9).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "a":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 10).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "b":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 11).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "c":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 12).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "d":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 13).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "e":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 14).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "f":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 15).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "g":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 16).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "h":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 17).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "i":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 18).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "j":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 19).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "k":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 20).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "l":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 21).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "m":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 22).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "n":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 23).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "o":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 24).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "p":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 25).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "q":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 26).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "r":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 27).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "s":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 28).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "t":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 29).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "u":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 30).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "v":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 31).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "w":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 32).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "x":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 33).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "y":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 34).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "z":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 35).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "A":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 36).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "B":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 42).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "C":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 48).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "D":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 54).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "E":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 55).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "F":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 56).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "G":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 57).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "H":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 58).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "I":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 59).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "J":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 60).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "K":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 61).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "L":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 62).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "M":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 63).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "N":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 64).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "O":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 65).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "P":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 72).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "Q":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 73).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "R":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 74).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "S":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 75).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "T":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 76).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "U":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 77).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "V":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 78).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "W":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 79).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "X":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 80).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "Y":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 81).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "Z":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 82).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "!":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 83).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "?":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 90).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                    case "@":
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 96).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
+                        break;
+                }
+            }
+        }
         for (let y = 0; y<directionRows.length; y++) {
             for (let x = 0; x<directionRows[y].length; x++){
                 const thistile = directionRows[y][x];
@@ -2661,6 +3021,8 @@ async create() {
         this.laserFunction();
         this.crearBarraSuperior();
         this.cargandoNivel = false;
+        this.flagCheck();
+        this.animateEntrance();
     }
 
     //////////////////////////////
