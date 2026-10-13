@@ -60,3 +60,104 @@ export const demo: {
   nivelesCreados: [],
   descargas: []
 };
+
+const CLAVE_USUARIOS = "LindseysLasersUsuarios";
+const CLAVE_SESION = "LindseysLasersSesion";
+
+export function esInvitado(): boolean {
+  if (demo.usuarioActual === null) {
+    return false;
+  }
+
+  return demo.usuarioActual.id === 0;
+}
+
+export function guardarSesion(): void {
+  if (demo.usuarioActual === null) {
+    return;
+  }
+
+  if (!esInvitado()) {
+    localStorage.setItem(
+      CLAVE_USUARIOS,
+      JSON.stringify(demo.usuarios)
+    );
+  }
+
+  localStorage.setItem(
+    CLAVE_SESION,
+    demo.usuarioActual.id.toString()
+  );
+}
+
+export function cerrarSesion(): void {
+  localStorage.removeItem(CLAVE_SESION);
+  demo.usuarioActual = null;
+}
+
+export function continuarComoInvitado(): void {
+  demo.usuarioActual = {
+    id: 0,
+    nombre: "Invitado",
+    contrasena: ""
+  };
+
+  guardarSesion();
+}
+
+function cargarSesion(): void {
+  try {
+    const textoUsuarios = localStorage.getItem(CLAVE_USUARIOS);
+
+    if (textoUsuarios !== null) {
+      const usuariosGuardados = JSON.parse(textoUsuarios);
+
+      if (!Array.isArray(usuariosGuardados) || usuariosGuardados.length === 0) {
+        return;
+      }
+
+      for (const usuario of usuariosGuardados) {
+        if (
+          usuario === null ||
+          typeof usuario !== "object" ||
+          !Number.isInteger(usuario.id) ||
+          usuario.id < 1 ||
+          typeof usuario.nombre !== "string" ||
+          usuario.nombre.trim() === "" ||
+          typeof usuario.contrasena !== "string" ||
+          usuario.contrasena === ""
+        ) {
+          return;
+        }
+      }
+
+      demo.usuarios = usuariosGuardados;
+    }
+
+    const idGuardado = localStorage.getItem(CLAVE_SESION);
+
+    if (idGuardado === null) {
+      return;
+    }
+
+    if (idGuardado === "0") {
+      demo.usuarioActual = {
+        id: 0,
+        nombre: "Invitado",
+        contrasena: ""
+      };
+      return;
+    }
+
+    for (const usuario of demo.usuarios) {
+      if (usuario.id.toString() === idGuardado) {
+        demo.usuarioActual = usuario;
+        return;
+      }
+    }
+  } catch {
+    demo.usuarioActual = null;
+  }
+}
+
+cargarSesion();

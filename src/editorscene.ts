@@ -74,6 +74,11 @@ export class EditorScene extends Phaser.Scene {
   private board_width: number = this.columns * this.cellsize;
   private board_height: number = this.rows * this.cellsize;
 
+  private margenPanel: number = 24;
+  private margenTablero: number = 16;
+  private separacionPaneles: number = 24;
+  private arribaPaneles: number = 88;
+
   private estadoGuardado: EstadoEditor | null = null;
   private popupSalida: Phaser.GameObjects.GameObject | null = null;
   private bloquearMouseHastaSoltar: boolean = false;
@@ -84,8 +89,6 @@ export class EditorScene extends Phaser.Scene {
   private posibleArrastreSeleccion: boolean = false;
   private arrastreInicioX: number = -1;
   private arrastreInicioY: number = -1;
-
-  private tKey!: Phaser.Input.Keyboard.Key;
 
   private tileInvisible: number = 1;
   private sinHerramienta: number = -1;
@@ -186,7 +189,8 @@ export class EditorScene extends Phaser.Scene {
     [3, 4, 5, 6],
     [11, 12, 13, 14],
     [27, 28, 29, 30],
-    [41, 200, 201]
+    [41, 200, 201],
+    [66, 25]
   ];
 
   private casillasHotbar: Phaser.GameObjects.Rectangle[] = [];
@@ -341,7 +345,8 @@ export class EditorScene extends Phaser.Scene {
       }
     );
 
-    this.botonTest.setData("atajo", "T");
+    this.botonTest.setData("atajo", "Ctrl/Cmd + Enter");
+    this.botonGuardar.setData("atajo", "Ctrl/Cmd + S");
 
     this.input.on("pointermove", (mouse: Phaser.Input.Pointer) => {
       if (this.popupSalida !== null || this.bloquearMouseHastaSoltar) {
@@ -853,10 +858,6 @@ export class EditorScene extends Phaser.Scene {
     this.rectanguloSeleccion.setDepth(6);
     this.rectanguloSeleccion.setVisible(false);
 
-    this.tKey = this.input.keyboard!.addKey(
-      Phaser.Input.Keyboard.KeyCodes.T
-    );
-
     const alTeclado = (evento: KeyboardEvent) => {
       if (this.popupSalida !== null) {
         if (evento.key === "Escape") {
@@ -868,6 +869,59 @@ export class EditorScene extends Phaser.Scene {
 
       const tecla = evento.key.toLowerCase();
       const control = evento.ctrlKey || evento.metaKey;
+
+      if (control && evento.altKey === false && tecla === "s") {
+        evento.preventDefault();
+
+        if (evento.repeat === false) {
+          this.guardarNivelActual();
+        }
+
+        return;
+      }
+
+      if (
+        control && evento.altKey === false &&
+        (tecla === "enter")
+      ) {
+        evento.preventDefault();
+
+        if (evento.repeat === false) {
+          this.testearNivel();
+        }
+
+        return;
+      }
+
+      if (control === false && evento.altKey === false) {
+        for (let i = 0; i <= this.tilesHotbar.length && i < 9; i++) {
+          if (tecla === String(i + 1)) {
+            evento.preventDefault();
+
+            if (evento.repeat === false) {
+              this.seleccionarHotbar(i);
+            }
+
+            return;
+          }
+        }
+
+        if (tecla === "q" || tecla === "e") {
+          evento.preventDefault();
+
+          if (evento.repeat === false) {
+            let direccion = 1;
+
+            if (tecla === "q") {
+              direccion = -1;
+            }
+
+            this.cambiarVarianteHotbar(direccion);
+          }
+
+          return;
+        }
+      }
 
       if (control && tecla === "c") {
         evento.preventDefault();
@@ -899,7 +953,7 @@ export class EditorScene extends Phaser.Scene {
         this.actualizarHotbar();
       }
 
-      if (tecla === "s") {
+      if (control === false && evento.altKey === false && tecla === "s") {
         if (this.herramienta === this.selectTool) {
           this.herramienta = this.sinHerramienta;
         } else {
@@ -929,13 +983,13 @@ export class EditorScene extends Phaser.Scene {
         }
       }
 
-      if (tecla === "l") {
+      if (control === false && evento.altKey === false && tecla === "l") {
         this.herramienta = this.linkTool;
         this.actualizarInterfaz();
         this.actualizarHotbar();
       }
 
-      if (tecla === "p") {
+      if (control === false && evento.altKey === false && tecla === "p") {
         this.herramienta = this.portalTool;
         this.actualizarInterfaz();
         this.actualizarHotbar();
@@ -1678,19 +1732,12 @@ this.bordeTooltipTile.setVisible(false);
 
   update(): void {
     if (this.popupSalida !== null) {
-      Phaser.Input.Keyboard.JustDown(this.tKey);
-
       if (this.popupSalida.scene !== undefined) {
         return;
       }
 
       this.popupSalida = null;
       this.actualizarInterfaz();
-    }
-
-    if (Phaser.Input.Keyboard.JustDown(this.tKey)) {
-      this.testearNivel();
-      return;
     }
 
     this.actualizarLinks();
@@ -1804,7 +1851,7 @@ this.bordeTooltipTile.setVisible(false);
     });
   }
 
-  private guardarNivelActual(): void {
+  private async guardarNivelActual(): Promise<void> {
     if (
       this.nivelValido() === false ||
       this.hayCambiosSinGuardar() === false
@@ -1826,10 +1873,20 @@ this.bordeTooltipTile.setVisible(false);
     nivel.portales = this.getPortalState();
     nivel.links = this.copiarLinks();
 
-    actualizarNivel(nivel);
+    const estadoEnviado = this.getEditorState();
 
-    this.estadoGuardado = this.getEditorState();
-    this.actualizarInterfaz();
+    try {
+      await actualizarNivel(nivel);
+      this.estadoGuardado = estadoEnviado;
+    } catch (error) {
+      if (this.scene.isActive()) {
+        window.alert("No se pudo guardar el nivel.\n\n" + String(error));
+      }
+    }
+
+    if (this.scene.isActive()) {
+      this.actualizarInterfaz();
+    }
   }
 
   private actualizarInterfaz(): void {
@@ -1995,15 +2052,23 @@ this.bordeTooltipTile.setVisible(false);
   }
 
   private crearInterfaz(): void {
-    let y = 124;
-    const x = 684;
-    const separacion = 51;
+    const altoBoton = 40;
+    const cantidadBotones = 9;
+    const izquierda = this.board_offset_x + this.board_width +
+      this.margenTablero + this.separacionPaneles;
+    const derecha = this.scale.width - this.margenPanel;
+    const x = (izquierda + derecha) / 2;
+    const ancho = derecha - izquierda - this.margenPanel * 2;
+    const arriba = this.arribaPaneles + this.margenPanel;
+    const abajo = this.scale.height - this.margenPanel * 2;
+    const separacion = (abajo - arriba - altoBoton) / (cantidadBotones - 1);
+    let y = arriba + altoBoton / 2;
 
     this.botonSeleccionar = crearBoton(
       this,
       x,
       y,
-      136,
+      ancho,
       "Seleccionar",
       () => {
         if (this.herramienta === this.selectTool) {
@@ -2027,7 +2092,7 @@ this.bordeTooltipTile.setVisible(false);
       this,
       x,
       y,
-      136,
+      ancho,
       "Portal",
       () => {
         if (this.herramienta === this.portalTool) {
@@ -2053,7 +2118,7 @@ this.bordeTooltipTile.setVisible(false);
       this,
       x,
       y,
-      136,
+      ancho,
       "Link",
       () => {
         if (this.herramienta === this.linkTool) {
@@ -2079,7 +2144,7 @@ this.bordeTooltipTile.setVisible(false);
       this,
       x,
       y,
-      136,
+      ancho,
       "Copiar",
       () => {
         this.copiarSeleccion();
@@ -2093,7 +2158,7 @@ this.bordeTooltipTile.setVisible(false);
       this,
       x,
       y,
-      136,
+      ancho,
       "Pegar",
       () => {
         if (this.herramienta === this.pasteTool) {
@@ -2118,7 +2183,7 @@ this.bordeTooltipTile.setVisible(false);
       this,
       x,
       y,
-      136,
+      ancho,
       "Borrar",
       () => {
         this.borrarSeleccion();
@@ -2133,7 +2198,7 @@ this.bordeTooltipTile.setVisible(false);
       this,
       x,
       y,
-      136,
+      ancho,
       "Deseleccionar",
       () => {
         this.quitarSeleccion();
@@ -2147,7 +2212,7 @@ this.bordeTooltipTile.setVisible(false);
       this,
       x,
       y,
-      136,
+      ancho,
       "Deshacer",
       () => this.undo()
     );
@@ -2158,7 +2223,7 @@ this.bordeTooltipTile.setVisible(false);
       this,
       x,
       y,
-      136,
+      ancho,
       "Rehacer",
       () => this.redo()
     );
@@ -2214,10 +2279,14 @@ this.bordeTooltipTile.setVisible(false);
     this.casillasHotbar = [];
     this.imagenesHotbar = [];
 
-    const y = 500;
     const tamaño = 40;
-    const separacion = 52;
-    let x = 44;
+    const espacio = 12;
+    const separacion = tamaño + espacio;
+    const anchoGoma = 96;
+    const anchoHotbar = this.tilesHotbar.length * (tamaño + espacio) + anchoGoma;
+    const y = this.board_offset_y + this.board_height +
+      this.margenTablero + this.separacionPaneles + tamaño / 2;
+    let x = this.board_offset_x + (this.board_width - anchoHotbar) / 2 + tamaño / 2;
 
     for (let i = 0; i < this.tilesHotbar.length; i++) {
       const casillaX = x;
@@ -2257,6 +2326,7 @@ this.bordeTooltipTile.setVisible(false);
         this.ajustarIconoHotbar(imagen);
       }
 
+      casilla.setData("atajo", String(i + 1));
       this.configurarTooltipTile(casilla, () => this.tilesHotbar[i], true);
 
       const variantes = this.obtenerVariantes(this.tilesHotbar[i]);
@@ -2313,13 +2383,13 @@ this.bordeTooltipTile.setVisible(false);
       x += separacion;
     }
 
-    x += 28;
+    x += (anchoGoma - tamaño) / 2;
 
     this.casillaGoma = crearBoton(
       this,
       x,
       y,
-      96,
+      anchoGoma,
       "Goma",
       () => {
         if (this.herramienta === 0) {
@@ -2337,6 +2407,77 @@ this.bordeTooltipTile.setVisible(false);
         this.actualizarHotbar();
       }
     );
+
+    this.casillaGoma.setData("atajo", String(this.tilesHotbar.length + 1));
+  }
+
+  private seleccionarHotbar(indice: number): void {
+    if (
+      indice < 0 || indice > this.tilesHotbar.length ||
+      this.popupSalida !== null || this.bloquearMouseHastaSoltar ||
+      this.arrastrandoSeleccion || this.seleccionando
+    ) {
+      return;
+    }
+
+    if (indice === this.tilesHotbar.length) {
+      this.herramienta = 0;
+    } else {
+      this.herramienta = this.tilesHotbar[indice];
+    }
+
+    this.cerrarSubHotbar();
+    this.cancelarLinkTemporal();
+    this.quitarSeleccion();
+    this.vistaPegado.setVisible(false);
+    this.capaVistaPegado.setVisible(false);
+    this.capaVistaPortalesPegado.setVisible(false);
+    this.restaurarTilesVistaPegado();
+    this.actualizarInterfaz();
+    this.actualizarHotbar();
+    this.actualizarHoverTile();
+  }
+
+  private cambiarVarianteHotbar(direccion: number): void {
+    if (
+      this.popupSalida !== null || this.bloquearMouseHastaSoltar ||
+      this.arrastrandoSeleccion || this.seleccionando
+    ) {
+      return;
+    }
+
+    for (let i = 0; i < this.tilesHotbar.length; i++) {
+      if (this.tilesHotbar[i] !== this.herramienta) {
+        continue;
+      }
+
+      const variantes = this.obtenerVariantes(this.herramienta);
+
+      if (variantes === null || variantes.length < 2) {
+        return;
+      }
+
+      for (let j = 0; j < variantes.length; j++) {
+        if (variantes[j] !== this.herramienta) {
+          continue;
+        }
+
+        let siguiente = j + direccion;
+
+        if (siguiente < 0) {
+          siguiente = variantes.length - 1;
+        }
+
+        if (siguiente >= variantes.length) {
+          siguiente = 0;
+        }
+
+        this.tilesHotbar[i] = variantes[siguiente];
+        this.actualizarImagenHotbar(i);
+        this.seleccionarHotbar(i);
+        return;
+      }
+    }
   }
 
   private actualizarHotbar(): void {
@@ -3286,10 +3427,7 @@ this.bordeTooltipTile.setVisible(false);
       ) {
         continue;
       }
-
-      if (entra) {
-        this.ocultarGrupo(x, y);
-      }
+      this.ocultarGrupo(x, y);
 
       const px =
         this.board_offset_x + (x + 0.5) * this.cellsize;
@@ -3779,6 +3917,11 @@ this.bordeTooltipTile.setVisible(false);
       const tile = obtenerTile();
       const variantes = this.obtenerVariantes(tile);
       let nombre = this.obtenerNombreTile(tile);
+      const atajo = zona.getData("atajo");
+
+      if (typeof atajo === "string") {
+        nombre += " [" + atajo + "]";
+      }
 
       if (variantes !== null && variantes.length > 1) {
         nombre += " (" + (variantes.indexOf(tile) + 1) + "/" + variantes.length + ")";
@@ -3849,7 +3992,7 @@ this.bordeTooltipTile.setVisible(false);
   }
 
   private crearFondoTablero(): void {
-    const margen = 16;
+    const margen = this.margenTablero;
     let altoRelieve = 0;
 
     for (let i = 0; i < this.relieves.length; i++) {
@@ -3877,7 +4020,9 @@ this.bordeTooltipTile.setVisible(false);
       );
     }
 
-    const arriba = this.board_offset_y - altoRelieve - margen;
+    const arriba = this.arribaPaneles;
+    this.board_offset_x = this.margenPanel + margen;
+    this.board_offset_y = arriba + margen + altoRelieve;
     const abajo = this.board_offset_y + this.board_height + margen;
 
     const fondo = this.add.rectangle(
@@ -3996,7 +4141,7 @@ this.bordeTooltipTile.setVisible(false);
       return;
     }
 
-    const margen = 24;
+    const margen = this.margenPanel;
     const primero = elementos[0].getBounds();
 
     let izquierda = primero.left;

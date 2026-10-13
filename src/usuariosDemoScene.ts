@@ -1,16 +1,28 @@
 import { InterfazDemo } from "./interfazDemo";
-import { demo } from "./datosDemo";
+import { demo, guardarSesion, continuarComoInvitado } from "./datosDemo";
 import { crearCampoTexto } from "./camposTexto";
+import { autenticarPerfil, registrarPerfil } from "./api";
 
 export class UsuariosDemoScene extends InterfazDemo {
 
   registro = false;
+  entrando = false;
 
   constructor() {
     super("usuariosDemo");
   }
 
   create() {
+    this.entrando = false;
+
+    if (
+      demo.usuarioActual !== null &&
+      demo.usuarioActual !== undefined
+    ) {
+      this.scene.start("menu");
+      return;
+    }
+
     this.registro = false;
     this.dibujar();
   }
@@ -118,6 +130,10 @@ export class UsuariosDemoScene extends InterfazDemo {
 
     zona.on("pointerdown", () => {
 
+      if (this.entrando) {
+        return;
+      }
+
       if (!activa) {
         accion();
       }
@@ -151,12 +167,12 @@ export class UsuariosDemoScene extends InterfazDemo {
 
     titulo.setOrigin(0.5);
 
-    let yLogin = 173;
+    let yLogin = 141;
     let altoLogin = 54;
     let colorLogin = AZUL;
 
     if (this.registro) {
-      yLogin = 178;
+      yLogin = 146;
       altoLogin = 44;
       colorLogin = AZUL_INACTIVO;
     }
@@ -176,12 +192,12 @@ export class UsuariosDemoScene extends InterfazDemo {
       }
     );
 
-    let yRegistro = 173;
+    let yRegistro = 141;
     let altoRegistro = 54;
     let colorRegistro = VERDE;
 
     if (!this.registro) {
-      yRegistro = 178;
+      yRegistro = 146;
       altoRegistro = 44;
       colorRegistro = VERDE_INACTIVO;
     }
@@ -203,9 +219,9 @@ export class UsuariosDemoScene extends InterfazDemo {
 
     this.add.rectangle(
       400,
-      360,
+      338,
       600,
-      320,
+      340,
       0x171a2e
     ).setStrokeStyle(
       4,
@@ -220,7 +236,7 @@ export class UsuariosDemoScene extends InterfazDemo {
 
     const textoTitulo = this.texto(
       400,
-      240,
+      208,
       tituloFormulario,
       20
     );
@@ -235,7 +251,7 @@ export class UsuariosDemoScene extends InterfazDemo {
 
     this.texto(
       200,
-      275,
+      243,
       "Nombre de usuario",
       16
     );
@@ -243,7 +259,7 @@ export class UsuariosDemoScene extends InterfazDemo {
     const campoNombre = crearCampoTexto(
       this,
       200,
-      315,
+      283,
       400,
       "Usuario",
       40,
@@ -254,7 +270,7 @@ export class UsuariosDemoScene extends InterfazDemo {
 
     this.texto(
       200,
-      350,
+      318,
       "Contraseña",
       16
     );
@@ -262,7 +278,7 @@ export class UsuariosDemoScene extends InterfazDemo {
     const campoClave = crearCampoTexto(
       this,
       200,
-      390,
+      358,
       400,
       "Contraseña",
       40,
@@ -275,14 +291,17 @@ export class UsuariosDemoScene extends InterfazDemo {
 
     const aviso = this.texto(
       400,
-      430,
+      398,
       "",
       15
     );
 
     aviso.setOrigin(0.5);
 
-    const enviar = () => {
+    const enviar = async () => {
+      if (this.entrando) {
+        return;
+      }
 
       const nombreEscrito = nombre.value.trim();
       const claveEscrita = clave.value;
@@ -299,70 +318,64 @@ export class UsuariosDemoScene extends InterfazDemo {
         return;
       }
 
-      const encontrado = demo.usuarios.find(usuario => {
+      this.entrando = true;
+      let cuentaCreada = false;
 
-        return usuario.nombre.toLowerCase() ===
-          nombreEscrito.toLowerCase();
-      });
-
-      if (this.registro) {
-
-        if (encontrado) {
-
-          aviso.setText(
-            "Ese nombre de usuario ya está ocupado."
-          );
-
-          return;
+      try {
+        if (this.registro) {
+          aviso.setText("Creando cuenta...");
+          await registrarPerfil(nombreEscrito, claveEscrita);
+          cuentaCreada = true;
         }
 
-        let nuevoId = 1;
+        aviso.setText("Iniciando sesión...");
 
-        for (const usuario of demo.usuarios) {
+        const perfil = await autenticarPerfil(
+          nombreEscrito,
+          claveEscrita
+        );
 
-          if (usuario.id >= nuevoId) {
-            nuevoId = usuario.id + 1;
+        demo.usuarioActual = {
+          id: perfil.profileID,
+          nombre: perfil.username,
+          contrasena: ""
+        };
+
+        guardarSesion();
+
+        nombre.blur();
+        clave.blur();
+
+        this.scene.start("menu");
+      } catch (error) {
+        this.entrando = false;
+        demo.usuarioActual = null;
+
+        let mensaje = "No se pudo completar la operación.";
+
+        if (error instanceof TypeError) {
+          mensaje = "No se pudo conectar con la API.";
+        }
+
+        if (error instanceof Error) {
+          if (error.message === "Perfil-ya-existe") {
+            mensaje = "Ese nombre de usuario ya está ocupado.";
+          }
+
+          if (
+            error.message === "Contraseña-incorrecta" ||
+            error.message === "Usuario-y/o-contraseña-incorrecta"
+          ) {
+            mensaje = "Usuario o contraseña incorrectos.";
           }
         }
 
-        const usuario = {
-          id: nuevoId,
-          nombre: nombreEscrito,
-          contrasena: claveEscrita
-        };
-
-        demo.usuarios.push(usuario);
-        demo.usuarioActual = usuario;
-
-      } else {
-
-        if (!encontrado) {
-
-          aviso.setText(
-            "Usuario o contraseña incorrectos."
-          );
-
-          return;
+        if (cuentaCreada) {
+          mensaje = "Cuenta creada. Probá la pestaña Iniciar sesión.";
         }
 
-        if (
-          encontrado.contrasena !==
-          claveEscrita
-        ) {
-
-          aviso.setText(
-            "Usuario o contraseña incorrectos."
-          );
-
-          return;
-        }
-
-        demo.usuarioActual = encontrado;
+        aviso.setText(mensaje);
       }
-
-      this.scene.start(
-        "communityDemo"
-      );
     };
 
     let textoBoton = "ENTRAR";
@@ -375,18 +388,47 @@ export class UsuariosDemoScene extends InterfazDemo {
 
     this.boton(
       400,
-      485,
+      453,
       260,
       textoBoton,
       enviar,
       colorBoton
     );
 
+    const accesoInvitado = this.texto(
+      400,
+      542,
+      "Continuar como invitado",
+      16
+    ).setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    accesoInvitado.on("pointerover", () => {
+      accesoInvitado.setColor("#ffd166");
+    });
+
+    accesoInvitado.on("pointerout", () => {
+      accesoInvitado.setColor("#cbdbfc");
+    });
+
+    accesoInvitado.on("pointerdown", () => {
+      if (this.entrando) {
+        return;
+      }
+
+      continuarComoInvitado();
+      this.entrando = true;
+      nombre.blur();
+      clave.blur();
+      this.scene.start("menu");
+    });
+
     nombre.addEventListener(
       "keydown",
       evento => {
 
         if (evento.key === "Enter") {
+          evento.preventDefault();
           enviar();
         }
       }
@@ -397,6 +439,7 @@ export class UsuariosDemoScene extends InterfazDemo {
       evento => {
 
         if (evento.key === "Enter") {
+          evento.preventDefault();
           enviar();
         }
       }

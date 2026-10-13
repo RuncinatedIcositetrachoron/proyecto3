@@ -43,6 +43,7 @@ export function crearCampoTexto(
   input.autocomplete = "off";
   input.spellcheck = false;
   input.title = "Maximo " + limite + " caracteres de la fuente";
+  input.autocomplete = "off";
 
   input.setAttribute("aria-label", etiqueta);
   input.setAttribute("autocapitalize", "off");

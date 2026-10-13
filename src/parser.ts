@@ -190,7 +190,7 @@ interface NivelParseable {
   
   if (nivel.links !== undefined) {
       for (let i = 0; i < nivel.links.length; i++) {
-          const link = nivel.links[i];
+          const link: number[] = nivel.links[i];
   
           const x1 = link[0];
           const y1 = link[1];
