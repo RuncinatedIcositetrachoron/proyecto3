@@ -672,7 +672,7 @@ nombre.setOrigin(0, 0.5);
             }
             this.pantallaMuerte.setVisible(false);
         }
-        this.flagCheck(true);
+        this.flagCheck();
     }
 
     private crearPantallaMuerte() {
@@ -983,13 +983,36 @@ private cerrarMenuPausa() {
         }
         return false;
     }
+
+    //PORTAL WITH PRESSURE PLATES
+
+    private isPortalActive(portal: Entity): boolean {
+        let hasPlate = false;
+        for (let i = 0; i < this.entities.length; i++) {
+            const plate = this.entities[i];
+            if (plate.type === "goal" && plate.group !== undefined && plate.group === portal.group) {
+                hasPlate = true;
+                for (let j = 0; j < this.entities.length; j++) {
+                    const entity = this.entities[j];
+                    if ((entity.type === "player" || entity.pushable === true) && entity.x === plate.x && entity.y === plate.y) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return hasPlate === false;
+    }
+
     private getPortalAt(x: number, y: number, dir?: number): Entity | undefined {
         if (dir !== undefined) {
-            return this.entities.find(entity => entity.portal === dir && entity.x === x && entity.y === y );
+            return this.entities.find(entity => entity.portal === dir && entity.x === x && entity.y === y && this.isPortalActive(entity));
         } else {
-            return this.entities.find(entity => entity.portal !== undefined && entity.x === x && entity.y === y );
+            return this.entities.find(entity => entity.portal !== undefined && entity.x === x && entity.y === y && this.isPortalActive(entity));
         }
     }
+
+
+
     private getEntityAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
     }
@@ -1000,7 +1023,7 @@ private cerrarMenuPausa() {
         return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror");
     }
     private findPair(group: number | undefined, exclude: Entity | undefined): Entity | undefined {
-        return (this.entities.find(entity => entity.portal !== undefined && entity.group === group && entity !== exclude));
+        return (this.entities.find(entity => entity.portal !== undefined && entity.group === group && entity !== exclude && this.isPortalActive(entity)));
     }
     
     /////////////////////
@@ -1615,6 +1638,13 @@ private cerrarMenuPausa() {
         if (portals) {
             for (const portal of portals) {
                 portal.emitting = undefined;
+                if (portal.sprite2) {
+                    if (this.isPortalActive(portal)) {
+                        portal.sprite2.setAlpha(1);
+                    } else {
+                        portal.sprite2.setAlpha(0.25);
+                    }
+                }
             }
         }
         this.raycast();
@@ -1789,7 +1819,7 @@ private cerrarMenuPausa() {
             const newEntityX = entity.x + dx;
             const newEntityY = entity.y + dy;
 
-            if (entity.portal !== undefined && entity.portal === dir) {
+            if (entity.portal !== undefined && entity.portal === dir && this.isPortalActive(entity)) {
                 const entry = entity;
                 const exit = this.findPair(entry.group, entry);
                 if (!exit) return false;
@@ -1930,7 +1960,7 @@ private cerrarMenuPausa() {
             } else {
                 const otherEntity = this.getEntityAt(newEntityX, newEntityY);
 
-                if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity) {   // eat branch
+                if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity && this.isPortalActive(entity)) {  // eat branch
                     const entry = entity;
                     const exit = this.findPair(entry.group, entry);
 
@@ -2494,46 +2524,6 @@ private cerrarMenuPausa() {
                 this.tempstorage3 = undefined;
                 this.playerMoving = false;
                 this.holdBufferOpen = false;
-                this.playerTween = undefined;
-            }
-        });
-    }
-    private animateEntrance() {
-        const player = this.entities.find(entity => entity.type === "player");
-        if (!player) return;
-        const finalX = this.offsetX + player.x * this.tilesize;
-        const finalY = this.offsetY + player.y * this.tilesize;
-        const startY = finalY + 3 * this.tilesize;
-        player.sprite.setPosition(finalX, startY);
-        player.sprite.setDepth(2 * player.y);
-        const region = new Phaser.Geom.Rectangle(0, 0, this.scale.width, this.scale.height-6*this.pixelmultiplier);
-        const masks = Phaser.Actions.AddMaskShape(player.sprite,{
-            shape: "rectangle",
-            region: region
-        });
-        const maskFilter = masks[0];
-        const maskShape = maskFilter.maskGameObject as Phaser.GameObjects.Rectangle;
-
-        this.playerMoving = true;
-        player.sprite.play(
-            "lindsey-up"
-        );
-
-        this.playerTween = this.tweens.add({
-            targets: player.sprite,
-            x: finalX,
-            y: finalY,
-            duration: this.lindseyspeed * 3,
-            ease: "Linear",
-            onComplete: () => {
-                player.sprite.stop();
-                player.sprite.setTexture("lindseyi", 0);
-                player.dir = 0;
-                if (player.sprite.filters) {
-                    player.sprite.filters.external.remove(maskFilter);
-                }
-                maskShape.destroy();
-                this.playerMoving = false;
                 this.playerTween = undefined;
             }
         });
@@ -3750,7 +3740,7 @@ async create() {
             for (let x = 0; x<directionRows[y].length; x++){
                 const thistile = directionRows[y][x];
                 let entity = this.getAnythingAt(x, y);
-                if (entity && thistile !== "." && entity.portal !== undefined){
+                if (entity && thistile !== "." && (entity.portal !== undefined || entity.type === "goal")){
                     entity.group = Number(thistile);
                 }
             }
