@@ -1879,6 +1879,7 @@ private cerrarMenuPausa() {
                 }
             }
         }
+        
         player.x = newX;
         player.y = newY;
         player.dir = dx !== 0 ? dx : dy;
@@ -2483,6 +2484,8 @@ private cerrarMenuPausa() {
                 "assets/level" + this.levelNumber + ".txt"
             );
         }
+
+        //SONIDO
     }
 
 async create() {
