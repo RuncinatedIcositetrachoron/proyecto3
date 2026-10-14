@@ -98,6 +98,9 @@ export class EditorScene extends Phaser.Scene {
   private tilesSinPortal: number[] = [2, 5, 6, 7, 8];
   private tileJugador: number = 66;
   private tileBandera: number = 25;
+  private tilePlaca: number = 2;
+  private colorLinkPortales: number = 0x9ccc65;
+  private colorLinkPlaca: number = 0xb39ddb;
 
   private formasPared = [
     [
@@ -183,7 +186,7 @@ export class EditorScene extends Phaser.Scene {
 
   //CUSTOMIZAR HOTBAR
   
-  private tilesHotbar = [37, 3, 11, 27, 39, 41, 66];
+  private tilesHotbar = [37, 3, 11, 27, 39, 41, 66, 2];
 
   private variantesTiles = [
     [3, 4, 5, 6],
@@ -243,6 +246,26 @@ export class EditorScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor("#222034");
+
+    // No recortar ni ampliar un nivel existente con el tamaño fijo del editor.
+    this.columns = 15;
+    this.rows = 9;
+
+    if (this.nivelId !== null) {
+      const nivel = obtenerNivel(this.nivelId);
+
+      if (
+        nivel !== undefined &&
+        nivel.tablero.length > 0 &&
+        nivel.tablero[0].length > 0
+      ) {
+        this.rows = nivel.tablero.length;
+        this.columns = nivel.tablero[0].length;
+      }
+    }
+
+    this.board_width = this.columns * this.cellsize;
+    this.board_height = this.rows * this.cellsize;
 
     this.crearFondoTablero();
 
@@ -717,39 +740,9 @@ export class EditorScene extends Phaser.Scene {
           }
         }
 
-        this.estadoGuardado = this.getEditorState();
-        this.eliminarPortalesSinLink();
         this.actualizarLinks();
+        this.estadoGuardado = this.getEditorState();
       }
-    }
-
-    if (
-      !this.existeTile(this.tileJugador) &&
-      !this.existeTile(this.tileBandera)
-    ) {
-      this.mapa.putTileAt(
-        this.tileJugador,
-        1,
-        1,
-        true,
-        this.tablero
-      );
-
-      this.mapa.putTileAt(
-        this.tileBandera,
-        this.columns - 2,
-        this.rows - 2,
-        true,
-        this.tablero
-      );
-    }
-    for (let x = 0; x < this.columns; x++) {
-      this.tablero.putTileAt(39, x, 0);
-      this.tablero.putTileAt(39, x, this.rows - 1);
-    }
-    for (let y = 0; y < this.rows; y++) {
-      this.tablero.putTileAt(39, 0, y);
-      this.tablero.putTileAt(39, this.columns - 1, y);
     }
 
     this.tablero.setDepth(1);
@@ -787,7 +780,7 @@ export class EditorScene extends Phaser.Scene {
         if (this.esDobleClickLink()) {
           this.cancelarLinkTemporal();
 
-          const indiceLink = this.buscarLinkDePortal(
+          const indiceLink = this.buscarLinkDeCasilla(
             this.mouseX,
             this.mouseY
           );
@@ -1141,6 +1134,20 @@ this.bordeTooltipTile.setVisible(false);
     this.actualizarHoverTile();
   }
 
+  private puedeColocarSalida(columna: number, fila: number): boolean {
+    if (fila !== 0 || columna <= 0 || columna >= this.columns - 1) {
+      return false;
+    }
+
+    const tile = this.tablero.getTileAt(columna, fila);
+    if (tile === null) {
+      return false;
+    }
+
+    return tile.index === 39 || tile.index === 64 ||
+      tile.index === this.tileBandera;
+  }
+
   usarHerramienta() {
     if (
       this.mouseX === -1 ||
@@ -1150,6 +1157,13 @@ this.bordeTooltipTile.setVisible(false);
       this.herramienta === this.sinHerramienta ||
       this.herramienta === this.portalTool ||
       this.herramienta === this.linkTool
+    ) {
+      return;
+    }
+
+    if (
+      this.herramienta === this.tileBandera &&
+      !this.puedeColocarSalida(this.mouseX, this.mouseY)
     ) {
       return;
     }
@@ -1173,10 +1187,8 @@ this.bordeTooltipTile.setVisible(false);
       const y = this.mouseY + forma[i][1];
 
       if (
-        x < 0 ||
-        y < 0 ||
-        x >= this.columns ||
-        y >= this.rows
+        x < 0 || y < 0 ||
+        x >= this.columns || y >= this.rows
       ) {
         return;
       }
@@ -1204,6 +1216,10 @@ this.bordeTooltipTile.setVisible(false);
         casillas[i][0],
         casillas[i][1]
       );
+    }
+
+    for (let i = 0; i < casillas.length; i++) {
+      this.actualizarParedesConexas(casillas[i][0], casillas[i][1]);
     }
 
     this.actualizarHoverTile();
@@ -1314,6 +1330,9 @@ this.bordeTooltipTile.setVisible(false);
           true,
           this.capaPortales
         );
+
+        this.borrarLinksEn(columna, fila);
+        this.actualizarParedesConexas(columna, fila);
       }
     }
 
@@ -1406,6 +1425,12 @@ this.bordeTooltipTile.setVisible(false);
         }
       }
     }
+
+    for (let fila = 0; fila < alto; fila++) {
+      for (let columna = 0; columna < ancho; columna++) {
+        this.actualizarParedesConexas(inicioX + columna, inicioY + fila);
+      }
+    }
   }
 
   private actualizarVistaPegado(): void {
@@ -1449,7 +1474,8 @@ this.bordeTooltipTile.setVisible(false);
       inicioX + anchoSeleccion <= this.columns &&
       inicioY + altoSeleccion <= this.rows &&
       inicioX >= 0 &&
-      inicioY >= 0;
+      inicioY >= 0 &&
+      this.puedePegarSeleccion();
 
     const izquierdaVisible = Math.max(inicioX, 0);
     const arribaVisible = Math.max(inicioY, 0);
@@ -1582,12 +1608,25 @@ this.bordeTooltipTile.setVisible(false);
     const inicioY =
       this.mouseY - Math.floor((altoSeleccion - 1) / 2);
 
-    return (
-      inicioX >= 0 &&
-      inicioY >= 0 &&
-      inicioX + anchoSeleccion <= this.columns &&
-      inicioY + altoSeleccion <= this.rows
-    );
+    if (
+      inicioX < 0 || inicioY < 0 ||
+      inicioX + anchoSeleccion > this.columns ||
+      inicioY + altoSeleccion > this.rows
+    ) {
+      return false;
+    }
+
+    for (let fila = 0; fila < altoSeleccion; fila++) {
+      for (let columna = 0; columna < anchoSeleccion; columna++) {
+        if (this.seleccionCopiada[fila][columna] === this.tileBandera) {
+          if (!this.puedeColocarSalida(inicioX + columna, inicioY + fila)) {
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
   }
 
   private getBoardState(): number[][] {
@@ -1741,7 +1780,6 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     this.actualizarLinks();
-    this.actualizarParedesConexas();
 
     const valido = this.nivelValido();
     const puedeGuardar = valido && this.hayCambiosSinGuardar();
@@ -1827,8 +1865,14 @@ this.bordeTooltipTile.setVisible(false);
       "Tenés cambios sin guardar.\n¿Querés salir sin guardarlos?";
 
     if (this.nivelValido() === false) {
-      mensaje =
-        "Falta el jugador o la salida.\nSi salís, se perderán los cambios sin guardar.";
+      if (
+        this.existeTile(this.tileJugador) &&
+        this.existeTile(this.tileBandera)
+      ) {
+        mensaje = "La salida debe estar en la pared superior.\nSi salís, se perderán los cambios sin guardar.";
+      } else {
+        mensaje = "Falta el jugador o la salida.\nSi salís, se perderán los cambios sin guardar.";
+      }
     }
 
     const cantidadAnterior = this.children.list.length;
@@ -2011,7 +2055,14 @@ this.bordeTooltipTile.setVisible(false);
 
     if (this.textoEstado !== null) {
       if (valido === false) {
-        this.textoEstado.setText("Level Editor - Falta jugador o salida");
+        if (
+          this.existeTile(this.tileJugador) &&
+          this.existeTile(this.tileBandera)
+        ) {
+          this.textoEstado.setText("Level Editor - La salida debe ir en la pared superior");
+        } else {
+          this.textoEstado.setText("Level Editor - Falta jugador o salida");
+        }
         this.textoEstado.setColor("#e6a05a");
       } else if (this.hayCambiosSinGuardar()) {
         this.textoEstado.setText("Level Editor - Hay cambios sin guardar");
@@ -2578,6 +2629,8 @@ this.bordeTooltipTile.setVisible(false);
         this.capaPortales
       );
     }
+
+    this.actualizarLinks();
   }
 
   private puedeColocarPortal(
@@ -2788,9 +2841,13 @@ this.bordeTooltipTile.setVisible(false);
 
     for (let fila = 0; fila < this.rows; fila++) {
       for (let columna = 0; columna < this.columns; columna++) {
+        if (state[fila] === undefined) {
+          continue;
+        }
+
         const portal = state[fila][columna];
 
-        if (portal !== -1) {
+        if (portal !== undefined && portal !== -1) {
           this.capaPortales.putTileAt(
             portal,
             columna,
@@ -2869,35 +2926,66 @@ this.bordeTooltipTile.setVisible(false);
     };
   }
 
-  private hayPortalEn(
-    columna: number,
-    fila: number
-  ): boolean {
+  private hayPortalEn(columna: number, fila: number): boolean {
     if (
-      columna < 0 ||
-      fila < 0 ||
-      columna >= this.columns ||
-      fila >= this.rows
+      columna < 0 || fila < 0 ||
+      columna >= this.columns || fila >= this.rows
     ) {
       return false;
     }
 
     const portal = this.mapa.getTileAt(
-      columna,
-      fila,
-      false,
-      this.capaPortales
+      columna, fila, false, this.capaPortales
     );
 
-    return portal !== null;
+    return portal !== null && (
+      portal.index === this.portalArriba ||
+      portal.index === this.portalAbajo ||
+      portal.index === this.portalIzquierda ||
+      portal.index === this.portalDerecha
+    );
   }
 
-  private buscarLinkDePortal(
-    columna: number,
-    fila: number
-  ): number {
+  private hayPlacaEn(columna: number, fila: number): boolean {
+    if (
+      columna < 0 || fila < 0 ||
+      columna >= this.columns || fila >= this.rows
+    ) {
+      return false;
+    }
+
+    const tile = this.tablero.getTileAt(columna, fila);
+    return tile !== null && tile.index === this.tilePlaca;
+  }
+
+  private esParDePortales(link: number[]): boolean {
+    return link.length === 4 &&
+      this.hayPortalEn(link[0], link[1]) &&
+      this.hayPortalEn(link[2], link[3]);
+  }
+
+  private esLinkDePlaca(link: number[]): boolean {
+    if (link.length !== 4) {
+      return false;
+    }
+
+    return (
+      this.hayPlacaEn(link[0], link[1]) &&
+      this.hayPortalEn(link[2], link[3])
+    ) || (
+      this.hayPortalEn(link[0], link[1]) &&
+      this.hayPlacaEn(link[2], link[3])
+    );
+  }
+
+  // Buscar SOLO el par portal-portal, no el link de la placa.
+  private buscarLinkDePortal(columna: number, fila: number): number {
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
+
+      if (!this.esParDePortales(link)) {
+        continue;
+      }
 
       if (
         (link[0] === columna && link[1] === fila) ||
@@ -2910,44 +2998,81 @@ this.bordeTooltipTile.setVisible(false);
     return -1;
   }
 
+  private buscarLinkDePlaca(columna: number, fila: number): number {
+    for (let i = 0; i < this.links.length; i++) {
+      const link = this.links[i];
+
+      if (!this.esLinkDePlaca(link)) {
+        continue;
+      }
+
+      if (
+        (link[0] === columna && link[1] === fila) ||
+        (link[2] === columna && link[3] === fila)
+      ) {
+        return i;
+      }
+    }
+
+    return -1;
+  }
+
+  private buscarLinkDeCasilla(columna: number, fila: number): number {
+    if (this.hayPlacaEn(columna, fila)) {
+      return this.buscarLinkDePlaca(columna, fila);
+    }
+
+    if (this.hayPortalEn(columna, fila)) {
+      return this.buscarLinkDePortal(columna, fila);
+    }
+
+    return -1;
+  }
+
   private puedeCrearLink(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number
+    x1: number, y1: number, x2: number, y2: number
   ): boolean {
     if (x1 === x2 && y1 === y2) {
       return false;
     }
 
-    if (!this.hayPortalEn(x1, y1)) {
-      return false;
+    const portalInicio = this.hayPortalEn(x1, y1);
+    const portalFinal = this.hayPortalEn(x2, y2);
+    const placaInicio = this.hayPlacaEn(x1, y1);
+    const placaFinal = this.hayPlacaEn(x2, y2);
+
+    if (portalInicio && portalFinal) {
+      const linkInicio = this.buscarLinkDePortal(x1, y1);
+      const linkFinal = this.buscarLinkDePortal(x2, y2);
+      let cantidadPares = 0;
+
+      for (let i = 0; i < this.links.length; i++) {
+        if (this.esParDePortales(this.links[i])) {
+          cantidadPares++;
+        }
+      }
+
+      if (linkInicio !== -1) {
+        cantidadPares--;
+      }
+
+      if (linkFinal !== -1 && linkFinal !== linkInicio) {
+        cantidadPares--;
+      }
+
+      return cantidadPares + 1 <= 5;
     }
 
-    if (!this.hayPortalEn(x2, y2)) {
-      return false;
+    // Una placa solo puede vincularse a un portal que ya tiene pareja.
+    if (placaInicio && portalFinal) {
+      return this.buscarLinkDePortal(x2, y2) !== -1;
     }
 
-    const linkInicio = this.buscarLinkDePortal(x1, y1);
-    const linkFinal = this.buscarLinkDePortal(x2, y2);
-
-    let cantidadDespues = this.links.length;
-
-    if (linkInicio !== -1) {
-      cantidadDespues--;
+    if (portalInicio && placaFinal) {
+      return this.buscarLinkDePortal(x1, y1) !== -1;
     }
 
-    if (linkFinal !== -1 && linkFinal !== linkInicio) {
-      cantidadDespues--;
-    }
-
-    cantidadDespues++;
-
-    if (cantidadDespues > 5) {
-      return false;
-    }
-
-    return true;
+    return false;
   }
 
   private dibujarLineaPunteada(
@@ -3008,19 +3133,28 @@ this.bordeTooltipTile.setVisible(false);
         link[3]
       );
 
+      let color = this.colorLinkPortales;
+
+      if (this.esLinkDePlaca(link)) {
+        color = this.colorLinkPlaca;
+      }
+
       this.dibujarLink(
         this.graficosLinks,
         inicio.x,
         inicio.y,
         final.x,
         final.y,
-        0x9ccc65
+        color
       );
     }
   }
 
   private iniciarLink(_mouse: Phaser.Input.Pointer): void {
-    if (!this.hayPortalEn(this.mouseX, this.mouseY)) {
+    if (
+      !this.hayPortalEn(this.mouseX, this.mouseY) &&
+      !this.hayPlacaEn(this.mouseX, this.mouseY)
+    ) {
       return;
     }
 
@@ -3042,24 +3176,20 @@ this.bordeTooltipTile.setVisible(false);
       return;
     }
 
-    const final = this.centroCasilla(
-      this.mouseX,
-      this.mouseY
-    );
-
+    const final = this.centroCasilla(this.mouseX, this.mouseY);
     let color = 0xe57373;
 
-    if (
-      this.linkInicioX === -1 ||
-      this.linkInicioY === -1
-    ) {
+    if (this.linkInicioX === -1 || this.linkInicioY === -1) {
       if (this.hayPortalEn(this.mouseX, this.mouseY)) {
-        color = 0x9ccc65;
+        color = this.colorLinkPortales;
+      }
+
+      if (this.hayPlacaEn(this.mouseX, this.mouseY)) {
+        color = this.colorLinkPlaca;
       }
     } else {
       const inicio = this.centroCasilla(
-        this.linkInicioX,
-        this.linkInicioY
+        this.linkInicioX, this.linkInicioY
       );
 
       if (
@@ -3070,7 +3200,14 @@ this.bordeTooltipTile.setVisible(false);
           this.mouseY
         )
       ) {
-        color = 0x9ccc65;
+        if (
+          this.hayPlacaEn(this.linkInicioX, this.linkInicioY) ||
+          this.hayPlacaEn(this.mouseX, this.mouseY)
+        ) {
+          color = this.colorLinkPlaca;
+        } else {
+          color = this.colorLinkPortales;
+        }
       }
 
       this.dibujarLineaPunteada(
@@ -3117,20 +3254,14 @@ this.bordeTooltipTile.setVisible(false);
   }
 
   private terminarLink(): void {
-    if (
-      this.linkInicioX === -1 ||
-      this.linkInicioY === -1
-    ) {
+    if (this.linkInicioX === -1 || this.linkInicioY === -1) {
       return;
     }
 
     const inicioX = this.linkInicioX;
     const inicioY = this.linkInicioY;
 
-    if (
-      this.mouseX === inicioX &&
-      this.mouseY === inicioY
-    ) {
+    if (this.mouseX === inicioX && this.mouseY === inicioY) {
       this.cancelarLinkTemporal();
       return;
     }
@@ -3138,78 +3269,136 @@ this.bordeTooltipTile.setVisible(false);
     if (
       this.mouseX !== -1 &&
       this.mouseY !== -1 &&
-      this.puedeCrearLink(
-        inicioX,
-        inicioY,
-        this.mouseX,
-        this.mouseY
-      )
+      this.puedeCrearLink(inicioX, inicioY, this.mouseX, this.mouseY)
     ) {
-      const linkInicio = this.buscarLinkDePortal(
-        inicioX,
-        inicioY
-      );
-
-      const linkFinal = this.buscarLinkDePortal(
-        this.mouseX,
-        this.mouseY
-      );
-
       if (
-        linkInicio !== -1 &&
-        linkFinal !== -1 &&
-        linkInicio !== linkFinal
+        this.hayPortalEn(inicioX, inicioY) &&
+        this.hayPortalEn(this.mouseX, this.mouseY)
       ) {
-        const mayor = Math.max(linkInicio, linkFinal);
-        const menor = Math.min(linkInicio, linkFinal);
+        // Enlazar dos portales reemplaza sus pares anteriores, no sus placas.
+        const linkInicio = this.buscarLinkDePortal(inicioX, inicioY);
+        const linkFinal = this.buscarLinkDePortal(this.mouseX, this.mouseY);
 
-        this.links.splice(mayor, 1);
-        this.links.splice(menor, 1);
-      } else if (linkInicio !== -1) {
-        this.links.splice(linkInicio, 1);
-      } else if (linkFinal !== -1) {
-        this.links.splice(linkFinal, 1);
+        if (
+          linkInicio !== -1 && linkFinal !== -1 &&
+          linkInicio !== linkFinal
+        ) {
+          const mayor = Math.max(linkInicio, linkFinal);
+          const menor = Math.min(linkInicio, linkFinal);
+          this.links.splice(mayor, 1);
+          this.links.splice(menor, 1);
+        } else if (linkInicio !== -1) {
+          this.links.splice(linkInicio, 1);
+        } else if (linkFinal !== -1) {
+          this.links.splice(linkFinal, 1);
+        }
+
+        this.links.push([inicioX, inicioY, this.mouseX, this.mouseY]);
+      } else {
+        // Normalizar el link para almacenar siempre [placaX, placaY, portalX, portalY].
+        let placaX = inicioX;
+        let placaY = inicioY;
+        let portalX = this.mouseX;
+        let portalY = this.mouseY;
+
+        if (this.hayPortalEn(inicioX, inicioY)) {
+          placaX = this.mouseX;
+          placaY = this.mouseY;
+          portalX = inicioX;
+          portalY = inicioY;
+        }
+
+        const anterior = this.buscarLinkDePlaca(placaX, placaY);
+
+        if (anterior !== -1) {
+          this.links.splice(anterior, 1);
+        }
+
+        this.links.push([placaX, placaY, portalX, portalY]);
       }
-
-      this.links.push([
-        inicioX,
-        inicioY,
-        this.mouseX,
-        this.mouseY
-      ]);
     } else {
-      const linkExistente = this.buscarLinkDePortal(
-        inicioX,
-        inicioY
-      );
+      // Igual que antes: arrastrar desde un origen hacia un destino invalido
+      // permite quitar su link.
+      const anterior = this.buscarLinkDeCasilla(inicioX, inicioY);
 
-      if (linkExistente !== -1) {
-        this.links.splice(linkExistente, 1);
+      if (anterior !== -1) {
+        this.links.splice(anterior, 1);
       }
     }
 
     this.cancelarLinkTemporal();
-    this.dibujarLinks();
+    this.actualizarLinks();
   }
 
   private actualizarLinks(): void {
+    const pares: number[][] = [];
     const linksValidos: number[][] = [];
+    const placasUsadas: number[][] = [];
+
+    for (let i = 0; i < this.links.length; i++) {
+      const link = this.links[i];
+      if (this.esParDePortales(link)) {
+        pares.push(link);
+      }
+    }
 
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
 
-      const hayPortalInicio = this.hayPortalEn(
-        link[0],
-        link[1]
-      );
-
-      const hayPortalFinal = this.hayPortalEn(
-        link[2],
-        link[3]
-      );
-
-      if (hayPortalInicio && hayPortalFinal) {
+      if (this.esParDePortales(link)) {
         linksValidos.push(link);
+        continue;
+      }
+
+      if (!this.esLinkDePlaca(link)) {
+        continue;
+      }
+
+      let placaX = link[0];
+      let placaY = link[1];
+      let portalX = link[2];
+      let portalY = link[3];
+
+      if (this.hayPortalEn(link[0], link[1])) {
+        placaX = link[2];
+        placaY = link[3];
+        portalX = link[0];
+        portalY = link[1];
+      }
+
+      let parEncontrado = false;
+
+      for (let j = 0; j < pares.length; j++) {
+        const par = pares[j];
+
+        if (
+          (par[0] === portalX && par[1] === portalY) ||
+          (par[2] === portalX && par[3] === portalY)
+        ) {
+          parEncontrado = true;
+          break;
+        }
+      }
+
+      if (!parEncontrado) {
+        continue;
+      }
+
+      let repetida = false;
+
+      for (let j = 0; j < placasUsadas.length; j++) {
+        if (
+          placasUsadas[j][0] === placaX &&
+          placasUsadas[j][1] === placaY
+        ) {
+          repetida = true;
+          break;
+        }
+      }
+
+      if (!repetida) {
+        placasUsadas.push([placaX, placaY]);
+        linksValidos.push([placaX, placaY, portalX, portalY]);
       }
     }
 
@@ -3253,33 +3442,6 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     return copia;
-  }
-
-  private eliminarPortalesSinLink(): void {
-    for (let fila = 0; fila < this.rows; fila++) {
-      for (let columna = 0; columna < this.columns; columna++) {
-        const portal = this.mapa.getTileAt(
-          columna,
-          fila,
-          false,
-          this.capaPortales
-        );
-
-        if (portal === null) {
-          continue;
-        }
-
-        if (this.buscarLinkDePortal(columna, fila) === -1) {
-          this.mapa.removeTileAt(
-            columna,
-            fila,
-            true,
-            true,
-            this.capaPortales
-          );
-        }
-      }
-    }
   }
 
   private esDobleClickLink(): boolean {
@@ -3411,6 +3573,13 @@ this.bordeTooltipTile.setVisible(false);
       }
     }
 
+    if (
+      this.herramienta === this.tileBandera &&
+      !this.puedeColocarSalida(this.mouseX, this.mouseY)
+    ) {
+      entra = false;
+    }
+
     if (entra === false) {
       this.hoverCell.setFillStyle(0xff0000, 0.6);
     }
@@ -3503,29 +3672,7 @@ this.bordeTooltipTile.setVisible(false);
     }
   }
 
-  private borrarPortalEn(
-    columna: number,
-    fila: number
-  ): void {
-    const portal = this.mapa.getTileAt(
-      columna,
-      fila,
-      false,
-      this.capaPortales
-    );
-
-    if (portal === null) {
-      return;
-    }
-
-    this.mapa.removeTileAt(
-      columna,
-      fila,
-      true,
-      true,
-      this.capaPortales
-    );
-
+  private borrarLinksEn(columna: number, fila: number): void {
     for (let i = this.links.length - 1; i >= 0; i--) {
       const link = this.links[i];
 
@@ -3540,6 +3687,22 @@ this.bordeTooltipTile.setVisible(false);
     this.dibujarLinks();
   }
 
+  private borrarPortalEn(columna: number, fila: number): void {
+    const portal = this.mapa.getTileAt(
+      columna, fila, false, this.capaPortales
+    );
+
+    if (portal === null) {
+      return;
+    }
+
+    this.mapa.removeTileAt(
+      columna, fila, true, true, this.capaPortales
+    );
+
+    this.borrarLinksEn(columna, fila);
+  }
+
   private borrarTileUnico(tileBuscada: number): void {
     for (let fila = 0; fila < this.rows; fila++) {
       for (let columna = 0; columna < this.columns; columna++) {
@@ -3551,13 +3714,21 @@ this.bordeTooltipTile.setVisible(false);
         );
 
         if (tile !== null && tile.index === tileBuscada) {
+          let reemplazo = this.tileInvisible;
+
+          if (tileBuscada === this.tileBandera && fila === 0) {
+            reemplazo = 39;
+          }
+
           this.mapa.putTileAt(
-            this.tileInvisible,
+            reemplazo,
             columna,
             fila,
             true,
             this.tablero
           );
+
+          this.actualizarParedesConexas(columna, fila);
         }
       }
     }
@@ -3589,6 +3760,18 @@ this.bordeTooltipTile.setVisible(false);
 
     if (!this.existeTile(this.tileBandera)) {
       return false;
+    }
+
+    for (let fila = 0; fila < this.rows; fila++) {
+      for (let columna = 0; columna < this.columns; columna++) {
+        const tile = this.tablero.getTileAt(columna, fila);
+
+        if (tile !== null && tile.index === this.tileBandera) {
+          if (fila !== 0 || columna <= 0 || columna >= this.columns - 1) {
+            return false;
+          }
+        }
+      }
     }
 
     return true;
@@ -3867,6 +4050,9 @@ this.bordeTooltipTile.setVisible(false);
     }
     if (tile === 37) {
       return "Caja";
+    }
+    if (tile === this.tilePlaca) {
+      return "Placa de presión";
     }
     if (tile === 39) {
       return "Pared";
@@ -4222,6 +4408,8 @@ this.bordeTooltipTile.setVisible(false);
       const columna = casillas[i][0];
       const fila = casillas[i][1];
 
+      this.borrarLinksEn(columna, fila);
+
       this.tablero.putTileAt(
         this.tileInvisible,
         columna,
@@ -4229,6 +4417,7 @@ this.bordeTooltipTile.setVisible(false);
       );
 
       this.borrarPortalEn(columna, fila);
+      this.actualizarParedesConexas(columna, fila);
     }
   }
 
@@ -4571,9 +4760,29 @@ this.bordeTooltipTile.setVisible(false);
         for (let i = 0; i < nivel.links.length; i++) {
           const link = nivel.links[i];
 
+          if (link.length !== 4) {
+            continue;
+          }
+
+          const x1 = link[0];
+          const y1 = link[1];
+          const x2 = link[2];
+          const y2 = link[3];
+
           if (
-            (link[0] === x && link[1] === y) ||
-            (link[2] === x && link[3] === y)
+            nivel.portales[y1] === undefined ||
+            nivel.portales[y2] === undefined ||
+            nivel.portales[y1][x1] === undefined ||
+            nivel.portales[y2][x2] === undefined ||
+            nivel.portales[y1][x1] === -1 ||
+            nivel.portales[y2][x2] === -1
+          ) {
+            continue;
+          }
+
+          if (
+            (x1 === x && y1 === y) ||
+            (x2 === x && y2 === y)
           ) {
             tieneLink = true;
             break;
@@ -4586,7 +4795,20 @@ this.bordeTooltipTile.setVisible(false);
       }
     }
 
-    const nivelTest = convertirNivel(nivel);
+    let darkLayer: number[][] | undefined = undefined;
+    if (this.nivelId !== null) {
+      const guardado = obtenerNivel(this.nivelId);
+      if (guardado !== undefined) {
+        darkLayer = guardado.darkLayer;
+      }
+    }
+
+    const nivelTest = convertirNivel({
+      tablero: nivel.tablero,
+      portales: nivel.portales,
+      links: nivel.links,
+      darkLayer: darkLayer
+    });
 
     this.scene.launch("game", {
       modoTest: true,
@@ -4600,26 +4822,37 @@ this.bordeTooltipTile.setVisible(false);
   }
 
 
-  private actualizarParedesConexas(): void {
-    for (let y = 0; y < this.rows; y++) {
-      for (let x = 0; x < this.columns; x++) {
-      const tile = this.tablero.getTileAt(x, y);
-      if (tile === null) {
+  private actualizarParedesConexas(columna: number, fila: number): void {
+    // Solo se recalcula la pared editada y la celda inmediatamente debajo.
+    // Asi abrir/editar un nivel no reescribe paredes ajenas al cambio.
+    for (let y = fila; y <= fila + 1; y++) {
+      if (y < 0 || y >= this.rows) {
         continue;
       }
-      if (tile.index !== 39 && tile.index !== 64) {
+
+      const tile = this.tablero.getTileAt(columna, y);
+
+      if (tile === null || (tile.index !== 39 && tile.index !== 64)) {
         continue;
       }
+
+      let conectada = false;
+
       if (y > 0) {
-        const arriba = this.tablero.getTileAt(x, y - 1);
-        if (arriba !== null && arriba.index === 39 || arriba.index === 64) {
-          this.tablero.putTileAt(64, x, y);
-        } else {
-          this.tablero.putTileAt(39, x, y);
+        const arriba = this.tablero.getTileAt(columna, y - 1);
+
+        if (arriba !== null && (arriba.index === 39 || arriba.index === 64)) {
+          conectada = true;
         }
+      }
+
+      if (conectada) {
+        this.tablero.putTileAt(64, columna, y);
       } else {
-        this.tablero.putTileAt(39, x, y);
-  }}}}
+        this.tablero.putTileAt(39, columna, y);
+      }
+    }
+  }
 
 
 }
