@@ -93,7 +93,7 @@ const Tile = {
 export class GameScene extends Phaser.Scene {    
     private levelNumber = 1;
     private history: GameState[] = [];
-    //private levelMode = 0;
+    private community: boolean = false;
 
     init(data: any) {
         this.nivelDescargado = null;
@@ -193,6 +193,7 @@ export class GameScene extends Phaser.Scene {
     private staticRows: any;
     private nivelDescargado: any = null;
     private saliendoDelNivel = false;
+    private finishinglevel: any;
 
 
     //TEST
@@ -362,7 +363,7 @@ private crearBarraSuperior() {
         0x171a2e
     );
 
-    barra.setDepth(900);
+    barra.setDepth(-0.000002);
 
     const bordeInferior = this.add.rectangle(
         this.scale.width / 2,
@@ -372,7 +373,7 @@ private crearBarraSuperior() {
         0x6f87b0
     );
 
-    bordeInferior.setDepth(901);
+    bordeInferior.setDepth(-0.0000000002);
 
     const nombreCompleto = this.obtenerNombreNivel();
 
@@ -666,6 +667,7 @@ nombre.setOrigin(0, 0.5);
             }
             this.pantallaMuerte.setVisible(false);
         }
+        this.flagCheck(true);
     }
 
     private crearPantallaMuerte() {
@@ -1437,7 +1439,8 @@ private cerrarMenuPausa() {
                     )
                 ) {
                     activated = true;
-                }
+                    reciever.sprite.setTexture("tileset-fogo", 6).setScale(this.pixelmultiplier);
+                } else reciever.sprite.setTexture("tileset-fogo", 26).setScale(this.pixelmultiplier);
                 break;
             case 1:
                 if (
@@ -1453,7 +1456,8 @@ private cerrarMenuPausa() {
                     )
                 ) {
                     activated = true;
-                }
+                    reciever.sprite.setTexture("tileset-fogo", 9).setScale(this.pixelmultiplier);
+                } else reciever.sprite.setTexture("tileset-fogo", 29).setScale(this.pixelmultiplier);
                 break;
             case 2:
                 if (
@@ -1469,7 +1473,8 @@ private cerrarMenuPausa() {
                     )
                 ) {
                     activated = true;
-                }
+                    reciever.sprite.setTexture("tileset-fogo", 7).setScale(this.pixelmultiplier);
+                } else reciever.sprite.setTexture("tileset-fogo", 27).setScale(this.pixelmultiplier);
                 break;
             case 3:
                 if (
@@ -1485,7 +1490,8 @@ private cerrarMenuPausa() {
                     )
                 ) {
                     activated = true;
-                }
+                    reciever.sprite.setTexture("tileset-fogo", 8).setScale(this.pixelmultiplier);
+                } else reciever.sprite.setTexture("tileset-fogo", 28).setScale(this.pixelmultiplier);
                 break;
         }
         if (activated === false) {
@@ -1516,11 +1522,17 @@ private cerrarMenuPausa() {
             return;
         }
         if (!this.winConditionsMet2()) {
-	        flag.sprite.setTexture("tiles", Tile.Flag0).setScale(this.pixelmultiplier/2);
-            flag.type = "wall";
+            if (flag.type !== "wall") {
+                flag.sprite.play({key: "doorclose", startFrame: 0});
+	            flag.sprite.setTexture("door", 11).setScale(this.pixelmultiplier);
+                flag.type = "wall";
+            }
         } else {
-            flag.sprite.setTexture("tiles", Tile.Flag1).setScale(this.pixelmultiplier/2);
-            flag.type = "flag";
+            if (flag.type === "wall") {
+                flag.sprite.play({key: "dooropen", startFrame: 0});
+                flag.type = "flag";
+	            flag.sprite.setTexture("door", 0).setScale(this.pixelmultiplier);
+            }
         }
     }
 
@@ -1873,24 +1885,19 @@ private cerrarMenuPausa() {
 
         const facing = this.opposite(dir);
         player.sprite.setScale(this.pixelmultiplier).setDepth(2*player.y);
-        this.animatePlayer(player, facing);
         this.laserFunction();
+        const flag = this.entities.find(entity => entity.type === "flag");
+        if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
+            this.animateLindseyExit(player);
+            this.ganarNivel();
+            return true;
+        }
+        this.animatePlayer(player, facing);
         if (this.lindseyDeath()){
             this.menuup = 2;
             this.inputBuffer = "";
             this.holdBufferOpen = false;
             this.pantallaMuerte.setVisible(true);
-        }
-        const flag = this.entities.find(entity => entity.type === "flag");
-        if (
-            this.menuup === 0 &&
-            flag &&
-            player.x === flag.x &&
-            player.y === flag.y &&
-            this.winConditionsMet() &&
-            this.winConditionsMet2()
-        ) {
-            this.ganarNivel();
         }
         return true;
         }
@@ -2328,6 +2335,91 @@ private cerrarMenuPausa() {
         });
     }
 
+    private animateEntrance() {
+        const player = this.entities.find(entity => entity.type === "player");
+        if (!player) return;
+        const finalX = this.offsetX + player.x * this.tilesize;
+        const finalY = this.offsetY + player.y * this.tilesize;
+        let startY: number;
+        let maskShape: Phaser.GameObjects.Rectangle;
+        let maskFilter: any;
+        let speed: number;
+        if (this.community == true) { startY = finalY - 4 * this.tilesize; speed = this.lindseyspeed*3}
+        else {startY = finalY + 3 * this.tilesize; speed = this.lindseyspeed*3}
+        player.sprite.setPosition(finalX, startY);
+        player.sprite.setDepth(2 * player.y);
+        if (this.community == false) {
+        const region = new Phaser.Geom.Rectangle(0, 0, this.scale.width, this.scale.height-6*this.pixelmultiplier);
+        const masks = Phaser.Actions.AddMaskShape(player.sprite,{
+            shape: "rectangle",
+            region: region
+        });
+        maskFilter = masks[0];
+        maskShape = maskFilter.maskGameObject as Phaser.GameObjects.Rectangle;
+        }
+
+        this.playerMoving = true;
+        if (this.community == false) {
+            player.sprite.play(
+                "lindsey-up"
+            ); 
+        } else {
+            player.sprite.play(
+                "lindseyenter"
+            )
+        }
+
+        this.playerTween = this.tweens.add({
+            targets: player.sprite,
+            x: finalX,
+            y: finalY,
+            duration: speed,
+            ease: "Linear",
+            onComplete: () => {
+                player.sprite.stop();
+                player.sprite.setTexture("lindseyi", 0);
+                player.dir = 0;
+                if (this.community == false) {
+                if (player.sprite.filters) {
+                    player.sprite.filters.external.remove(maskFilter);
+                }
+                maskShape.destroy();
+                }
+                this.playerMoving = false;
+                this.playerTween = undefined;
+            }
+        });
+    }
+
+    private animateLindseyExit(player: Entity) {
+        player.sprite.setDepth(-0.01)
+        if (this.finishinglevel) return;
+        this.finishinglevel = true;
+        this.playerMoving = true;
+        this.inputBuffer = "";
+        player.sprite.play("lindsey-up");
+        const finalX = player.sprite.x;
+        const finalY = player.sprite.y - this.tilesize * 3;
+
+        this.playerTween = this.tweens.add({
+            targets: player.sprite,
+            x: finalX,
+            y: finalY,
+            duration: this.lindseyspeed * 3,
+            ease: "Linear",
+
+            onComplete: () => {
+                player.sprite.stop();
+                this.entities = [];
+                for (const laser of this.lasers) {
+                    this.destroyLaser(laser);
+                }
+                this.lasers = [];
+                this.scene.start("game", {level: this.levelNumber + 1});
+            }
+        });
+    }
+
     constructor() {
         super("game");
     }
@@ -2381,6 +2473,16 @@ private cerrarMenuPausa() {
             frameWidth: 16,
             frameHeight: 28,
         });
+        this.load.spritesheet("door", "assets/door.anim1.png", {
+            frameWidth: 16,
+            frameHeight: 43,
+        });
+        if (this.modoTest === false && this.nivelId === "") {
+            this.load.text(
+                "level",
+                "assets/level" + this.levelNumber + ".txt"
+            );
+        }
     }
 
 async create() {
@@ -2420,6 +2522,7 @@ async create() {
         this.tempstorage3 = undefined;
         this.emitterQueue = [];
         this.firedEmitters = [];
+        this.finishinglevel = false;
 
         if (!this.anims.exists("lindsey-up")) {
             this.anims.create({
@@ -2510,8 +2613,18 @@ async create() {
                 frameRate: this.animationspeed,
                 repeat: -1
             });
+            this.anims.create({
+                key: "lindseyenter",
+                frames: [
+                    { key: "lindseyi", frame: 0 },
+                    { key: "lindseyi", frame: 1 },
+                    { key: "lindseyi", frame: 2 },
+                    { key: "lindseyi", frame: 3 }
+                ],
+                frameRate: this.animationspeed / 2.4,
+                repeat: -1
+            });
         }
-
         if (!this.anims.exists("laser-horizontal")) {
             this.anims.create({
                 key: "laser-horizontal",
@@ -2712,6 +2825,47 @@ async create() {
                 repeat: -1
             });
         }
+        if (!this.anims.exists("dooropen")) {
+            this.anims.create({
+                key: "dooropen",
+                frames: [
+                    { key: "door", frame: 0 },
+                    { key: "door", frame: 1 },
+                    { key: "door", frame: 2 },
+                    { key: "door", frame: 3 },
+                    { key: "door", frame: 4 },
+                    { key: "door", frame: 5 },
+                    { key: "door", frame: 6 },
+                    { key: "door", frame: 7 },
+                    { key: "door", frame: 8 },
+                    { key: "door", frame: 9 },
+                    { key: "door", frame: 10 },
+                    { key: "door", frame: 11 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: 0
+            });
+            this.anims.create({
+                key: "doorclose",
+                frames: [
+                    { key: "door", frame: 11 },
+                    { key: "door", frame: 10 },
+                    { key: "door", frame: 9 },
+                    { key: "door", frame: 8 },
+                    { key: "door", frame: 7 },
+                    { key: "door", frame: 6 },
+                    { key: "door", frame: 5 },
+                    { key: "door", frame: 4 },
+                    { key: "door", frame: 3 },
+                    { key: "door", frame: 2 },
+                    { key: "door", frame: 1 },
+                    { key: "door", frame: 0 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: 0
+            });
+
+        }
 
         this.qKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
         this.rKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
@@ -2844,7 +2998,7 @@ async create() {
                         y: y,
                         pushable: false,
                         secret: "flag",
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tiles", Tile.Flag1).setOrigin(1,1).setScale(this.pixelmultiplier/2).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "door", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
                         });
                         break;
                 }
@@ -3186,7 +3340,8 @@ async create() {
         }
         for (let y = 0; y<darkRows.length; y++) {
             for (let x = 0; x<darkRows[y].length; x++){
-                const thistile = darkRows[y][x];                switch(thistile) {
+                const thistile = darkRows[y][x];                
+                switch(thistile) {
                     case "0":
                         this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "dark", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(90);
                         break;
@@ -3410,6 +3565,7 @@ async create() {
         this.laserFunction();
         this.crearBarraSuperior();
         this.cargandoNivel = false;
+        this.flagCheck();
         this.animateEntrance();
     }
 
