@@ -1,4 +1,5 @@
-//TIPADO
+
+// TIPADO
 
 export type NivelEditor = {
   id: string;
@@ -7,6 +8,7 @@ export type NivelEditor = {
   ultimaModificacion: number;
   portales: number[][];
   links?: number[][];
+  darkLayer?: number[][];
 };
 
 type PortalAPI = {
@@ -40,6 +42,7 @@ type Cabecera = {
   idLocal: string;
   ultimaModificacion: number;
   links?: number[][];
+  darkLayer?: number[][];
 };
 
 const MARCA_CABECERA = "community/editor/1:";
@@ -109,7 +112,15 @@ export function editorAApi(nivel: NivelEditor, usuario: string, existente?: Nive
     idLocal: nivel.id,
     ultimaModificacion: nivel.ultimaModificacion
   };
-  if (nivel.links !== undefined) cabecera.links = copiarLinks(nivel.links, filas, columnas);
+
+  if (nivel.links !== undefined) {
+    cabecera.links = copiarLinks(nivel.links, filas, columnas);
+  }
+
+  if (nivel.darkLayer !== undefined) {
+    comprobarMatriz(nivel.darkLayer, filas, columnas);
+    cabecera.darkLayer = nivel.darkLayer;
+  }
 
   const elementos: ElementoAPI[] = [{
     tipo: { propiedadEspecial: MARCA_CABECERA + JSON.stringify(cabecera) },
@@ -149,7 +160,7 @@ export function editorAApi(nivel: NivelEditor, usuario: string, existente?: Nive
   return resultado;
 }
 
-//API A EDITOR
+// API A EDITOR
 
 export function apiAEditor(nivel: NivelAPI, idLocal?: string): NivelEditor {
   if (!Array.isArray(nivel.elementos) || nivel.elementos.length < 2) {
@@ -211,6 +222,7 @@ export function apiAEditor(nivel: NivelAPI, idLocal?: string): NivelEditor {
     portales[y][x] = datos[1];
     leidas[y][x] = true;
   }
+
   const resultado: NivelEditor = {
     id: cabecera.idLocal,
     nombre: nivel.nombre,
@@ -218,9 +230,17 @@ export function apiAEditor(nivel: NivelAPI, idLocal?: string): NivelEditor {
     ultimaModificacion: cabecera.ultimaModificacion,
     portales: portales
   };
+
   if (idLocal !== undefined) resultado.id = idLocal;
+
   if (cabecera.links !== undefined) {
     resultado.links = copiarLinks(cabecera.links, cabecera.filas, cabecera.columnas);
   }
+
+  if (cabecera.darkLayer !== undefined) {
+    comprobarMatriz(cabecera.darkLayer, cabecera.filas, cabecera.columnas);
+    resultado.darkLayer = cabecera.darkLayer;
+  }
+
   return resultado;
 }

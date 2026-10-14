@@ -208,18 +208,26 @@ export async function renombrarPublicacionBackend(id: number, nombre: string): P
 }
 
 export async function actualizarPublicacionBackend(
-  usuario: string, nivel: NivelEditor, publicacion: NivelBackend
+  usuario: string,
+  nivel: NivelEditor,
+  publicacion: NivelBackend
 ): Promise<void> {
   if (publicacion.usuario !== usuario) {
     throw new Error("Esta publicacion pertenece a otro usuario.");
   }
-
   await guardarNivelCreadoBackend(usuario, nivel.nombre, nivel);
-  const datos = editorAApi(nivel, usuario);
-  await pedir("/level/" + encodeURIComponent(publicacion.nombre), "PUT", {
-    nombre: nivel.nombre,
-    elementos: datos.elementos
-  });
+  const datos = editorAApi(nivel, usuario, publicacion);
+  if (nivel.nombre !== publicacion.nombre) {
+    await renombrarPublicacionBackend(
+      publicacion.id,
+      nivel.nombre
+    );
+  }
+  await pedir(
+    "/level/" + encodeURIComponent(nivel.nombre),
+    "PUT",
+    datos
+  );
 }
 
 // DESCARGAS Y PROGRESO DE COMMUNITY
