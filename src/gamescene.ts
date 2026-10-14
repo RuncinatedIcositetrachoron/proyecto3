@@ -539,8 +539,8 @@ nombre.setOrigin(0, 0.5);
             }
             this.saliendoDelNivel = true;
             this.entities = [];
-            for (let i = 0; i < this.lasers.length; i++) {
-                this.lasers[i].destroy();
+            for (const laser of this.lasers) {
+                this.destroyLaser(laser);
             }
             this.lasers = [];
             this.menuup = 0;
@@ -667,7 +667,7 @@ nombre.setOrigin(0, 0.5);
             }
             this.pantallaMuerte.setVisible(false);
         }
-        this.flagCheck(true);
+        this.flagCheck();
     }
 
     private crearPantallaMuerte() {
@@ -2290,46 +2290,6 @@ private cerrarMenuPausa() {
                 this.tempstorage3 = undefined;
                 this.playerMoving = false;
                 this.holdBufferOpen = false;
-                this.playerTween = undefined;
-            }
-        });
-    }
-    private animateEntrance() {
-        const player = this.entities.find(entity => entity.type === "player");
-        if (!player) return;
-        const finalX = this.offsetX + player.x * this.tilesize;
-        const finalY = this.offsetY + player.y * this.tilesize;
-        const startY = finalY + 3 * this.tilesize;
-        player.sprite.setPosition(finalX, startY);
-        player.sprite.setDepth(2 * player.y);
-        const region = new Phaser.Geom.Rectangle(0, 0, this.scale.width, this.scale.height-6*this.pixelmultiplier);
-        const masks = Phaser.Actions.AddMaskShape(player.sprite,{
-            shape: "rectangle",
-            region: region
-        });
-        const maskFilter = masks[0];
-        const maskShape = maskFilter.maskGameObject as Phaser.GameObjects.Rectangle;
-
-        this.playerMoving = true;
-        player.sprite.play(
-            "lindsey-up"
-        );
-
-        this.playerTween = this.tweens.add({
-            targets: player.sprite,
-            x: finalX,
-            y: finalY,
-            duration: this.lindseyspeed * 3,
-            ease: "Linear",
-            onComplete: () => {
-                player.sprite.stop();
-                player.sprite.setTexture("lindseyi", 0);
-                player.dir = 0;
-                if (player.sprite.filters) {
-                    player.sprite.filters.external.remove(maskFilter);
-                }
-                maskShape.destroy();
-                this.playerMoving = false;
                 this.playerTween = undefined;
             }
         });
