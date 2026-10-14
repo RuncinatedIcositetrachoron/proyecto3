@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { obtenerNivel, actualizarNivel, crearBoton } from "./niveles";
 import { convertirNivel } from "./parser";
 import { mostrarConfirmacion } from "./popup";
+import { TransitionScene } from "./transitionScene";
 
 interface EstadoEditor {
   tablero: number[][];
@@ -1839,7 +1840,12 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     if (this.hayCambiosSinGuardar() === false) {
-      this.scene.start("LevelsScene");
+      const transition = this.scene.get("transition") as TransitionScene;
+
+      transition.changeScene(
+      this.sys.settings.key,
+        "LevelsScene"
+      );
       return;
     }
 
@@ -1884,7 +1890,11 @@ this.bordeTooltipTile.setVisible(false);
       "Salir sin guardar",
       0xe57373,
       () => {
-        this.scene.start("LevelsScene");
+        const transition = this.scene.get("transition") as TransitionScene;
+        transition.changeScene(
+          this.sys.settings.key,
+          "LevelsScene"
+        );
       }
     );
 
@@ -4809,16 +4819,20 @@ this.bordeTooltipTile.setVisible(false);
       links: nivel.links,
       darkLayer: darkLayer
     });
+    const transition = this.scene.get("transition") as TransitionScene;
 
-    this.scene.launch("game", {
-      modoTest: true,
-      nivelTest: nivelTest,
-      nivelId: this.nivelId,
-      escenaAnterior: this.sys.settings.key,
-      testeando: true
-    });
-
-    this.scene.sleep();
+    transition.changeScene(
+      this.sys.settings.key,
+      "game",
+      {
+        modoTest: true,
+        nivelTest: nivelTest,
+        nivelId: this.nivelId,
+        escenaAnterior: this.sys.settings.key,
+        testeando: true
+      },
+      true
+    );
   }
 
 

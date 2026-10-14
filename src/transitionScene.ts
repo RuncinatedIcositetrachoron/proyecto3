@@ -1,0 +1,200 @@
+import Phaser from "phaser";
+
+export class TransitionScene extends Phaser.Scene {
+
+    private transition!: Phaser.GameObjects.Sprite;
+    private blocker!: Phaser.GameObjects.Rectangle;
+    private changing = false;
+
+    constructor() {
+        super({
+            key: "transition",
+            active: true
+        });
+    }
+
+    preload() {
+        this.load.spritesheet(
+            "transition",
+            "assets/transition.anim.png",
+            {
+                frameWidth: 192,
+                frameHeight: 108,
+            }
+        );
+    }
+
+    create() {
+        if (!this.anims.exists("transitionclose")) {
+            this.anims.create({
+                key: "transitionclose",
+                frames: [
+                    { key: "transition", frame: 0 },
+                    { key: "transition", frame: 1 },
+                    { key: "transition", frame: 2 },
+                    { key: "transition", frame: 3 },
+                    { key: "transition", frame: 4 },
+                    { key: "transition", frame: 5 },
+                ],
+                frameRate: 18,
+                repeat: 0
+            });
+        }
+
+        if (!this.anims.exists("transitionopen")) {
+            this.anims.create({
+                key: "transitionopen",
+                frames: [
+                    { key: "transition", frame: 5 },
+                    { key: "transition", frame: 4 },
+                    { key: "transition", frame: 3 },
+                    { key: "transition", frame: 2 },
+                    { key: "transition", frame: 1 },
+                    { key: "transition", frame: 0 },
+                ],
+                frameRate: 18,
+                repeat: 0
+            });
+        }
+
+        this.transition = this.add.sprite(
+            this.scale.width / 2,
+            this.scale.height / 2,
+            "transition",
+            0
+        );
+
+        this.transition.setOrigin(0.5);
+
+        const scaleX =
+            this.scale.width / this.transition.width;
+
+        const scaleY =
+            this.scale.height / this.transition.height;
+
+        const scale =
+            Math.max(scaleX, scaleY);
+
+        this.transition.setScale(scale);
+        this.transition.setVisible(false);
+
+        this.blocker = this.add.rectangle(
+            this.scale.width / 2,
+            this.scale.height / 2,
+            this.scale.width,
+            this.scale.height,
+            0x000000,
+            0
+        );
+
+        this.blocker.setInteractive();
+        this.blocker.setVisible(false);
+    }
+
+    private playTransition(
+        animation: string
+    ): Promise<void> {
+
+        return new Promise((resolve) => {
+
+            this.transition.setVisible(true);
+
+            this.transition.once(
+                Phaser.Animations.Events.ANIMATION_COMPLETE,
+                () => {
+                    resolve();
+                }
+            );
+
+            this.transition.play(animation);
+        });
+    }
+
+    private waitFrame(): Promise<void> {
+        return new Promise((resolve) => {
+            this.time.delayedCall(
+                0,
+                () => {
+                    resolve();
+                }
+            );
+        });
+    }
+
+    async changeScene(
+        oldScene: string,
+        newScene: string,
+        data: any = {},
+        sleepOld: boolean = false
+    ) {
+        if (this.changing) {
+            return;
+        }
+
+        this.changing = true;
+
+        this.blocker.setVisible(true);
+
+        this.scene.bringToTop("transition");
+
+        await this.playTransition(
+            "transitionclose"
+        );
+
+        const destinationSleeping =
+            this.scene.isSleeping(newScene);
+
+        if (destinationSleeping) {
+
+            if (sleepOld) {
+                this.scene.sleep(oldScene);
+            } else {
+                this.scene.stop(oldScene);
+            }
+
+            this.scene.wake(newScene);
+
+        } else {
+
+            const nextScene =
+                this.scene.get(newScene);
+
+            const sceneCreated =
+                new Promise<void>((resolve) => {
+
+                    nextScene.events.once(
+                        Phaser.Scenes.Events.CREATE,
+                        () => {
+                            resolve();
+                        }
+                    );
+                });
+
+            if (sleepOld) {
+                this.scene.sleep(oldScene);
+            } else {
+                this.scene.stop(oldScene);
+            }
+
+            this.scene.launch(
+                newScene,
+                data
+            );
+
+            await sceneCreated;
+        }
+
+        this.scene.bringToTop("transition");
+
+        await this.waitFrame();
+        
+        await this.playTransition(
+            "transitionopen"
+        );
+
+        this.transition.setVisible(false);
+        this.blocker.setVisible(false);
+
+        this.changing = false;
+    }
+}
