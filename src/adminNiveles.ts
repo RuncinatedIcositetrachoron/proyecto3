@@ -32,7 +32,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     return;
   }
   escena.exportacionAbierta = true;
-
+  if (demo.usuarioActual == null) { console.log ("your user does not exist‽‽‽‽‽‽"); return; }
   const usuario = demo.usuarioActual.nombre;
   const objetos: Phaser.GameObjects.GameObject[] = [];
   const activos: Phaser.GameObjects.GameObject[] = [];

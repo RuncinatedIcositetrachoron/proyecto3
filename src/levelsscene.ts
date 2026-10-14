@@ -18,6 +18,7 @@ import { demo } from "./datosDemo";
 import { NORMAL, VERDE, ROJO } from "./interfazDemo";
 import { mostrarConfirmacion } from "./popup";
 import { abrirExportacionOficiales } from "./adminNiveles";
+import { TransitionScene } from "./transitionScene";
 
 export class LevelsScene extends Phaser.Scene {
   escenaAnterior = "menu";
@@ -463,9 +464,16 @@ export class LevelsScene extends Phaser.Scene {
         "Test",
         async () => {
           await this.cerrarNombre(true);
-          this.scene.start("game", {
-            nivelId: nivel.id
-          });
+          const transition = this.scene.get("transition") as TransitionScene;
+          transition.changeScene(
+            this.sys.settings.key,
+            "game",
+            {
+                nivelId: nivel.id,
+                testeando: true,
+                escenaAnterior: this.sys.settings.key
+            },
+            true);
         },
         0xe6c56a
       );

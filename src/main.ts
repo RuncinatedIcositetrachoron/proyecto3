@@ -12,6 +12,7 @@ import { LevelsScene } from "./levelsscene";
 
 import { UsuariosDemoScene } from "./usuariosDemoScene";
 import { CommunityDemoScene } from "./communityDemoScene";
+import { TransitionScene } from "./transitionScene"
 
 await document.fonts.ready;
 
@@ -48,7 +49,8 @@ const config: Phaser.Types.Core.GameConfig = {
         CommunityScene,
         LevelsScene,
         UsuariosDemoScene,
-        CommunityDemoScene
+        CommunityDemoScene,
+        TransitionScene
     ]
 };
 

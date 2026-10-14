@@ -10,6 +10,7 @@ import {
     leerNivelOriginalBackend
 } from "./api";
 import { apiAEditor } from "./parserApi";
+import {TransitionScene} from "./transitionScene.ts"
 
 
 interface Entity {
@@ -93,7 +94,7 @@ const Tile = {
 export class GameScene extends Phaser.Scene {    
     private levelNumber = 1;
     private history: GameState[] = [];
-    private community: boolean = false;
+    private community: boolean = true;
 
     init(data: any) {
         this.nivelDescargado = null;
@@ -146,7 +147,7 @@ export class GameScene extends Phaser.Scene {
             data.nivelDescargado !== null
         ) {
             this.nivelDescargado = data.nivelDescargado;
-}
+        }
     }
 
     private idGlobalDescargado: number | null = null;
@@ -538,21 +539,12 @@ nombre.setOrigin(0, 0.5);
                 return;
             }
             this.saliendoDelNivel = true;
-            this.entities = [];
-            for (const laser of this.lasers) {
-                this.destroyLaser(laser);
-            }
-            this.lasers = [];
             this.menuup = 0;
             this.playerMoving = false;
             this.inputBuffer = "";
             this.holdBufferOpen = false;
-            if (this.scene.isSleeping(this.escenaAnterior)) {
-                this.scene.wake(this.escenaAnterior);
-                this.scene.stop();
-                return;
-            }
-            this.scene.start(this.escenaAnterior);
+            const transition = this.scene.get("transition") as TransitionScene;
+            transition.changeScene(this.sys.settings.key, this.escenaAnterior);
         }
 
         private ganarNivel() {
@@ -590,11 +582,15 @@ nombre.setOrigin(0, 0.5);
                 this.volver();
                 return;
             }
-            this.scene.start("game", {
+
+            const transition = this.scene.get("transition") as TransitionScene;
+            transition.changeScene(this.sys.settings.key, "game",
+                {
                 level: siguienteNivel,
                 escenaAnterior: this.escenaAnterior,
                 idsNivelesOficiales: this.idsNivelesOficiales
-            });
+                }
+            );
         }
 
     private undoMove() {
@@ -811,135 +807,121 @@ nombre.setOrigin(0, 0.5);
     }
 
 
-private abrirMenuPausa() {
-    if (this.menuup != 0) {
-        return;
-    }
-
-    this.menuup = 1;
-    this.inputBuffer = "";
-
-    const centroX = this.scale.width / 2;
-    const centroY = this.scale.height / 2;
-
-    const capa = this.add.rectangle(
-        centroX,
-        centroY,
-        this.scale.width,
-        this.scale.height,
-        0x080b17,
-        0.72
-    );
-
-    capa.setDepth(1000);
-    capa.setInteractive();
-
-    this.objetosMenuPausa.push(capa);
-
-    const sombra = this.add.rectangle(
-        centroX + 6,
-        centroY + 6,
-        424,
-        304,
-        0x080b17
-    );
-
-    sombra.setDepth(1001);
-
-    this.objetosMenuPausa.push(sombra);
-
-    const panel = this.add.rectangle(
-        centroX,
-        centroY,
-        420,
-        300,
-        0x171a2e
-    );
-
-    panel.setStrokeStyle(4, 0xb39ddb);
-    panel.setDepth(1002);
-
-    this.objetosMenuPausa.push(panel);
-
-    const titulo = this.add.text(
-        centroX,
-        centroY - 105,
-        "PAUSE",
-        {
-            fontFamily: "Fuente",
-            fontSize: "26px",
-            color: "#ffffff",
+    private abrirMenuPausa() {
+        if (this.menuup != 0) {
+            return;
         }
-    );
 
-    titulo.setOrigin(0.5);
-    titulo.setDepth(1003);
+        this.menuup = 1;
+        this.inputBuffer = "";
 
-    this.objetosMenuPausa.push(titulo);
+        const centroX = this.scale.width / 2;
+        const centroY = this.scale.height / 2;
 
-    let objetosBoton = this.crearBotonJuego(
-        centroX,
-        centroY - 35,
-        260,
-        "Continue",
-        0xcbdbfc,
-        1004,
-        () => {
-            this.cerrarMenuPausa();
-        }
-    );
+        const capa = this.add.rectangle(
+            centroX,
+            centroY,
+            this.scale.width,
+            this.scale.height,
+            0x080b17,
+            0.72
+        );
 
-    for (let i = 0; i < objetosBoton.length; i++) {
-        this.objetosMenuPausa.push(objetosBoton[i]);
-    }
+        capa.setDepth(1000);
+        capa.setInteractive();
 
-    objetosBoton = this.crearBotonJuego(
-        centroX,
-        centroY + 25,
-        260,
-        "Reset",
-        0xe6c56a,
-        1004,
-        () => {
-            this.cerrarMenuPausa();
-            this.reiniciarNivel();
-        }
-    );
+        this.objetosMenuPausa.push(capa);
 
-    for (let i = 0; i < objetosBoton.length; i++) {
-        this.objetosMenuPausa.push(objetosBoton[i]);
-    }
+        const sombra = this.add.rectangle(
+            centroX + 6,
+            centroY + 6,
+            424,
+            304,
+            0x080b17
+        );
 
-    objetosBoton = this.crearBotonJuego(
-        centroX,
-        centroY + 85,
-        260,
-        "Exit",
-        0xe57373,
-        1004,
-        () => {
-            this.entities = [];
-            for (const laser of this.lasers) {
-                this.destroyLaser(laser);
+        sombra.setDepth(1001);
+
+        this.objetosMenuPausa.push(sombra);
+
+        const panel = this.add.rectangle(
+            centroX,
+            centroY,
+            420,
+            300,
+            0x171a2e
+        );
+
+        panel.setStrokeStyle(4, 0xb39ddb);
+        panel.setDepth(1002);
+
+        this.objetosMenuPausa.push(panel);
+
+        const titulo = this.add.text(
+            centroX,
+            centroY - 105,
+            "PAUSE",
+            {
+                fontFamily: "Fuente",
+                fontSize: "26px",
+                color: "#ffffff",
             }
-            this.lasers = [];
-            this.menuup = 0;
-            this.playerMoving = false;
-            this.inputBuffer = "";
-            this.holdBufferOpen = false;
-            if (this.scene.isSleeping(this.escenaAnterior)) {
-                this.scene.wake(this.escenaAnterior);
-                this.scene.stop();
-                return;
-            }
-            this.scene.start(this.escenaAnterior);
-        }
-    );
+        );
 
-    for (let i = 0; i < objetosBoton.length; i++) {
-        this.objetosMenuPausa.push(objetosBoton[i]);
+        titulo.setOrigin(0.5);
+        titulo.setDepth(1003);
+
+        this.objetosMenuPausa.push(titulo);
+
+        let objetosBoton = this.crearBotonJuego(
+            centroX,
+            centroY - 35,
+            260,
+            "Continue",
+            0xcbdbfc,
+            1004,
+            () => {
+                this.cerrarMenuPausa();
+            }
+        );
+
+        for (let i = 0; i < objetosBoton.length; i++) {
+            this.objetosMenuPausa.push(objetosBoton[i]);
+        }
+
+        objetosBoton = this.crearBotonJuego(
+            centroX,
+            centroY + 25,
+            260,
+            "Reset",
+            0xe6c56a,
+            1004,
+            () => {
+                this.cerrarMenuPausa();
+                this.reiniciarNivel();
+            }
+        );
+
+        for (let i = 0; i < objetosBoton.length; i++) {
+            this.objetosMenuPausa.push(objetosBoton[i]);
+        }
+
+        objetosBoton = this.crearBotonJuego(
+            centroX,
+            centroY + 85,
+            260,
+            "Exit",
+            0xe57373,
+            1004,
+            () => {
+                this.volver();
+            }
+        );
+
+        for (let i = 0; i < objetosBoton.length; i++) {
+            this.objetosMenuPausa.push(objetosBoton[i]);
+        }
     }
-}
 private cerrarMenuPausa() {
     if (this.menuup != 1) {
         return;
@@ -1889,7 +1871,6 @@ private cerrarMenuPausa() {
         const flag = this.entities.find(entity => entity.type === "flag");
         if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
             this.animateLindseyExit(player);
-            this.ganarNivel();
             return true;
         }
         this.animatePlayer(player, facing);
@@ -2326,7 +2307,7 @@ private cerrarMenuPausa() {
         } else {
             player.sprite.play(
                 "lindseyenter"
-            )
+            ).setAlpha(0);
         }
 
         this.playerTween = this.tweens.add({
@@ -2334,6 +2315,7 @@ private cerrarMenuPausa() {
             x: finalX,
             y: finalY,
             duration: speed,
+            alpha: 1,
             ease: "Linear",
             onComplete: () => {
                 player.sprite.stop();
@@ -2370,12 +2352,7 @@ private cerrarMenuPausa() {
 
             onComplete: () => {
                 player.sprite.stop();
-                this.entities = [];
-                for (const laser of this.lasers) {
-                    this.destroyLaser(laser);
-                }
-                this.lasers = [];
-                this.scene.start("game", {level: this.levelNumber + 1});
+                this.ganarNivel();
             }
         });
     }
@@ -2389,10 +2366,6 @@ private cerrarMenuPausa() {
     ////////////////////
 
     preload() {
-        this.load.spritesheet("tiles", "assets/placeholders.png", {
-            frameWidth: 32,
-            frameHeight: 32,
-        });
         this.load.spritesheet("lindsey", "assets/lindsey.walking.anim.sheet.png", {
             frameWidth: 16,
             frameHeight: 28,
@@ -2581,11 +2554,10 @@ async create() {
                     { key: "lindseyi", frame: 2 },
                     { key: "lindseyi", frame: 3 }
                 ],
-                frameRate: this.animationspeed / 2.4,
+                frameRate: this.animationspeed / 2.5,
                 repeat: -1
             });
-        }
-        if (!this.anims.exists("laser-horizontal")) {
+
             this.anims.create({
                 key: "laser-horizontal",
                 frames: [
@@ -2601,7 +2573,6 @@ async create() {
                 frameRate: this.animationspeed*1.5,
                 repeat: -1
             });
-
             this.anims.create({
                 key: "laser-vertical",
                 frames: [
@@ -2767,8 +2738,6 @@ async create() {
                 frameRate: this.animationspeed*1.5,
                 repeat: -1
             });
-        }
-        if (!this.anims.exists("laserhead")) {
             this.anims.create({
                 key: "laserhead",
                 frames: [
@@ -2784,8 +2753,6 @@ async create() {
                 frameRate: this.animationspeed*1.2,
                 repeat: -1
             });
-        }
-        if (!this.anims.exists("dooropen")) {
             this.anims.create({
                 key: "dooropen",
                 frames: [
@@ -2824,7 +2791,6 @@ async create() {
                 frameRate: this.animationspeed*1,
                 repeat: 0
             });
-
         }
 
         this.qKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
