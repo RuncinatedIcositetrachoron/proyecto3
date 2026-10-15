@@ -44,6 +44,12 @@ export type NivelBackend = {
   cantidadDescargas: number;
 };
 
+function downloadProgressKey(usuario: string, nivel: NivelBackend): string {
+  return "LindseysLasersProgresoDescarga:" + JSON.stringify([
+    usuario, nivel.usuario, nivel.id, nivel.version
+  ]);
+}
+
 export type ArchivoGuardadoBackend = {
   username: string;
   nivelesCreados: NivelBackend[];
@@ -215,15 +221,19 @@ export async function actualizarPublicacionBackend(
   if (publicacion.usuario !== usuario) {
     throw new Error("Esta publicacion pertenece a otro usuario.");
   }
+
   await guardarNivelCreadoBackend(usuario, nivel.nombre, nivel);
+
   const datos = editorAApi(nivel, usuario, publicacion);
   datos.usuariosQueCompletaron = [];
+
   if (nivel.nombre !== publicacion.nombre) {
     await renombrarPublicacionBackend(
       publicacion.id,
       nivel.nombre
     );
   }
+
   await pedir(
     "/level/" + encodeURIComponent(nivel.nombre),
     "PUT",
@@ -238,21 +248,28 @@ export async function leerNivelesGuardadosBackend(usuario: string): Promise<Nive
   const guardados = archivo.nivelesGuardados;
   const autores: string[] = [];
   const publicaciones: NivelBackend[] = [];
+
   for (let i = 0; i < guardados.length; i++) {
     const autor = guardados[i].usuario;
+
     if (autores.indexOf(autor) === -1) {
       const niveles = await leerNivelesUsuario(autor);
       autores.push(autor);
+
       for (let j = 0; j < niveles.length; j++) {
         publicaciones.push(niveles[j]);
       }
     }
   }
+
   for (let i = 0; i < guardados.length; i++) {
     const descarga = guardados[i];
+
     descarga.usuariosQueCompletaron = [];
+
     for (let j = 0; j < publicaciones.length; j++) {
       const publicacion = publicaciones[j];
+
       if (
         publicacion.id === descarga.id &&
         publicacion.usuario === descarga.usuario &&
@@ -264,7 +281,14 @@ export async function leerNivelesGuardadosBackend(usuario: string): Promise<Nive
         break;
       }
     }
+    const progresoLocal = localStorage.getItem(
+      downloadProgressKey(usuario, descarga)
+    );
+
+    if (progresoLocal === "0") descarga.usuariosQueCompletaron = [];
+
   }
+
   return guardados;
 }
 
@@ -272,12 +296,16 @@ export async function descargarNivelBackend(usuario: string, nombre: string): Pr
   const publicado = await leerNivelPublicadoBackend(nombre);
   const guardados = await leerNivelesGuardadosBackend(usuario);
 
+  let actualizando = false;
+
   for (let i = 0; i < guardados.length; i++) {
     const anterior = guardados[i];
     if (anterior.id === publicado.id && anterior.usuario === publicado.usuario) {
       if (anterior.version === publicado.version && anterior.nombre === publicado.nombre) {
         return anterior;
       }
+
+      actualizando = true;
 
       await pedir("/deleteLevelUser/" + encodeURIComponent(anterior.nombre), "DELETE", {
         username: usuario
@@ -293,6 +321,11 @@ export async function descargarNivelBackend(usuario: string, nombre: string): Pr
   const nuevas = await leerNivelesGuardadosBackend(usuario);
   for (let i = 0; i < nuevas.length; i++) {
     if (nuevas[i].id === publicado.id && nuevas[i].usuario === publicado.usuario) {
+      if (actualizando) {
+        localStorage.setItem(downloadProgressKey(usuario, nuevas[i]), "0");
+        nuevas[i].usuariosQueCompletaron = [];
+      }
+
       return nuevas[i];
     }
   }
@@ -315,55 +348,71 @@ export async function eliminarNivelGuardadoBackend(usuario: string, id: number):
 export async function completarNivelDescargadoBackend(usuario: string, id: number): Promise<void> {
   const archivo = await leerArchivoGuardadoBackend(usuario);
   let descarga: NivelBackend | undefined;
+
   for (let i = 0; i < archivo.nivelesGuardados.length; i++) {
     if (archivo.nivelesGuardados[i].id === id) {
       descarga = archivo.nivelesGuardados[i];
       break;
     }
   }
+
   if (descarga === undefined) {
     throw new Error("No se encontro el nivel descargado.");
   }
+
   const publicaciones = await leerNivelesUsuario(descarga.usuario);
   let publicacion: NivelBackend | undefined;
+
   for (let i = 0; i < publicaciones.length; i++) {
     if (publicaciones[i].id === id && publicaciones[i].usuario === descarga.usuario) {
       publicacion = publicaciones[i];
       break;
     }
   }
+
   if (publicacion === undefined) {
     throw new Error("No se encontro la publicacion del nivel.");
   }
+
   if (publicacion.version !== descarga.version) {
     throw new Error(
       "El nivel tiene una nueva version. Actualizalo antes de volver a jugar."
     );
   }
+
   if (publicacion.usuariosQueCompletaron.indexOf(usuario) !== -1) {
+    localStorage.removeItem(downloadProgressKey(usuario, descarga));
     return;
   }
+
   let errorGuardado: unknown;
+
   try {
     await pedir("/level/" + encodeURIComponent(publicacion.nombre), "POST", { username: usuario });
   } catch (error) {
     errorGuardado = error;
   }
+
   const actualizadas = await leerNivelesUsuario(descarga.usuario);
+
   for (let i = 0; i < actualizadas.length; i++) {
     const actual = actualizadas[i];
+
     if (
       actual.id === id &&
       actual.usuario === descarga.usuario &&
       actual.version === descarga.version &&
       actual.usuariosQueCompletaron.indexOf(usuario) !== -1
     ) {
+      localStorage.removeItem(downloadProgressKey(usuario, descarga));
       return;
     }
   }
+
   if (errorGuardado !== undefined) {
     throw errorGuardado;
   }
+
   throw new Error("El servidor no guardo el progreso de la publicacion.");
 }
 
