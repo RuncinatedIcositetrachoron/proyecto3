@@ -141,7 +141,6 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     accion: () => void, color: number) {
     const inicio = escena.children.list.length;
     const fondo = crearBoton(escena, x, y, ancho, titulo, accion);
-    // crearBoton agrega sombra, fondo y texto en ese orden.
     const sombra = escena.children.list[inicio] as Phaser.GameObjects.Rectangle;
     const etiqueta = escena.children.list[inicio + 2] as Phaser.GameObjects.Text;
     objetos.push(sombra, fondo, etiqueta);

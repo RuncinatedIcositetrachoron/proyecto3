@@ -247,8 +247,6 @@ export class EditorScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor("#222034");
-
-    // No recortar ni ampliar un nivel existente con el tamaño fijo del editor.
     this.columns = 15;
     this.rows = 9;
 
@@ -2987,8 +2985,6 @@ this.bordeTooltipTile.setVisible(false);
       this.hayPlacaEn(link[2], link[3])
     );
   }
-
-  // Buscar SOLO el par portal-portal, no el link de la placa.
   private buscarLinkDePortal(columna: number, fila: number): number {
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
@@ -3073,7 +3069,6 @@ this.bordeTooltipTile.setVisible(false);
       return cantidadPares + 1 <= 5;
     }
 
-    // Una placa solo puede vincularse a un portal que ya tiene pareja.
     if (placaInicio && portalFinal) {
       return this.buscarLinkDePortal(x2, y2) !== -1;
     }
@@ -3285,7 +3280,6 @@ this.bordeTooltipTile.setVisible(false);
         this.hayPortalEn(inicioX, inicioY) &&
         this.hayPortalEn(this.mouseX, this.mouseY)
       ) {
-        // Enlazar dos portales reemplaza sus pares anteriores, no sus placas.
         const linkInicio = this.buscarLinkDePortal(inicioX, inicioY);
         const linkFinal = this.buscarLinkDePortal(this.mouseX, this.mouseY);
 
@@ -3305,7 +3299,6 @@ this.bordeTooltipTile.setVisible(false);
 
         this.links.push([inicioX, inicioY, this.mouseX, this.mouseY]);
       } else {
-        // Normalizar el link para almacenar siempre [placaX, placaY, portalX, portalY].
         let placaX = inicioX;
         let placaY = inicioY;
         let portalX = this.mouseX;
@@ -3327,8 +3320,6 @@ this.bordeTooltipTile.setVisible(false);
         this.links.push([placaX, placaY, portalX, portalY]);
       }
     } else {
-      // Igual que antes: arrastrar desde un origen hacia un destino invalido
-      // permite quitar su link.
       const anterior = this.buscarLinkDeCasilla(inicioX, inicioY);
 
       if (anterior !== -1) {
@@ -4837,8 +4828,6 @@ this.bordeTooltipTile.setVisible(false);
 
 
   private actualizarParedesConexas(columna: number, fila: number): void {
-    // Solo se recalcula la pared editada y la celda inmediatamente debajo.
-    // Asi abrir/editar un nivel no reescribe paredes ajenas al cambio.
     for (let y = fila; y <= fila + 1; y++) {
       if (y < 0 || y >= this.rows) {
         continue;

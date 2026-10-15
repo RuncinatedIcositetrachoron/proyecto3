@@ -217,6 +217,7 @@ export async function actualizarPublicacionBackend(
   }
   await guardarNivelCreadoBackend(usuario, nivel.nombre, nivel);
   const datos = editorAApi(nivel, usuario, publicacion);
+  datos.usuariosQueCompletaron = [];
   if (nivel.nombre !== publicacion.nombre) {
     await renombrarPublicacionBackend(
       publicacion.id,
@@ -234,7 +235,37 @@ export async function actualizarPublicacionBackend(
 
 export async function leerNivelesGuardadosBackend(usuario: string): Promise<NivelBackend[]> {
   const archivo = await leerArchivoGuardadoBackend(usuario);
-  return archivo.nivelesGuardados;
+  const guardados = archivo.nivelesGuardados;
+  const autores: string[] = [];
+  const publicaciones: NivelBackend[] = [];
+  for (let i = 0; i < guardados.length; i++) {
+    const autor = guardados[i].usuario;
+    if (autores.indexOf(autor) === -1) {
+      const niveles = await leerNivelesUsuario(autor);
+      autores.push(autor);
+      for (let j = 0; j < niveles.length; j++) {
+        publicaciones.push(niveles[j]);
+      }
+    }
+  }
+  for (let i = 0; i < guardados.length; i++) {
+    const descarga = guardados[i];
+    descarga.usuariosQueCompletaron = [];
+    for (let j = 0; j < publicaciones.length; j++) {
+      const publicacion = publicaciones[j];
+      if (
+        publicacion.id === descarga.id &&
+        publicacion.usuario === descarga.usuario &&
+        publicacion.version === descarga.version &&
+        Array.isArray(publicacion.usuariosQueCompletaron) &&
+        publicacion.usuariosQueCompletaron.indexOf(usuario) !== -1
+      ) {
+        descarga.usuariosQueCompletaron.push(usuario);
+        break;
+      }
+    }
+  }
+  return guardados;
 }
 
 export async function descargarNivelBackend(usuario: string, nombre: string): Promise<NivelBackend> {
@@ -282,29 +313,58 @@ export async function eliminarNivelGuardadoBackend(usuario: string, id: number):
 }
 
 export async function completarNivelDescargadoBackend(usuario: string, id: number): Promise<void> {
-  const guardados = await leerNivelesGuardadosBackend(usuario);
-  let descarga: NivelBackend | null = null;
-
-  for (let i = 0; i < guardados.length; i++) {
-    if (guardados[i].id === id) {
-      descarga = guardados[i];
+  const archivo = await leerArchivoGuardadoBackend(usuario);
+  let descarga: NivelBackend | undefined;
+  for (let i = 0; i < archivo.nivelesGuardados.length; i++) {
+    if (archivo.nivelesGuardados[i].id === id) {
+      descarga = archivo.nivelesGuardados[i];
       break;
     }
   }
-
-  if (descarga === null) throw new Error("No se encontro el nivel descargado.");
-  if (descarga.usuariosQueCompletaron.indexOf(usuario) !== -1) return;
-
-  await pedir("/level/" + encodeURIComponent(descarga.nombre), "POST", { username: usuario });
-
-  const actualizados = await leerNivelesGuardadosBackend(usuario);
-  for (let i = 0; i < actualizados.length; i++) {
-    if (actualizados[i].id === id &&
-        actualizados[i].usuariosQueCompletaron.indexOf(usuario) !== -1) {
+  if (descarga === undefined) {
+    throw new Error("No se encontro el nivel descargado.");
+  }
+  const publicaciones = await leerNivelesUsuario(descarga.usuario);
+  let publicacion: NivelBackend | undefined;
+  for (let i = 0; i < publicaciones.length; i++) {
+    if (publicaciones[i].id === id && publicaciones[i].usuario === descarga.usuario) {
+      publicacion = publicaciones[i];
+      break;
+    }
+  }
+  if (publicacion === undefined) {
+    throw new Error("No se encontro la publicacion del nivel.");
+  }
+  if (publicacion.version !== descarga.version) {
+    throw new Error(
+      "El nivel tiene una nueva version. Actualizalo antes de volver a jugar."
+    );
+  }
+  if (publicacion.usuariosQueCompletaron.indexOf(usuario) !== -1) {
+    return;
+  }
+  let errorGuardado: unknown;
+  try {
+    await pedir("/level/" + encodeURIComponent(publicacion.nombre), "POST", { username: usuario });
+  } catch (error) {
+    errorGuardado = error;
+  }
+  const actualizadas = await leerNivelesUsuario(descarga.usuario);
+  for (let i = 0; i < actualizadas.length; i++) {
+    const actual = actualizadas[i];
+    if (
+      actual.id === id &&
+      actual.usuario === descarga.usuario &&
+      actual.version === descarga.version &&
+      actual.usuariosQueCompletaron.indexOf(usuario) !== -1
+    ) {
       return;
     }
   }
-  throw new Error("El servidor no guardo el progreso de la descarga.");
+  if (errorGuardado !== undefined) {
+    throw errorGuardado;
+  }
+  throw new Error("El servidor no guardo el progreso de la publicacion.");
 }
 
 // NIVELES ORIGINALES (OG)
