@@ -100,7 +100,6 @@ export async function crearNivel(filas: number, columnas: number): Promise<Nivel
     tablero.push(nuevaFila);
   }
 
-  // Construir bordes solo cuando se crea un nivel nuevo.
   for (let x = 0; x < columnas; x++) {
     tablero[0][x] = 39;
     tablero[filas - 1][x] = 39;
@@ -111,7 +110,6 @@ export async function crearNivel(filas: number, columnas: number): Promise<Nivel
   }
   tablero[1][1] = 66; // TILE JUGADOR
   tablero[0][Math.floor(columnas / 2)] = 25; // TILE SALIDA (CENTRO SUPERIOR)
-  // Paredes conectadas, calculadas solamente en el nivel nuevo.
   for (let y = 1; y < filas; y++) {
     for (let x = 0; x < columnas; x++) {
       if (
@@ -445,7 +443,6 @@ export async function duplicarNivel(id: string): Promise<Nivel | undefined> {
     links: linksCopiados,
   };
 
-  // Conservar la sexta capa al duplicar niveles que ya la contienen.
   if (original.darkLayer !== undefined) {
     duplicado.darkLayer = copiarMatriz(original.darkLayer);
   }
