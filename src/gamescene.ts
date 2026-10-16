@@ -6,6 +6,7 @@ import { convertirNivel } from "./parser";
 import { demo } from "./datosDemo";
 import {
     completarNivelDescargadoBackend,
+    completarNivelOriginalBackend,
     leerNivelesOriginalesBackend,
     leerNivelOriginalBackend
 } from "./api";
@@ -554,7 +555,7 @@ nombre.setOrigin(0, 0.5);
             transition.changeScene(this.sys.settings.key, this.escenaAnterior);
         }
 
-        private ganarNivel() {
+        private async ganarNivel() {
             if (this.saliendoDelNivel) {
                 return;
             }
@@ -569,6 +570,22 @@ nombre.setOrigin(0, 0.5);
             }
 
             this.saliendoDelNivel = true;
+
+            const usuario = demo.usuarioActual;
+            if (usuario !== null && usuario !== undefined && usuario.id !== 0) {
+                try {
+                    await completarNivelOriginalBackend(
+                        usuario.nombre,
+                        this.levelNumber,
+                        1
+                    );
+                } catch (error) {
+                    window.alert(
+                        "Se gano el nivel, pero no se pudo guardar el progreso:\n\n" +
+                        String(error)
+                    );
+                }
+            }
             if (this.escenaAnterior === "selectscene") {
                 const selector: any = this.scene.get("selectscene");
                 if (typeof selector.marcarNivelCompletado === "function") {
@@ -4004,7 +4021,7 @@ async create() {
     }
 
     update() {
-        if (this.saliendoDelNivel) {
+        if (this.saliendoDelNivel || this.cargandoNivel) {
          return;
         }
         if (Phaser.Input.Keyboard.JustDown(this.escKey)) {

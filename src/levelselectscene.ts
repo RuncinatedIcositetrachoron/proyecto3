@@ -1,7 +1,8 @@
 import Phaser from "phaser";
 import { crearBoton } from "./niveles";
-import { leerNivelesOriginalesBackend } from "./api";
+import { leerNivelesOriginalesBackend, leerProgresoOriginalBackend } from "./api";
 import type { NivelBackend } from "./api";
+import { demo } from "./datosDemo";
 
 export class LevelselectScene extends Phaser.Scene {
   totalNiveles = 0;
@@ -16,6 +17,9 @@ export class LevelselectScene extends Phaser.Scene {
 
   paginaActual = 0;
   nivelesCompletados = 0;
+  progresoOficial: boolean[] = [];
+  archivoGuardado = 1;
+  usuarioProgreso = "";
 
   constructor() {
     super("selectscene");
@@ -27,6 +31,17 @@ export class LevelselectScene extends Phaser.Scene {
       this.numeroCarga++;
     });
 
+    const usuario = demo.usuarioActual;
+    let usuarioProgreso = "";
+    if (usuario !== null && usuario !== undefined) {
+      usuarioProgreso = usuario.id + ":" + usuario.nombre;
+    }
+    if (this.usuarioProgreso !== usuarioProgreso) {
+      this.progresoOficial = [];
+      this.nivelesCompletados = 0;
+      this.usuarioProgreso = usuarioProgreso;
+    }
+
     this.nivelesOficiales = [];
     this.totalNiveles = 0;
     this.mensajeNiveles = "Cargando niveles...";
@@ -34,6 +49,10 @@ export class LevelselectScene extends Phaser.Scene {
 
     try {
       const oficiales = await leerNivelesOriginalesBackend();
+      let progreso = this.progresoOficial;
+      if (usuario !== null && usuario !== undefined && usuario.id !== 0) {
+        progreso = await leerProgresoOriginalBackend(usuario.nombre, this.archivoGuardado);
+      }
       if (cargaActual !== this.numeroCarga) {
         return;
       }
@@ -44,13 +63,15 @@ export class LevelselectScene extends Phaser.Scene {
 
       this.nivelesOficiales = oficiales;
       this.totalNiveles = oficiales.length;
+      this.progresoOficial = progreso;
+      this.nivelesCompletados = this.cantidadCompletados();
       this.mensajeNiveles = "";
     } catch (error) {
       if (cargaActual !== this.numeroCarga) {
         return;
       }
 
-      this.mensajeNiveles = "No se pudieron cargar los niveles oficiales.";
+      this.mensajeNiveles = "No se pudieron cargar los niveles oficiales o su progreso.";
       this.dibujar();
       return;
     }
@@ -271,7 +292,8 @@ export class LevelselectScene extends Phaser.Scene {
       return;
     }
 
-    this.nivelesCompletados++;
+    const nivel = this.nivelesOficiales[this.siguienteNivel() - 1];
+    this.marcarNivelCompletado(nivel.id);
     const siguiente = this.siguienteNivel();
     if (siguiente <= this.totalNiveles) {
       this.paginaActual = Math.floor((siguiente - 1) / this.nivelesPorPagina);
@@ -293,18 +315,30 @@ export class LevelselectScene extends Phaser.Scene {
   }
 
   nivelCompletado(numeroNivel: number) {
-    if (numeroNivel <= this.nivelesCompletados) {
-      return true;
+    const nivel = this.nivelesOficiales[numeroNivel - 1];
+    if (nivel === undefined) {
+      return false;
     }
-    return false;
+    return this.progresoOficial[nivel.id - 1] === true;
   }
 
   cantidadCompletados() {
-    return this.nivelesCompletados;
+    let cantidad = 0;
+    for (let i = 1; i <= this.totalNiveles; i++) {
+      if (this.nivelCompletado(i)) {
+        cantidad++;
+      }
+    }
+    return cantidad;
   }
 
   siguienteNivel() {
-    return (this.nivelesCompletados + 1);
+    for (let i = 1; i <= this.totalNiveles; i++) {
+      if (this.nivelCompletado(i) === false) {
+        return i;
+      }
+    }
+    return this.totalNiveles + 1;
   }
 
   boton(
@@ -336,9 +370,8 @@ export class LevelselectScene extends Phaser.Scene {
   marcarNivelCompletado(id: number) {
     for (let i = 0; i < this.nivelesOficiales.length; i++) {
       if (this.nivelesOficiales[i].id === id) {
-        if (i === this.nivelesCompletados) {
-          this.nivelesCompletados++;
-        }
+        this.progresoOficial[id - 1] = true;
+        this.nivelesCompletados = this.cantidadCompletados();
         return;
       }
     }
