@@ -6,7 +6,8 @@ export function mostrarConfirmacion(
   mensaje: string,
   textoAccion: string,
   colorAccion: number,
-  accion: () => void
+  accion: () => void,
+  mostrarCancelar = true
 ) {
   const activos: Phaser.GameObjects.GameObject[] = [];
   const campos: Phaser.GameObjects.GameObject[] = [];
@@ -250,15 +251,20 @@ export function mostrarConfirmacion(
 
   const separacionCentros = (anchoTexto + 20) / 4;
 
-  crearBotonPopup(
-    centroX - separacionCentros,
-    "Cancelar",
-    0x95add6,
-    () => {}
-  );
+  let xAccion = centroX;
+
+  if (mostrarCancelar) {
+    crearBotonPopup(
+      centroX - separacionCentros,
+      "Cancelar",
+      0x95add6,
+      () => {}
+    );
+    xAccion = centroX + separacionCentros;
+  }
 
   crearBotonPopup(
-    centroX + separacionCentros,
+    xAccion,
     textoAccion,
     colorAccion,
     accion
@@ -271,5 +277,21 @@ export function mostrarConfirmacion(
   escena.events.once(
     Phaser.Scenes.Events.SHUTDOWN,
     cerrar
+  );
+}
+
+export function mostrarAviso(
+  escena: Phaser.Scene,
+  titulo: string,
+  mensaje: string
+) {
+  mostrarConfirmacion(
+    escena,
+    titulo,
+    mensaje,
+    "Entendido",
+    0xe6c56a,
+    () => {},
+    false
   );
 }
