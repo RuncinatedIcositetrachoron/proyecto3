@@ -37,16 +37,17 @@ const tablaTiles: ConversionTile[] = [
   { capa: 2, caracter: "d" }, // 14 Emisor derecha
 
   { capa: -1, caracter: "" }, // 15 Piso visual
-  { capa: -1, caracter: "" }, // 16
-  { capa: -1, caracter: "" }, // 17
-  { capa: -1, caracter: "" }, // 18
-  { capa: -1, caracter: "" }, // 19
-  { capa: -1, caracter: "" }, // 20
-  { capa: -1, caracter: "" }, // 21
-  { capa: -1, caracter: "" }, // 22
-  { capa: -1, caracter: "" }, // 23
 
-  { capa: -1, caracter: "" }, // 24
+  { capa: 0, caracter: "0" },  // 16 Borde - frame 15
+  { capa: 0, caracter: "1" },  // 17 Borde - frame 16
+  { capa: 0, caracter: "2" },  // 18 Borde - frame 17
+  { capa: 0, caracter: "3" },  // 19 Borde - frame 18
+  { capa: 0, caracter: "4" },  // 20 Borde - frame 19
+  { capa: 0, caracter: "5" },  // 21 Borde - frame 20
+  { capa: 0, caracter: "6" },  // 22 Borde - frame 21
+  { capa: 0, caracter: "7" },  // 23 Borde - frame 22
+  { capa: 0, caracter: "8" },  // 24 Borde - frame 23
+
   { capa: 0, caracter: "f" }, // 25 Salida
   { capa: -1, caracter: "" }, // 26
 

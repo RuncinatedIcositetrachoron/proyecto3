@@ -3352,7 +3352,7 @@ async create() {
                             });
                             break;
                         }
-                    case "t":
+                    case "1":
                         this.entities.push ({
                         type: "wall",
                         x: x,
@@ -3361,16 +3361,7 @@ async create() {
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 16).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
-                    case "f":
-                        this.entities.push ({
-                        type: "wall",
-                        x: x,
-                        y: y,
-                        pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 18).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
-                        });
-                        break;
-                    case "b":
+                    case "2":
                         this.entities.push ({
                         type: "wall",
                         x: x,
@@ -3379,7 +3370,16 @@ async create() {
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 17).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
-                    case "h":
+                    case "3":
+                        this.entities.push ({
+                        type: "wall",
+                        x: x,
+                        y: y,
+                        pushable: false,
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 18).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        });
+                        break;
+                    case "4":
                         this.entities.push ({
                         type: "wall",
                         x: x,
@@ -3388,7 +3388,7 @@ async create() {
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 19).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
-                    case "r":
+                    case "5":
                         this.entities.push ({
                         type: "wall",
                         x: x,
@@ -3397,25 +3397,7 @@ async create() {
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 20).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
-                    case "v":
-                        this.entities.push ({
-                        type: "wall",
-                        x: x,
-                        y: y,
-                        pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 23).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
-                        });
-                        break;
-                    case "y":
-                        this.entities.push ({
-                        type: "wall",
-                        x: x,
-                        y: y,
-                        pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 22).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
-                        });
-                        break;
-                    case "n":
+                    case "6":
                         this.entities.push ({
                         type: "wall",
                         x: x,
@@ -3424,8 +3406,26 @@ async create() {
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 21).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
-                    case "g": 
-                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 14).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-1);
+                    case "7":
+                        this.entities.push ({
+                        type: "wall",
+                        x: x,
+                        y: y,
+                        pushable: false,
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 22).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        });
+                        break;
+                    case "8":
+                        this.entities.push ({
+                        type: "wall",
+                        x: x,
+                        y: y,
+                        pushable: false,
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 23).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        });
+                        break;
+                    case "0": 
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 15).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-1);
                         break;
                     case "X":
                         this.entities.push ({
