@@ -5,6 +5,9 @@ export class TransitionScene extends Phaser.Scene {
     private transition!: Phaser.GameObjects.Sprite;
     private blocker!: Phaser.GameObjects.Rectangle;
     private changing = false;
+    private oldDomZIndex = "";
+    private oldCanvasPosition = "";
+    private oldCanvasZIndex = "";
 
     constructor() {
         super({
@@ -91,6 +94,36 @@ export class TransitionScene extends Phaser.Scene {
         this.blocker.setVisible(false);
     }
 
+    private putDomBehindCanvas() {
+        const domContainer = this.game.domContainer;
+        const canvas = this.game.canvas;
+
+        if (!domContainer) {
+            return;
+        }
+
+        this.oldDomZIndex = domContainer.style.zIndex;
+        this.oldCanvasPosition = canvas.style.position;
+        this.oldCanvasZIndex = canvas.style.zIndex;
+
+        domContainer.style.zIndex = "0";
+        canvas.style.position = "relative";
+        canvas.style.zIndex = "1";
+    }
+
+    private restoreDom() {
+        const domContainer = this.game.domContainer;
+        const canvas = this.game.canvas;
+
+        if (!domContainer) {
+            return;
+        }
+
+        domContainer.style.zIndex = this.oldDomZIndex;
+        canvas.style.position = this.oldCanvasPosition;
+        canvas.style.zIndex = this.oldCanvasZIndex;
+    }
+
     private playTransition(
         animation: string
     ): Promise<void> {
@@ -136,6 +169,8 @@ export class TransitionScene extends Phaser.Scene {
         this.blocker.setVisible(true);
 
         this.scene.bringToTop("transition");
+
+        this.putDomBehindCanvas();
 
         await this.playTransition(
             "transitionclose"
@@ -194,6 +229,8 @@ export class TransitionScene extends Phaser.Scene {
 
         this.transition.setVisible(false);
         this.blocker.setVisible(false);
+
+        this.restoreDom();
 
         this.changing = false;
     }
