@@ -195,7 +195,7 @@ export class LevelsScene extends Phaser.Scene {
       },
       0xb39ddb
     );
-    this.boton(690, centroTitulo, 160, "Exportar", async () => {
+    this.boton(680, centroTitulo, 160, "Exportar JSON", async () => {
       await this.cerrarNombre(true);
       abrirExportacionOficiales(this);
     }, 0xffd166);

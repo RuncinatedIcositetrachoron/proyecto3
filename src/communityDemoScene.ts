@@ -4,7 +4,7 @@ import { InterfazDemo, VERDE, ROJO, NORMAL } from "./interfazDemo";
 import { demo } from "./datosDemo";
 import { obtenerNiveles, crearBoton, cargarNivelesServidor } from "./niveles";
 import { crearCampoTexto, MAX_BUSQUEDA } from "./camposTexto";
-import { mostrarConfirmacion } from "./popup";
+import { mostrarConfirmacion, mostrarAviso } from "./popup";
 import {
   leerPublicaciones, leerNivelesUsuario, leerNivelesGuardadosBackend,
   publicarNivelBackend, actualizarPublicacionBackend, despublicarNivelBackend,
@@ -105,14 +105,28 @@ export class CommunityDemoScene extends InterfazDemo {
     return !this.matricesIguales(this.obtenerLinksNivel(nivel), this.obtenerLinksNivel(publicacion));
   }
 
-  async operar(accion: () => Promise<void>, titulo = "No se pudieron cargar los niveles"): Promise<boolean> {
+  async operar(
+    accion: () => Promise<void>,
+    titulo = "No se pudieron cargar los niveles"
+  ): Promise<boolean> {
     if (this.accionEnCurso) return false;
     this.accionEnCurso = true;
     try {
       await accion();
       return true;
     } catch (error: any) {
-      if (this.scene.isActive()) window.alert(titulo + "\n\n" + (error.message || String(error)));
+      if (this.scene.isActive()) {
+        const mensaje = error.message || String(error);
+        if (mensaje.indexOf("Ya existe otra publicacion con ese nombre.") !== -1) {
+          mostrarAviso(
+            this,
+            "Nombre no disponible",
+            "Ya existe otra publicación con ese nombre.\n\nElegí otro nombre para tu nivel y volvé a intentar."
+          );
+        } else {
+          window.alert(titulo + "\n\n" + mensaje);
+        }
+      }
       return false;
     } finally {
       this.accionEnCurso = false;
