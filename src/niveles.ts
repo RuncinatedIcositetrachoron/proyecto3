@@ -101,15 +101,23 @@ export async function crearNivel(filas: number, columnas: number): Promise<Nivel
   }
 
   for (let x = 0; x < columnas; x++) {
-    tablero[0][x] = 39;
-    tablero[filas - 1][x] = 39;
+    tablero[0][x] = 16;
+    tablero[filas - 1][x] = 16;
+    if (!(x == 0 || x == 1 || x == columnas - 1 || x == columnas - 2)) tablero[1][x] = 17;
+    if (!(x == 0 || x == 1 || x == columnas - 1 || x == columnas- 2)) tablero[filas-2][x] = 20;
   }
   for (let y = 0; y < filas; y++) {
-    tablero[y][0] = 39;
-    tablero[y][columnas - 1] = 39;
+    tablero[y][0] = 16;
+    tablero[y][columnas - 1] = 16;
+    if (!(y == 0 || y == 1 || y == filas - 1 || y == filas - 2)) tablero[y][1] = 19;
+    if (!(y == 0 || y == 1 || y == filas - 1 || y == filas - 2)) tablero[y][columnas-2] = 18;
   }
-  tablero[1][1] = 66; // TILE JUGADOR
-  tablero[0][Math.floor(columnas / 2)] = 25; // TILE SALIDA (CENTRO SUPERIOR)
+  tablero[1][1] = 21;
+  tablero[1][columnas-2] = 22;
+  tablero[filas-2][1] = 24;
+  tablero[filas-2][columnas-2] = 23;
+  tablero[2][2] = 66; // TILE JUGADOR
+  tablero[1][Math.floor(columnas / 2)] = 25; // TILE SALIDA (CENTRO SUPERIOR)
   for (let y = 1; y < filas; y++) {
     for (let x = 0; x < columnas; x++) {
       if (

@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { crearBoton } from "./niveles";
 import { demo, cerrarSesion, esInvitado } from "./datosDemo";
+import { TransitionScene } from "./transitionScene";
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -150,13 +151,21 @@ export class MenuScene extends Phaser.Scene {
 
     enlaceCuenta.on("pointerdown", () => {
       cerrarSesion();
-      this.scene.start("usuariosDemo");
+      const transition = this.scene.get("transition") as TransitionScene;
+      transition.changeScene(
+        this.sys.settings.key,
+        "usuariosDemo",
+      );
     });
   }
 
   abrirOpcion(opcion: number) {
     if (demo.usuarioActual === null || demo.usuarioActual === undefined) {
-      this.scene.start("usuariosDemo");
+      const transition = this.scene.get("transition") as TransitionScene;
+      transition.changeScene(
+        this.sys.settings.key,
+        "usuariosDemo",
+      );
       return;
     }
 
@@ -164,23 +173,35 @@ export class MenuScene extends Phaser.Scene {
       return;
     }
 
+    const transition = this.scene.get("transition") as TransitionScene;
     switch (opcion) {
       case 0:
-        this.scene.start("selectscene");
+      transition.changeScene(
+        this.sys.settings.key,
+        "selectscene",
+      );
         break;
 
       case 1:
-        this.scene.start("communityDemo");
+      transition.changeScene(
+        this.sys.settings.key,
+        "communityDemo",
+      );
         break;
 
       case 2:
-        this.scene.start("LevelsScene", {
-          escenaAnterior: "menu"
-        });
+      transition.changeScene(
+        this.sys.settings.key,
+        "LevelsScene", 
+        {escenaAnterior: "menu"}
+      );
         break;
 
       case 3:
-        this.scene.start("credits");
+      transition.changeScene(
+        this.sys.settings.key,
+        "credits",
+      );
         break;
     }
   }
