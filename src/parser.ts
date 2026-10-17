@@ -58,8 +58,8 @@ const tablaTiles: ConversionTile[] = [
   { capa: -1, caracter: "" }, // 31
   { capa: -1, caracter: "" }, // 32
 
-  { capa: -1, caracter: "" }, // 33 Maquinaria doble: izquierda
-  { capa: -1, caracter: "" }, // 34 Maquinaria doble: derecha
+  { capa: 1, caracter: "c" }, // 33 Maquinaria doble: izquierda
+  { capa: 1, caracter: "v" }, // 34 Maquinaria doble: derecha
   { capa: -1, caracter: "" }, // 35 Relieve de 33
   { capa: -1, caracter: "" }, // 36 Relieve de 34
 
@@ -68,14 +68,14 @@ const tablaTiles: ConversionTile[] = [
   { capa: 0, caracter: "#" }, // 39 Pared
   { capa: -1, caracter: "" }, // 40 Relieve de pared
 
-  { capa: -1, caracter: "" }, // 41 Maquinaria simple (pendiente)
+  { capa: 1, caracter: "z" }, // 41 Maquinaria simple (pendiente)
   { capa: -1, caracter: "" }, // 42 Relieve de maquinaria simple
 
-  { capa: -1, caracter: "" }, // 43 Parte de maquinaria 201
-  { capa: -1, caracter: "" }, // 44 Parte de maquinaria 201
-  { capa: -1, caracter: "" }, // 45 Parte de maquinaria 201
-  { capa: -1, caracter: "" }, // 46 Parte de maquinaria 201
-  { capa: -1, caracter: "" }, // 47 Parte de maquinaria 201
+  { capa: 1, caracter: "x" }, // 43 Parte de maquinaria 201
+  { capa: 1, caracter: "a" }, // 44 Parte de maquinaria 201
+  { capa: 1, caracter: "s" }, // 45 Parte de maquinaria 201
+  { capa: 1, caracter: "q" }, // 46 Parte de maquinaria 201
+  { capa: 1, caracter: "w" }, // 47 Parte de maquinaria 201
   { capa: -1, caracter: "" }, // 48 Relieve de 46
   { capa: -1, caracter: "" }, // 49 Relieve de 47
 

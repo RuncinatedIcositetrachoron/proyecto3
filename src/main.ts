@@ -7,7 +7,6 @@ import { OptionsScene } from "./optionsscene";
 import { CreditsScene } from "./creditsscene";
 import { EditorScene } from "./editorscene";
 import { LevelselectScene } from "./levelselectscene";
-import { CommunityScene } from "./communityscene";
 import { LevelsScene } from "./levelsscene";
 
 import { UsuariosDemoScene } from "./usuariosDemoScene";
@@ -46,7 +45,6 @@ const config: Phaser.Types.Core.GameConfig = {
         CreditsScene,
         EditorScene,
         LevelselectScene,
-        CommunityScene,
         LevelsScene,
         UsuariosDemoScene,
         CommunityDemoScene,

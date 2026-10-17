@@ -2,6 +2,7 @@ import { InterfazDemo } from "./interfazDemo";
 import { demo, guardarSesion, continuarComoInvitado } from "./datosDemo";
 import { crearCampoTexto } from "./camposTexto";
 import { autenticarPerfil, registrarPerfil } from "./api";
+import { TransitionScene } from "./transitionScene";
 
 export class UsuariosDemoScene extends InterfazDemo {
 
@@ -345,8 +346,11 @@ export class UsuariosDemoScene extends InterfazDemo {
 
         nombre.blur();
         clave.blur();
-
-        this.scene.start("menu");
+        const transition = this.scene.get("transition") as TransitionScene;
+        transition.changeScene(
+          this.sys.settings.key,
+          "menu"
+        );
       } catch (error) {
         this.entrando = false;
         demo.usuarioActual = null;
@@ -420,7 +424,11 @@ export class UsuariosDemoScene extends InterfazDemo {
       this.entrando = true;
       nombre.blur();
       clave.blur();
-      this.scene.start("menu");
+      const transition = this.scene.get("transition") as TransitionScene;
+        transition.changeScene(
+          this.sys.settings.key,
+          "menu"
+        );
     });
 
     nombre.addEventListener(

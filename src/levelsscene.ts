@@ -75,7 +75,11 @@ export class LevelsScene extends Phaser.Scene {
       });
       return;
     }
-    this.scene.start("menu");
+    const transition = this.scene.get("transition") as TransitionScene;
+    transition.changeScene(
+      this.sys.settings.key,
+      "menu",
+    );
   }
 
   boton(
@@ -218,13 +222,18 @@ export class LevelsScene extends Phaser.Scene {
       async () => {
         await this.cerrarNombre(true);
         try {
-          const nivel = await crearNivel(9, 15);
+          const nivel = await crearNivel(11, 17);
           if (nivel === undefined || nivel === null) {
             return;
           }
-          this.scene.start("editor", {
-            nivelId: nivel.id
-          });
+          const transition = this.scene.get("transition") as TransitionScene;
+          transition.changeScene(
+          this.sys.settings.key,
+            "editor",
+            {
+              nivelId: nivel.id
+            }
+          );
         } catch (error) {
           window.alert("No se pudo crear el nivel: " + String(error));
         }
@@ -451,9 +460,14 @@ export class LevelsScene extends Phaser.Scene {
         "Editar",
         async () => {
           await this.cerrarNombre(true);
-          this.scene.start("editor", {
-            nivelId: nivel.id
-          });
+          const transition = this.scene.get("transition") as TransitionScene;
+          transition.changeScene(
+          this.sys.settings.key,
+            "editor",
+            {
+              nivelId: nivel.id
+            }
+          );
         },
         VERDE
       );

@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { crearBoton } from "./niveles";
 import { leerNivelesOriginalesBackend } from "./api";
 import type { NivelBackend } from "./api";
+import { TransitionScene } from "./transitionScene";
 
 export class LevelselectScene extends Phaser.Scene {
   totalNiveles = 0;
@@ -95,7 +96,11 @@ export class LevelselectScene extends Phaser.Scene {
 
     const centroTitulo = titulo.y + titulo.displayHeight / 2;
     this.boton(100, centroTitulo, 120, "Volver", () => {
-      this.scene.start("menu");
+      const transition = this.scene.get("transition") as TransitionScene;
+      transition.changeScene(
+        this.sys.settings.key,
+        "menu"
+      );
     }, 0xb39ddb);
 
     if (this.totalNiveles === 0) {
@@ -354,11 +359,13 @@ export class LevelselectScene extends Phaser.Scene {
     for (let i = 0; i < this.nivelesOficiales.length; i++) {
       ids.push(this.nivelesOficiales[i].id);
     }
-
-    this.scene.start("game", {
-      level: nivel.id,
-      escenaAnterior: "selectscene",
-      idsNivelesOficiales: ids
-    });
+    const transition = this.scene.get("transition") as TransitionScene;
+    transition.changeScene(
+      this.sys.settings.key,
+      "game",
+      {
+        level: nivel.id, escenaAnterior: "selectscene", idsNivelesOficiales: ids
+      }
+    );
   }
 }

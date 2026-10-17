@@ -12,6 +12,7 @@ import {
   esNivelDelEditorBackend
 } from "./api";
 import { apiAEditor } from "./parserApi";
+import { TransitionScene } from "./transitionScene";
 
 export class CommunityDemoScene extends InterfazDemo {
   pestana = "Community";
@@ -293,7 +294,13 @@ export class CommunityDemoScene extends InterfazDemo {
     if (!demo.usuarioActual) return;
     const titulo = this.texto(400, 25, "COMMUNITY LEVELS", 26).setOrigin(0.5, 0);
     const centroTitulo = titulo.y + titulo.displayHeight / 2;
-    this.boton(100, centroTitulo, 120, "Volver", () => this.scene.start("menu"), 0xb39ddb);
+    this.boton(100, centroTitulo, 120, "Volver", () => {
+      const transition = this.scene.get("transition") as TransitionScene;
+      transition.changeScene(
+        this.sys.settings.key,
+        "menu",
+      );
+    }, 0xb39ddb);
 
     const pestanas = [
       { nombre: "Community", color: 0x95add6, colorHover: 0xaec1e1, colorInactivo: 0x6f87b0 },
@@ -405,7 +412,14 @@ export class CommunityDemoScene extends InterfazDemo {
         nombre.setText(visible + "...");
       }
       this.boton(475, y, 150, "Test", () => {
-        this.scene.launch("game", { nivelId: nivel.id, escenaAnterior: "communityDemo", testeando: true });
+        const transition = this.scene.get("transition") as TransitionScene;
+        transition.changeScene(
+          this.sys.settings.key,
+            "game",
+            {
+              nivelId: nivel.id, escenaAnterior: "communityDemo", testeando: true
+            }
+          );
         this.scene.sleep();
       }, 0xb39ddb);
       const publicacion = this.buscarPublicacionDeNivel(nivel);
@@ -552,10 +566,15 @@ export class CommunityDemoScene extends InterfazDemo {
           }, "No se pudo actualizar la descarga");
           return;
         }
-        this.scene.launch("game", {
-          nivelDescargado: nivel, nivelId: "online:" + nivel.nivelId,
-          idGlobal: nivel.nivelId, escenaAnterior: "communityDemo", modoTest: false, testeando: false
-        });
+        const transition = this.scene.get("transition") as TransitionScene;
+        transition.changeScene(
+          this.sys.settings.key,
+            "game",
+            {
+              nivelDescargado: nivel, nivelId: "online:" + nivel.nivelId,
+              idGlobal: nivel.nivelId, escenaAnterior: "communityDemo", modoTest: false, testeando: false
+            }
+          );
         this.scene.sleep();
       }, colorBoton);
       this.boton(640, y + 7, 160, "Desinstalar", () => {

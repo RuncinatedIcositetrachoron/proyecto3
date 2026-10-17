@@ -187,14 +187,16 @@ export class EditorScene extends Phaser.Scene {
 
   //CUSTOMIZAR HOTBAR
   
-  private tilesHotbar = [37, 3, 11, 27, 39, 41, 66, 2];
+  private tilesHotbar = [37, 3, 11, 27, 39, 41, 66, 2, 17, 21];
 
   private variantesTiles = [
     [3, 4, 5, 6],
     [11, 12, 13, 14],
     [27, 28, 29, 30],
     [41, 200, 201],
-    [66, 25]
+    [66, 25],
+    [17, 20, 18, 19, 16],
+    [21, 22, 23, 24]
   ];
 
   private casillasHotbar: Phaser.GameObjects.Rectangle[] = [];
@@ -247,8 +249,8 @@ export class EditorScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor("#222034");
-    this.columns = 15;
-    this.rows = 9;
+    this.columns = 17;
+    this.rows = 11;
 
     if (this.nivelId !== null) {
       const nivel = obtenerNivel(this.nivelId);
@@ -3768,7 +3770,7 @@ this.bordeTooltipTile.setVisible(false);
         const tile = this.tablero.getTileAt(columna, fila);
 
         if (tile !== null && tile.index === this.tileBandera) {
-          if (fila !== 0 || columna <= 0 || columna >= this.columns - 1) {
+          if (fila !== 1 || columna <= 0 || columna >= this.columns - 1) {
             return false;
           }
         }
