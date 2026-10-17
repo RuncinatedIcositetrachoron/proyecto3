@@ -269,9 +269,15 @@ export class GameScene extends Phaser.Scene {
             String(error)
         );
     }
+    const transition = this.scene.get("transition") as TransitionScene;
 
-    this.scene.wake("communityDemo");
-    this.scene.stop();
+    transition.changeScene(
+        this.sys.settings.key,
+        "communityDemo",
+        {
+            pestana: "Descargados"
+        }
+    );
 }
       
     private crearBotonJuego(
@@ -933,21 +939,22 @@ nombre.setOrigin(0, 0.5);
             this.objetosMenuPausa.push(objetosBoton[i]);
         }
     }
-private cerrarMenuPausa() {
-    if (this.menuup != 1) {
-        return;
-    }
 
-    this.menuup = 0;
-
-    for (let i = 0; i < this.objetosMenuPausa.length; i++) {
-        if (this.objetosMenuPausa[i].scene) {
-            this.objetosMenuPausa[i].destroy();
+    private cerrarMenuPausa() {
+        if (this.menuup != 1) {
+            return;
         }
-    }
 
-    this.objetosMenuPausa = [];
-}
+        this.menuup = 0;
+
+        for (let i = 0; i < this.objetosMenuPausa.length; i++) {
+            if (this.objetosMenuPausa[i].scene) {
+                this.objetosMenuPausa[i].destroy();
+            }
+        }
+
+        this.objetosMenuPausa = [];
+    }
 
     //////////////////////////
     //LUCAS HELPERS DEL GAME//
