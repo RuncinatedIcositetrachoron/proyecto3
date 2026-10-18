@@ -176,6 +176,7 @@ export class EditorScene extends Phaser.Scene {
   };
 
   private botonSeleccionar!: Phaser.GameObjects.Rectangle;
+  private botonDeseleccionar!: Phaser.GameObjects.Rectangle;
   private botonPegar!: Phaser.GameObjects.Rectangle;
   private botonBorrar!: Phaser.GameObjects.Rectangle;
   private botonCopiar!: Phaser.GameObjects.Rectangle;
@@ -354,7 +355,7 @@ export class EditorScene extends Phaser.Scene {
       xGuardar,
       yBotones,
       anchoBoton,
-      "Guardar",
+      "Save",
       () => {
         this.guardarNivelActual();
       }
@@ -365,7 +366,7 @@ export class EditorScene extends Phaser.Scene {
       xVolver,
       yBotones,
       anchoBoton,
-      "Volver",
+      "Back",
       () => {
         this.solicitarSalida();
       }
@@ -1077,6 +1078,7 @@ this.bordeTooltipTile.setVisible(false);
 
     this.crearFondoPanel([
       this.botonSeleccionar,
+      this.botonDeseleccionar,
       this.botonPortal,
       this.botonLink,
       this.botonCopiar,
@@ -1926,16 +1928,16 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     let mensaje =
-      "Tenés cambios sin guardar.\n¿Querés salir sin guardarlos?";
+      "You have unsaved changes.\nLeave without saving?";
 
     if (this.nivelValido() === false) {
       if (
         this.existeTile(this.tileJugador) &&
         this.existeTile(this.tileBandera)
       ) {
-        mensaje = "La puerta debe ocupar la primera y la segunda fila.\nSi salís, se perderán los cambios sin guardar.";
+        mensaje = "The door must occupy the first and second rows.\nLeaving will discard your unsaved changes.";
       } else {
-        mensaje = "Falta el jugador o la salida.\nSi salís, se perderán los cambios sin guardar.";
+        mensaje = "The player or exit is missing.\nLeaving will discard your unsaved changes.";
       }
     }
 
@@ -1943,9 +1945,9 @@ this.bordeTooltipTile.setVisible(false);
 
     mostrarConfirmacion(
       this,
-      "Cambios sin guardar",
+      "Unsaved Changes",
       mensaje,
-      "Salir sin guardar",
+      "Leave Without Saving",
       0xe57373,
       () => {
         const transition = this.scene.get("transition") as TransitionScene;
@@ -1992,7 +1994,7 @@ this.bordeTooltipTile.setVisible(false);
       this.estadoGuardado = estadoEnviado;
     } catch (error) {
       if (this.scene.isActive()) {
-        window.alert("No se pudo guardar el nivel.\n\n" + String(error));
+        window.alert("Could not save the level.\n\n" + String(error));
       }
     }
 
@@ -2040,6 +2042,9 @@ this.bordeTooltipTile.setVisible(false);
     this.botonBorrar.setAlpha(1);
 
     if (this.haySeleccion) {
+      this.botonDeseleccionar.setInteractive({ useHandCursor: true });
+      this.botonDeseleccionar.setFillStyle(colorNormal);
+      this.botonDeseleccionar.setAlpha(1);
       this.botonCopiar.setInteractive({ useHandCursor: true });
 
       this.botonBorrar.setFillStyle(0xe57373);
@@ -2047,6 +2052,9 @@ this.bordeTooltipTile.setVisible(false);
 
       this.botonCopiar.setAlpha(1);
     } else {
+      this.botonDeseleccionar.disableInteractive();
+      this.botonDeseleccionar.setFillStyle(colorDesactivado);
+      this.botonDeseleccionar.setAlpha(1);
       this.botonCopiar.disableInteractive();
 
       if (this.herramienta === 0) {
@@ -2124,16 +2132,16 @@ this.bordeTooltipTile.setVisible(false);
           this.existeTile(this.tileJugador) &&
           this.existeTile(this.tileBandera)
         ) {
-          this.textoEstado.setText("La puerta debe ocupar las filas 1 y 2");
+          this.textoEstado.setText("The door must occupy rows 1 and 2");
         } else {
-          this.textoEstado.setText("Falta jugador o salida");
+          this.textoEstado.setText("Player or exit missing");
         }
         this.textoEstado.setColor("#e6a05a");
       } else if (this.hayCambiosSinGuardar()) {
-        this.textoEstado.setText("Hay cambios sin guardar");
+        this.textoEstado.setText("Unsaved changes");
         this.textoEstado.setColor("#ffd166");
       } else {
-        this.textoEstado.setText("Nivel guardado");
+        this.textoEstado.setText("Level saved");
         this.textoEstado.setColor("#9ccc65");
       }
     }
@@ -2169,7 +2177,7 @@ this.bordeTooltipTile.setVisible(false);
 
   private crearInterfaz(): void {
     const altoBoton = 40;
-    const cantidadFilas = 8;
+    const cantidadFilas = 9;
     const derecha = this.scale.width - this.margenPanel;
     const izquierda = derecha - this.anchoPanelHerramientas;
     const x = (izquierda + derecha) / 2;
@@ -2184,7 +2192,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Seleccionar",
+      "Select",
       () => {
         if (this.herramienta === this.selectTool) {
           this.herramienta = this.sinHerramienta;
@@ -2203,12 +2211,23 @@ this.bordeTooltipTile.setVisible(false);
 
     y += separacion;
 
+    this.botonDeseleccionar = crearBoton(
+      this,
+      x,
+      y,
+      ancho,
+      "Deselect",
+      () => this.quitarSeleccion()
+    );
+
+    y += separacion;
+
     this.botonCopiar = crearBoton(
       this,
       x,
       y,
       ancho,
-      "Copiar",
+      "Copy",
       () => {
         this.copiarSeleccion();
         this.actualizarInterfaz();
@@ -2222,7 +2241,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Pegar",
+      "Paste",
       () => {
         if (this.herramienta === this.pasteTool) {
           this.herramienta = this.sinHerramienta;
@@ -2247,7 +2266,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Borrar",
+      "Delete",
       () => this.borrarOGoma()
     );
 
@@ -2310,7 +2329,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Deshacer",
+      "Undo",
       () => this.undo()
     );
 
@@ -2321,11 +2340,12 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Rehacer",
+      "Redo",
       () => this.redo()
     );
 
     this.botonSeleccionar.setData("atajo", "S");
+    this.botonDeseleccionar.setData("atajo", "Esc");
     this.botonPortal.setData("atajo", "P");
     this.botonLink.setData("atajo", "L");
     this.botonCopiar.setData("atajo", "Ctrl/Cmd + C");
@@ -2336,6 +2356,7 @@ this.bordeTooltipTile.setVisible(false);
 
     this.botonesInterfaz = [
       this.botonSeleccionar,
+      this.botonDeseleccionar,
       this.botonPortal,
       this.botonLink,
       this.botonCopiar,
@@ -4141,66 +4162,66 @@ this.bordeTooltipTile.setVisible(false);
 
   private obtenerNombreTile(tile: number): string {
     if (tile >= 3 && tile <= 6) {
-      return "Espejo";
+      return "Mirror";
     }
     if (tile >= 11 && tile <= 14) {
-      return "Emisor";
+      return "Emitter";
     }
     if (tile >= 27 && tile <= 30) {
-      return "Receptor";
+      return "Receiver";
     }
     if (tile === 37) {
-      return "Caja";
+      return "Crate";
     }
     if (tile === this.tilePlaca) {
-      return "Placa de presión";
+      return "Pressure plate";
     }
     if (tile === 39) {
-      return "Pared interior";
+      return "Interior wall";
     }
     if (tile === 17) {
-      return "Pared superior";
+      return "Top wall";
     }
     if (tile === 20) {
-      return "Pared inferior";
+      return "Bottom wall";
     }
     if (tile === 18) {
-      return "Pared derecha";
+      return "Right wall";
     }
     if (tile === 19) {
-      return "Pared izquierda";
+      return "Left wall";
     }
     if (tile === 16) {
-      return "Techo";
+      return "Ceiling";
     }
     if (tile === 21) {
-      return "Esquina superior izquierda";
+      return "Top left corner";
     }
     if (tile === 22) {
-      return "Esquina superior derecha";
+      return "Top right corner";
     }
     if (tile === 23) {
-      return "Esquina inferior derecha";
+      return "Bottom right corner";
     }
     if (tile === 24) {
-      return "Esquina inferior izquierda";
+      return "Bottom left corner";
     }
     if (tile === 41) {
-      return "Maquinaria simple";
+      return "Single machine";
     }
     if (tile === 200) {
-      return "Maquinaria doble";
+      return "Double machine";
     }
     if (tile === 201) {
-      return "Maquinaria triple";
+      return "Triple machine";
     }
     if (tile === this.tileJugador) {
-      return "Jugador";
+      return "Player";
     }
     if (tile === this.tileBandera) {
-      return "Salida";
+      return "Exit";
     }
-    return "Tile desconocido";
+    return "Unknown tile";
   }
 
   private ocultarTooltipTile(): void {
@@ -4241,7 +4262,7 @@ this.bordeTooltipTile.setVisible(false);
         nombre += " (" + (variantes.indexOf(tile) + 1) + "/" + variantes.length + ")";
 
         if (mostrarAyudaVariantes) {
-          nombre += "\nClic derecho para ver variantes";
+          nombre += "\nRight-click to see variants";
         }
       }
 
@@ -4307,8 +4328,6 @@ this.bordeTooltipTile.setVisible(false);
 
   private crearFondoTablero(): void {
     const margen = this.margenTablero;
-
-    // Reservar el panel lateral y la hotbar antes de escalar el tablero.
     const anchoDisponible = this.scale.width - this.margenPanel * 2 -
       this.separacionPaneles - this.anchoPanelHerramientas;
     const altoDisponible = this.scale.height - this.margenPanel -

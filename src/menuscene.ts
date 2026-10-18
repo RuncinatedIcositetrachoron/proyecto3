@@ -101,7 +101,7 @@ export class MenuScene extends Phaser.Scene {
       anchoMenu, 0, 8 * escalaTexto, alto, 0x080b17, 0.2
     ).setOrigin(0);
 
-    const anchoBorde = Math.max(2, Math.round(4 * escalaTexto));
+    const anchoBorde = Math.max(2, Math.round(8 * escalaTexto));
     this.add.rectangle(anchoMenu - anchoBorde, 0, anchoBorde, alto, 0x80759d, 0.28).setOrigin(0);
 
     const logo = this.add.image(anchoMenu / 2, Math.round(alto * 0.055), "logoMenu");
@@ -134,7 +134,7 @@ export class MenuScene extends Phaser.Scene {
       });
 
       if (niveles.length === 0) {
-        throw new Error("Todavía no hay niveles oficiales.");
+        throw new Error("No official levels available yet.");
       }
 
       let progreso: boolean[] = [];
@@ -171,7 +171,7 @@ export class MenuScene extends Phaser.Scene {
         this.scene.isActive("menu") &&
         demo.usuarioActual === usuario
       ) {
-        this.mensajeProgreso = "No se pudo cargar el progreso.";
+        this.mensajeProgreso = "Could not load progress.";
       }
     } finally {
       if (
@@ -205,7 +205,7 @@ export class MenuScene extends Phaser.Scene {
       const textoCarga = this.add.text(
         centroMenu,
         this.abajoLogo + (this.scale.height - this.abajoLogo) / 2,
-        "Cargando progreso...",
+        "Loading progress...",
         {
           fontFamily: "Fuente",
           fontSize: 28 * escalaTexto + "px",
@@ -371,7 +371,7 @@ export class MenuScene extends Phaser.Scene {
       const reintentar = this.add.text(
         centroMenu,
         this.scale.height - 37 * escalaY,
-        "Reintentar",
+        "Retry",
         {
           fontFamily: "Fuente",
           fontSize: 24 * escalaTexto + "px",
@@ -421,10 +421,10 @@ export class MenuScene extends Phaser.Scene {
       textoUsuario.setText(nombreVisible + "...");
     }
 
-    let accionCuenta = "Cerrar sesión";
+    let accionCuenta = "Sign Out";
 
     if (invitado) {
-      accionCuenta = "Iniciar sesión";
+      accionCuenta = "Sign In";
     }
 
     const enlaceCuenta = this.add.text(derechaUsuario, 66, accionCuenta, {
@@ -481,9 +481,9 @@ export class MenuScene extends Phaser.Scene {
         if (this.hayProgreso) {
           mostrarConfirmacion(
             this,
-            "¿Empezar de nuevo?",
-            "Vas a volver al primer nivel. Tus niveles completados seguirán guardados.",
-            "Empezar de nuevo",
+            "Start Again?",
+            "You will return to the first level. Your completed levels will stay saved.",
+            "Start Again",
             0xffd166,
             () => {
               this.abrirPartida(true);

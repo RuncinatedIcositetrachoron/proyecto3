@@ -29,6 +29,12 @@ interface Entity {
     sprite2?: Phaser.GameObjects.Sprite;
 }
 
+interface TutorialNivel {
+    nivel: number;
+    partes: string[];
+    movimientos: number;
+}
+
 interface GameState {
     entities: {
         type: string;
@@ -98,11 +104,133 @@ const Tile = {
 /////////////////////
 
 export class GameScene extends Phaser.Scene {    
+
+    private volumenEfectos = 0.7; 
+    private sonidosPreparados = false;
+    private reflejosSonido: string[] = [];
+    private movimientoEmpujo = false;
+    private movimientoConPortal = false;
+    private sonidos = [
+        // 1. WALKING:
+        {
+            nombre: "paso",
+            archivo: "lindsey_sfx/01_caminar.ogg",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        // 2. PUSHING
+        {
+            nombre: "empujar",
+            archivo: "lindsey_sfx/02_empujar.ogg",
+            volumen: 0.45,
+            espera: 80,
+            ultimo: -1000
+        },
+        // 3. LASER REFLECTION
+        {
+            nombre: "rebote",
+            archivo: "lindsey_sfx/03_rebote_laser.ogg",
+            volumen: 0.18,
+            espera: 80,
+            ultimo: -1000
+        },
+        // 4. DEATH
+        {
+            nombre: "morir",
+            archivo: "lindsey_sfx/04_morir.ogg",
+            volumen: 0.5,
+            espera: 150,
+            ultimo: -1000
+        },
+        // 5. RECEIVER ACTIVATION
+        {
+            nombre: "receptor",
+            archivo: "lindsey_sfx/05_receptor_activar.ogg",
+            volumen: 0.45,
+            espera: 80,
+            ultimo: -1000
+        },
+        // 6. PORTAL
+        {
+            nombre: "portal",
+            archivo: "lindsey_sfx/06_portal.ogg",
+            volumen: 0.35,
+            espera: 100,
+            ultimo: -1000
+        },
+        // 7. DOOR OPENING
+        {
+            nombre: "puerta",
+            archivo: "lindsey_sfx/07_puerta_abrir.ogg",
+            volumen: 0.4,
+            espera: 100,
+            ultimo: -1000
+        },
+        // 7b. DOOR CLOSING
+        {
+            nombre: "puertaCerrar",
+            archivo: "lindsey_sfx/07b_puerta_cerrar.ogg",
+            volumen: 0.3,
+            espera: 100,
+            ultimo: -1000
+        },
+        // 8. LEVEL COMPLETE
+        {
+            nombre: "victoria",
+            archivo: "lindsey_sfx/08_victoria.ogg",
+            volumen: 0.5,
+            espera: 1000,
+            ultimo: -1000
+        },
+        // 9a. UI HOVER
+        {
+            nombre: "hover",
+            archivo: "lindsey_sfx/09a_ui_hover.ogg",
+            volumen: 0.12,
+            espera: 60,
+            ultimo: -1000
+        },
+        // 9b. UI CLICK
+        {
+            nombre: "click",
+            archivo: "lindsey_sfx/09b_ui_click.ogg",
+            volumen: 0.35,
+            espera: 70,
+            ultimo: -1000
+        }
+    ];
     private levelNumber = 1;
     private history: GameState[] = [];
     private community: boolean = true;
+    private movimientosAyuda = 0;
+    private tutorialActual: TutorialNivel | null = null;
+
+    private tutoriales: TutorialNivel[] = [
+        {
+            nivel: 1,
+            partes: ["Use", "arrows", "or", "WASD", "to move"],
+            movimientos: 3
+        },
+        {
+            nivel: 2,
+            partes: ["Push boxes to block lasers."],
+            movimientos: 6
+        }
+    ];
+    private izquierdaPresionada = false;
+    private derechaPresionada = false;
+    private arribaPresionada = false;
+    private abajoPresionada = false;
 
     init(data: any) {
+        this.sonidosPreparados = false;
+        this.reflejosSonido = [];
+        this.movimientoEmpujo = false;
+        this.movimientoConPortal = false;
+        for (let i = 0; i < this.sonidos.length; i++) {
+            this.sonidos[i].ultimo = -1000;
+        }
         this.nivelDescargado = null;
         this.saliendoDelNivel = false;
         this.testeando = false;
@@ -116,6 +244,12 @@ export class GameScene extends Phaser.Scene {
         this.escenaAnterior = "menu";
         this.idGlobalDescargado = null;
         this.victoriaDescargadaEnCurso = false;
+        this.movimientosAyuda = 0;
+        this.tutorialActual = null;
+        this.izquierdaPresionada = false;
+        this.derechaPresionada = false;
+        this.arribaPresionada = false;
+        this.abajoPresionada = false;
         
         if (data && typeof data.idGlobal === "number") {
         this.idGlobalDescargado = data.idGlobal;
@@ -165,9 +299,10 @@ export class GameScene extends Phaser.Scene {
 
     private menuup = 0;
     private pantallaMuerte!: Phaser.GameObjects.Container;
+    private ayudaMovimiento!: Phaser.GameObjects.Container;
     private objetosMenuPausa: Phaser.GameObjects.GameObject[] = [];
-    private pixelmultiplier: number = 3.33                     // TODO: make this adjustable in settings
-    private tilesize: number = this.pixelmultiplier*16;                   // TODO: make this adjustable in settings
+    private pixelmultiplier: number = 3.33
+    private tilesize: number = this.pixelmultiplier*16;
     private animationspeed: number = 18;
     private lindseyspeed: number = this.animationspeed*11.94;
     private emitterQueue: Entity[] = [];
@@ -191,6 +326,10 @@ export class GameScene extends Phaser.Scene {
     private rKey!: Phaser.Input.Keyboard.Key;
     private zKey!: Phaser.Input.Keyboard.Key;
     private escKey!: Phaser.Input.Keyboard.Key;
+    private wKey!: Phaser.Input.Keyboard.Key;
+    private aKey!: Phaser.Input.Keyboard.Key;
+    private sKey!: Phaser.Input.Keyboard.Key;
+    private dKey!: Phaser.Input.Keyboard.Key;
     private entities: Entity[] = [];
     private lasers: LaserVisual[] = [];
     private movingLasers: LaserVisual[] = [];
@@ -198,6 +337,7 @@ export class GameScene extends Phaser.Scene {
     private offsetX = 0;
     private offsetY = 0;
     private altoBarra = 68;
+    private altoAvisos = 92;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private staticRows: any;
     private nivelDescargado: any = null;
@@ -217,6 +357,71 @@ export class GameScene extends Phaser.Scene {
     //BRUNO COSAS DEL MENU//
     ////////////////////////
 
+
+    private cargarSonidos() {
+        for (let i = 0; i < this.sonidos.length; i++) {
+            const sonido = this.sonidos[i];
+            const clave = "game-" + sonido.nombre;
+            if (sonido.archivo !== "" && !this.cache.audio.exists(clave)) {
+                this.load.audio(clave, "assets/sound/" + sonido.archivo);
+            }
+        }
+    }
+
+    private reproducirSonido(nombre: string) {
+        if (this.cargandoNivel || this.volumenEfectos <= 0 || this.sound.locked) {
+            return;
+        }
+        for (let i = 0; i < this.sonidos.length; i++) {
+            const sonido = this.sonidos[i];
+            if (sonido.nombre !== nombre) {
+                continue;
+            }
+            const clave = "game-" + nombre;
+            if (sonido.archivo === "" || !this.cache.audio.exists(clave)) {
+                return;
+            }
+            if (this.time.now - sonido.ultimo < sonido.espera) {
+                return;
+            }
+            let tono = 0;
+            if (nombre === "paso" || nombre === "empujar") {
+                tono = Phaser.Math.Between(-60, 60);
+            }
+            this.sound.play(clave, {
+                volume: sonido.volumen * this.volumenEfectos,
+                detune: tono,
+                loop: false
+            });
+            sonido.ultimo = this.time.now;
+            return;
+        }
+    }
+
+    private actualizarSonidosReflejos() {
+        const reflejosActuales: string[] = [];
+        let hayNuevoReflejo = false;
+        for (let i = 0; i < this.lasers.length; i++) {
+            const laser = this.lasers[i];
+            if (laser.incomingDir === laser.outgoingDir || !laser.source) {
+                continue;
+            }
+            if (laser.source.type !== "mirror") {
+                continue;
+            }
+            const reflejo = laser.source.x + "," + laser.source.y + "," +
+                laser.incomingDir + "," + laser.outgoingDir;
+            reflejosActuales.push(reflejo);
+            if (!this.reflejosSonido.includes(reflejo)) {
+                hayNuevoReflejo = true;
+            }
+        }
+        this.reflejosSonido = reflejosActuales;
+        if (this.sonidosPreparados && hayNuevoReflejo) {
+            this.reproducirSonido("rebote");
+        }
+    }
+
     private obtenerNombreNivel() {
         if (this.nivelDescargado !== null) {
          return this.nivelDescargado.nombre;
@@ -233,7 +438,21 @@ export class GameScene extends Phaser.Scene {
         if (this.nombreNivelOficial !== "") {
             return this.nombreNivelOficial;
         }
-        return "Nivel " + this.levelNumber;
+        return "Level " + this.levelNumber;
+    }
+
+    private obtenerEtiquetaNivel() {
+        let texto = "";
+        let color = "#9ccc65";
+
+        if (this.modoTest || this.testeando || (this.nivelId !== "" && this.nivelDescargado === null)) {
+            texto = "Test Mode";
+            color = "#ffd166";
+        } else if (this.community === false) {
+            texto = "Level " + this.levelNumber;
+        }
+
+        return { texto: texto, color: color };
     }
 
     private async registrarVictoriaDescargada(): Promise<void> {
@@ -245,7 +464,7 @@ export class GameScene extends Phaser.Scene {
         const usuario = demo.usuarioActual;
 
         if (usuario === null || usuario === undefined) {
-            throw new Error("No hay sesion activa.");
+            throw new Error("No active session.");
         }
 
         await completarNivelDescargadoBackend(
@@ -266,7 +485,7 @@ export class GameScene extends Phaser.Scene {
         }
     } catch (error: any) {
         window.alert(
-            "Se gano el nivel, pero no se pudo guardar el progreso:\n\n" +
+            "Level completed, but your progress could not be saved:\n\n" +
             String(error)
         );
     }
@@ -291,11 +510,14 @@ export class GameScene extends Phaser.Scene {
         accion: () => void
     ) {
         const cantidadAnterior = this.children.list.length;
-        const fondo = crearBoton(this, x, y, ancho, texto, accion);
+        const fondo = crearBoton(this, x, y, ancho, texto, () => {
+            this.reproducirSonido("click");
+            accion();
+        });
 
         fondo.setFillStyle(color);
 
-        if (texto === "Deshacer") {
+        if (texto === "Undo") {
             fondo.setData("atajo", "Z");
         }
 
@@ -303,7 +525,7 @@ export class GameScene extends Phaser.Scene {
             fondo.setData("atajo", "R");
         }
 
-        if (texto === "Pausa" || texto === "Continuar") {
+        if (texto === "Pause" || texto === "Continue") {
             fondo.setData("atajo", "Esc");
         }
 
@@ -318,6 +540,9 @@ export class GameScene extends Phaser.Scene {
         }
 
         fondo.on("pointerover", () => {
+            if (fondo.input && fondo.input.enabled) {
+                this.reproducirSonido("hover");
+            }
             fondo.setFillStyle(color);
             fondo.setAlpha(0.8);
         });
@@ -403,10 +628,19 @@ private crearBarraSuperior() {
     }
     );
 
-nombre.setOrigin(0, 0.5);
-
     nombre.setOrigin(0, 0.5);
     nombre.setDepth(902);
+
+    const datosEtiqueta = this.obtenerEtiquetaNivel();
+    const etiqueta = this.add.text(nombre.x, nombre.y, datosEtiqueta.texto, {
+        fontFamily: "Fuente",
+        fontSize: "18px",
+        color: datosEtiqueta.color
+    }).setOrigin(0, 0.5).setDepth(902);
+
+    if (datosEtiqueta.texto !== "") {
+        nombre.setX(etiqueta.x + etiqueta.width + 16);
+    }
 
     let nombreVisible = nombreCompleto;
 
@@ -414,7 +648,7 @@ nombre.setOrigin(0, 0.5);
         xDeshacer -
         anchoBoton / 2 -
         separacion -
-        nombre.x - 150;
+        nombre.x;
 
     while (
         nombre.width > anchoMaximo &&
@@ -426,20 +660,6 @@ nombre.setOrigin(0, 0.5);
         );
 
         nombre.setText(nombreVisible + "...");
-    }
-    if (this.modoTest || this.testeando || (this.nivelId !== "" && this.nivelDescargado === null)) {
-        const etiquetaTest = this.add.text(
-            nombre.x + nombre.width + 8,
-            nombre.y,
-            "Test Mode",
-            {
-                fontFamily: "Fuente",
-                fontSize: "18px",
-                color: "#ffd166",
-            }
-        );
-        etiquetaTest.setOrigin(0, 0.5);
-        etiquetaTest.setDepth(902);
     }
     const objetosDeshacer = this.crearBotonJuego(
         xDeshacer,
@@ -473,7 +693,7 @@ nombre.setOrigin(0, 0.5);
         }
     );
 
-    this.crearBotonJuego(
+    const objetosPausa = this.crearBotonJuego(
         xPausa,
         y,
         anchoBoton,
@@ -491,7 +711,20 @@ nombre.setOrigin(0, 0.5);
     const botonReset =
         objetosReset[1] as Phaser.GameObjects.Rectangle;
 
+    const botonPausa =
+        objetosPausa[1] as Phaser.GameObjects.Rectangle;
+
     const actualizarBotones = () => {
+        if (this.menuup === 2) {
+            botonPausa.disableInteractive();
+            botonPausa.setFillStyle(0x79869e);
+            botonPausa.setAlpha(1);
+            botonPausa.emit("ocultarTooltip");
+        } else {
+            botonPausa.setInteractive({ useHandCursor: true });
+            botonPausa.setFillStyle(0xb39ddb);
+        }
+
         if (this.history.length === 0) {
             botonDeshacer.disableInteractive();
             botonReset.disableInteractive();
@@ -535,6 +768,7 @@ nombre.setOrigin(0, 0.5);
 
 
         private reiniciarNivel() {
+        this.reproducirSonido("click");
         this.scene.restart({
             modoTest: this.modoTest,
             nivelTest: this.nivelTest,
@@ -608,10 +842,16 @@ nombre.setOrigin(0, 0.5);
         }
 
     private undoMove() {
+        if (this.playerMoving) {
+            return;
+        }
         const state = this.history.pop();
         if (!state) {
             return;
-        }   
+        }
+        this.reproducirSonido("click");
+        const sonidosAntes = this.sonidosPreparados;
+        this.sonidosPreparados = false;
         for (let i = 0; i < this.entities.length; i++) {
             const entity = this.entities[i];
             const oldEntity = state.entities[i];
@@ -636,154 +876,177 @@ nombre.setOrigin(0, 0.5);
         this.laserFunction();
         if (this.menuup == 2) {
             this.menuup = 0;
-            for (let i = 0; i < this.pantallaMuerte.list.length; i++) {
-                const objeto = this.pantallaMuerte.list[i];
-                objeto.emit("ocultarTooltip");
-                objeto.emit("pointerout");
-            }
-            this.pantallaMuerte.setVisible(false);
+            this.inputBuffer = "";
+            this.holdBufferOpen = false;
+            this.tweens.killTweensOf(this.pantallaMuerte);
+            this.pantallaMuerte.setVisible(false).setAlpha(0);
+            this.ayudaMovimiento.setVisible(
+                this.ayudaPendiente()
+            );
         }
         this.flagCheck();
+        this.sonidosPreparados = sonidosAntes;
+    }
+
+    private crearTecla(
+        contenedor: Phaser.GameObjects.Container,
+        x: number,
+        y: number,
+        texto: string
+    ) {
+        const sombra = this.add.rectangle(x, y + 3, 28, 28, 0x080b17);
+        const tecla = this.add.rectangle(x, y, 28, 28, 0x2c344c);
+        tecla.setStrokeStyle(2, 0x7c8eaf);
+        contenedor.add([sombra, tecla]);
+
+        if (texto === "up" || texto === "left" || texto === "down" || texto === "right") {
+            const flecha = this.add.graphics();
+            flecha.lineStyle(3, 0xeef3ff, 1);
+            flecha.beginPath();
+            flecha.moveTo(-6, 3);
+            flecha.lineTo(0, -3);
+            flecha.lineTo(6, 3);
+            flecha.strokePath();
+            flecha.setPosition(x, y);
+
+            if (texto === "right") {
+                flecha.setAngle(90);
+            } else if (texto === "down") {
+                flecha.setAngle(180);
+            } else if (texto === "left") {
+                flecha.setAngle(270);
+            }
+
+            contenedor.add(flecha);
+            return;
+        }
+
+        const etiqueta = this.add.text(x, y, texto, {
+            fontFamily: "Fuente, Arial",
+            fontSize: "18px",
+            color: "#eef3ff"
+        }).setOrigin(0.5);
+
+        contenedor.add(etiqueta);
     }
 
     private crearPantallaMuerte() {
         const centroX = this.scale.width / 2;
-        const centroY = this.scale.height / 2;
+        const centroY = this.scale.height - this.altoAvisos / 2;
 
-        this.pantallaMuerte = this.add.container(0, 0);
-        this.pantallaMuerte.setDepth(1000).setVisible(false);
+        this.pantallaMuerte = this.add.container(centroX, centroY);
+        this.pantallaMuerte.setDepth(950).setVisible(false).setAlpha(0);
 
-        const capa = this.add.rectangle(
-            centroX,
-            centroY,
+        const fondo = this.add.rectangle(
+            0,
+            0,
             this.scale.width,
-            this.scale.height,
-            0x080b17,
-            0.72
+            this.altoAvisos - 12,
+            0x171a2e,
+            0.82
         );
-        capa.setInteractive();
-        this.pantallaMuerte.add(capa);
-
-        const sombra = this.add.rectangle(
-            centroX + 6,
-            centroY + 6,
-            424,
-            324,
-            0x080b17
-        );
-        this.pantallaMuerte.add(sombra);
-
-        const panel = this.add.rectangle(
-            centroX,
-            centroY,
-            420,
-            320,
-            0x171a2e
-        );
-        panel.setStrokeStyle(4, 0xe57373);
-        this.pantallaMuerte.add(panel);
+        this.pantallaMuerte.add(fondo);
 
         const titulo = this.add.text(
-            centroX,
-            centroY - 112,
-            "HAS MUERTO",
+            0,
+            -22,
+            "YOU DIED",
             {
                 fontFamily: "Fuente",
-                fontSize: "26px",
+                fontSize: "21px",
                 color: "#e57373"
             }
         ).setOrigin(0.5);
         this.pantallaMuerte.add(titulo);
 
-        const mensaje = this.add.text(
-            centroX,
-            centroY - 70,
-            "Podés deshacer el último movimiento.",
-            {
-                fontFamily: "Fuente",
-                fontSize: "16px",
-                color: "#cbdbfc",
-                align: "center",
-                wordWrap: { width: 356 }
+        const instrucciones = this.add.container(0, 15);
+        this.pantallaMuerte.add(instrucciones);
+        let x = 0;
+        const partes = ["Press", "Z", "to undo", "or", "R", "to restart"];
+
+        for (let i = 0; i < partes.length; i++) {
+            if (partes[i] === "Z" || partes[i] === "R") {
+                this.crearTecla(instrucciones, x + 14, 0, partes[i]);
+                x += 28;
+            } else {
+                const texto = this.add.text(x, 0, partes[i], {
+                    fontFamily: "Fuente",
+                    fontSize: "16px",
+                    color: "#cbdbfc"
+                }).setOrigin(0, 0.5);
+                instrucciones.add(texto);
+                x += texto.width;
             }
-        ).setOrigin(0.5);
-        this.pantallaMuerte.add(mensaje);
+            x += 12;
+        }
 
-        const crearBotonMuerte = (
-            y: number,
-            texto: string,
-            color: number,
-            atajo: string,
-            accion: () => void
-        ) => {
-            const cantidadAnterior = this.children.list.length;
+        instrucciones.setX(-(x - 12) / 2);
+    }
 
-            const boton = crearBoton(
-                this,
-                centroX,
-                y,
-                260,
-                texto,
-                accion
-            );
+    private ayudaPendiente(): boolean {
+        return this.tutorialActual !== null &&
+            this.movimientosAyuda < this.tutorialActual.movimientos;
+    }
 
-            boton.setFillStyle(color);
-            boton.setData("atajo", atajo);
+    private crearAyudaMovimiento() {
+        const centroX = this.scale.width / 2;
+        const centroY = this.scale.height - this.altoAvisos / 2;
+        this.ayudaMovimiento = this.add.container(centroX, centroY);
+        this.ayudaMovimiento.setDepth(940);
 
-            const objetos: Phaser.GameObjects.GameObject[] = [];
-
-            for (let i = cantidadAnterior; i < this.children.list.length; i++) {
-                objetos.push(this.children.list[i]);
-            }
-
-            this.pantallaMuerte.add(objetos);
-
-            boton.on("pointerover", () => {
-                boton.setFillStyle(color);
-                boton.setAlpha(0.8);
-
-                for (let i = 3; i < objetos.length; i++) {
-                    this.pantallaMuerte.bringToTop(objetos[i]);
+        this.tutorialActual = null;
+        if (this.community === false && !this.testeando && !this.modoTest) {
+            for (let i = 0; i < this.tutoriales.length; i++) {
+                if (this.tutoriales[i].nivel === this.levelNumber) {
+                    this.tutorialActual = this.tutoriales[i];
+                    break;
                 }
-            });
+            }
+        }
 
-            boton.on("pointerout", () => {
-                boton.setAlpha(1);
-            });
-        };
+        const tutorial = this.tutorialActual;
+        if (tutorial === null || this.movimientosAyuda >= tutorial.movimientos) {
+            this.ayudaMovimiento.setVisible(false);
+            return;
+        }
 
-        crearBotonMuerte(
-            centroY - 10,
-            "Deshacer",
-            0x9ccc65,
-            "Z",
-            () => {
-                if (this.playerMoving || this.history.length === 0) {
-                    return;
+        const fondo = this.add.rectangle(
+            0, 0, this.scale.width,
+            this.altoAvisos - 12, 0x171a2e, 0.74
+        );
+        this.ayudaMovimiento.add(fondo);
+
+        const instrucciones = this.add.container(0, 0);
+        this.ayudaMovimiento.add(instrucciones);
+        const partes = tutorial.partes;
+        let x = 0;
+
+        for (let i = 0; i < partes.length; i++) {
+            if (partes[i] === "arrows" || partes[i] === "WASD") {
+                let teclas = ["up", "left", "down", "right"];
+                if (partes[i] === "WASD") {
+                    teclas = ["W", "A", "S", "D"];
                 }
-                this.undoMove();
+                this.crearTecla(instrucciones, x + 46, -17, teclas[0]);
+                this.crearTecla(instrucciones, x + 14, 15, teclas[1]);
+                this.crearTecla(instrucciones, x + 46, 15, teclas[2]);
+                this.crearTecla(instrucciones, x + 78, 15, teclas[3]);
+                x += 92;
+            } else {
+                const texto = this.add.text(x, 0, partes[i], {
+                    fontFamily: "Fuente",
+                    fontSize: "16px",
+                    color: "#cbdbfc",
+                    align: "center",
+                    wordWrap: { width: this.scale.width - 64 }
+                }).setOrigin(0, 0.5);
+                instrucciones.add(texto);
+                x += texto.width;
             }
-        );
+            x += 16;
+        }
 
-        crearBotonMuerte(
-            centroY + 50,
-            "Reiniciar",
-            0xe6c56a,
-            "R",
-            () => {
-                this.reiniciarNivel();
-            }
-        );
-
-        crearBotonMuerte(
-            centroY + 110,
-            "Salir",
-            0xe57373,
-            "",
-            () => {
-                this.volver();
-            }
-        );
+        instrucciones.setX(-(x - 16) / 2);
     }
 
 
@@ -792,8 +1055,10 @@ nombre.setOrigin(0, 0.5);
             return;
         }
 
+        this.reproducirSonido("click");
         this.menuup = 1;
         this.inputBuffer = "";
+        this.ayudaMovimiento.setVisible(false);
 
         const centroX = this.scale.width / 2;
         const centroY = this.scale.height / 2;
@@ -816,7 +1081,7 @@ nombre.setOrigin(0, 0.5);
             centroX + 6,
             centroY + 6,
             424,
-            304,
+            364,
             0x080b17
         );
 
@@ -828,7 +1093,7 @@ nombre.setOrigin(0, 0.5);
             centroX,
             centroY,
             420,
-            300,
+            360,
             0x171a2e
         );
 
@@ -839,8 +1104,8 @@ nombre.setOrigin(0, 0.5);
 
         const titulo = this.add.text(
             centroX,
-            centroY - 105,
-            "PAUSE",
+            centroY - 135,
+            "PAUSED",
             {
                 fontFamily: "Fuente",
                 fontSize: "26px",
@@ -853,9 +1118,45 @@ nombre.setOrigin(0, 0.5);
 
         this.objetosMenuPausa.push(titulo);
 
+        const datosEtiqueta = this.obtenerEtiquetaNivel();
+        let detalleNivel = datosEtiqueta.texto;
+        if (detalleNivel === "") {
+            detalleNivel = "COMMUNITY LEVEL";
+        }
+
+        const etiquetaNivel = this.add.text(
+            centroX,
+            centroY - 95,
+            detalleNivel,
+            {
+                fontFamily: "Fuente",
+                fontSize: "17px",
+                color: datosEtiqueta.color
+            }
+        ).setOrigin(0.5).setDepth(1003);
+        this.objetosMenuPausa.push(etiquetaNivel);
+
+        let nombreVisible = this.obtenerNombreNivel();
+        const nombreNivel = this.add.text(
+            centroX,
+            centroY - 65,
+            nombreVisible,
+            {
+                fontFamily: "Fuente",
+                fontSize: "18px",
+                color: "#cbdbfc"
+            }
+        ).setOrigin(0.5).setDepth(1003);
+
+        while (nombreNivel.width > 356 && nombreVisible.length > 0) {
+            nombreVisible = nombreVisible.substring(0, nombreVisible.length - 1);
+            nombreNivel.setText(nombreVisible + "...");
+        }
+        this.objetosMenuPausa.push(nombreNivel);
+
         let objetosBoton = this.crearBotonJuego(
             centroX,
-            centroY - 35,
+            centroY - 10,
             260,
             "Continue",
             0xcbdbfc,
@@ -871,7 +1172,7 @@ nombre.setOrigin(0, 0.5);
 
         objetosBoton = this.crearBotonJuego(
             centroX,
-            centroY + 25,
+            centroY + 50,
             260,
             "Reset",
             0xe6c56a,
@@ -888,7 +1189,7 @@ nombre.setOrigin(0, 0.5);
 
         objetosBoton = this.crearBotonJuego(
             centroX,
-            centroY + 85,
+            centroY + 110,
             260,
             "Exit",
             0xe57373,
@@ -908,7 +1209,11 @@ nombre.setOrigin(0, 0.5);
             return;
         }
 
+        this.reproducirSonido("click");
         this.menuup = 0;
+        this.ayudaMovimiento.setVisible(
+            this.ayudaPendiente()
+        );
 
         for (let i = 0; i < this.objetosMenuPausa.length; i++) {
             if (this.objetosMenuPausa[i].scene) {
@@ -1831,9 +2136,11 @@ nombre.setOrigin(0, 0.5);
             }
         }
         this.raycast();
+        this.actualizarSonidosReflejos();
     }
 
     private winConditionsMet2(): boolean {
+    let todosActivados = true;
     const recievers = this.entities.filter(entity => entity.type === "laserReciever");
     for (const reciever of recievers) {
         const currX = reciever.x;
@@ -1909,11 +2216,18 @@ nombre.setOrigin(0, 0.5);
                 } else reciever.sprite.setTexture("tileset-fogo", 28).setScale(this.pixelmultiplier);
                 break;
         }
+        if (
+            this.sonidosPreparados && activated &&
+            reciever.sprite.getData("receptorActivo") === false
+        ) {
+            this.reproducirSonido("receptor");
+        }
+        reciever.sprite.setData("receptorActivo", activated);
         if (activated === false) {
-            return false;
+            todosActivados = false;
         }
     }
-    return true;
+    return todosActivados;
     }
 
     ///////////////////////////////
@@ -1938,12 +2252,14 @@ nombre.setOrigin(0, 0.5);
         }
         if (!this.winConditionsMet2()) {
             if (flag.type !== "wall") {
+                if (this.sonidosPreparados) this.reproducirSonido("puertaCerrar");
                 flag.sprite.play({key: "doorclose", startFrame: 0});
 	            flag.sprite.setTexture("door", 11).setScale(this.pixelmultiplier);
                 flag.type = "wall";
             }
         } else {
             if (flag.type === "wall") {
+                if (this.sonidosPreparados) this.reproducirSonido("puerta");
                 flag.sprite.play({key: "dooropen", startFrame: 0});
                 flag.type = "flag";
 	            flag.sprite.setTexture("door", 0).setScale(this.pixelmultiplier);
@@ -1989,6 +2305,7 @@ nombre.setOrigin(0, 0.5);
             }
             this.animatePortalEntry(savedPlayerX, savedPlayerY, entry.x, entry.y, entry.portal, this.opposite(dir));
                     this.maskPlayerPortal(player, exit.x, exit.y, exit.portal);
+            this.movimientoConPortal = true;
             return true;
         }
 
@@ -2023,6 +2340,7 @@ nombre.setOrigin(0, 0.5);
                 if (teleportSucceeded) {
                     this.animatePortalEntry(savedPlayerX, savedPlayerY, entry.x, entry.y, entry.portal, this.opposite(dir));
                     this.maskPlayerPortal(player, exit.x, exit.y, exit.portal);
+                    this.movimientoConPortal = true;
                     return true;
                 }
                 player.x = savedPlayerX; player.y = savedPlayerY; player.dir = savedPlayerDir;
@@ -2031,6 +2349,7 @@ nombre.setOrigin(0, 0.5);
             if (this.isDoor(newEntityX, newEntityY)) {
                 return false;
             }
+            this.movimientoEmpujo = true;
             if (this.getPortalAt(newEntityX, newEntityY, dir)) {
                 const entry = this.getPortalAt(newEntityX, newEntityY);
                 if (!entry){
@@ -2042,6 +2361,7 @@ nombre.setOrigin(0, 0.5);
                     console.log("ERROR: COULD NOT FIND EXIT PORTAL; this.findPair unexpectedly returned undefined");
                     return false;
                 }
+                this.movimientoConPortal = true;
                 if (exit === entity) {
                     entry.x = 1000; entry.y = 0;
                     entry.sprite.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier);
@@ -2113,7 +2433,7 @@ nombre.setOrigin(0, 0.5);
             } else {
                 const otherEntity = this.getEntityAt(newEntityX, newEntityY);
 
-                if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity && this.isPortalActive(entity)) {  // eat branch
+                if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity && this.isPortalActive(entity)) {
                     const entry = entity;
                     const exit = this.findPair(entry.group, entry);
 
@@ -2121,6 +2441,7 @@ nombre.setOrigin(0, 0.5);
                         return false;
                     }
 
+                    this.movimientoConPortal = true;
                     if (exit === otherEntity) {
                         entry.x = 1000;
                         entry.y = 0;
@@ -2250,7 +2571,7 @@ nombre.setOrigin(0, 0.5);
             this.menuup = 2;
             this.inputBuffer = "";
             this.holdBufferOpen = false;
-            this.pantallaMuerte.setVisible(true);
+            this.ayudaMovimiento.setVisible(false);
         }
         return true;
         }
@@ -2381,7 +2702,6 @@ nombre.setOrigin(0, 0.5);
 
         const bounds = portal.sprite.getBounds();
         const margenLateral = this.tilesize * 0.5;
-        // El dibujo circular tiene otro origen: 8 px de diferencia arriba y 4 px abajo.
         if (portalDir === 0) region.height += 8 * this.pixelmultiplier;
         if (portalDir === 1) {
             region.x = bounds.right - margenLateral;
@@ -2721,6 +3041,17 @@ nombre.setOrigin(0, 0.5);
                 this.playerMoving = false;
                 this.holdBufferOpen = false;
                 this.playerTween = undefined;
+                if (this.menuup === 2) {
+                    this.reproducirSonido("morir");
+                    this.tweens.killTweensOf(this.pantallaMuerte);
+                    this.pantallaMuerte.setAlpha(0).setVisible(true);
+                    this.tweens.add({
+                        targets: this.pantallaMuerte,
+                        alpha: 1,
+                        duration: 280,
+                        ease: "Sine.Out"
+                    });
+                }
             }
         });
     }
@@ -2791,6 +3122,7 @@ nombre.setOrigin(0, 0.5);
 
     private animateLindseyExit(player: Entity, flag: Entity) {
         if (this.finishinglevel) return;
+        this.reproducirSonido("victoria");
         player.sprite.setDepth(-0.01)
         this.finishinglevel = true;
         this.playerMoving = true;
@@ -2885,7 +3217,7 @@ nombre.setOrigin(0, 0.5);
             );
         }
 
-        //SONIDO
+        this.cargarSonidos();
     }
 
 async create() {
@@ -3268,6 +3600,10 @@ async create() {
         this.rKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
         this.zKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
         this.escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+        this.wKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+        this.aKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+        this.sKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+        this.dKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D);
 
         //MORE TEST STUFF
 
@@ -3290,7 +3626,7 @@ async create() {
             const textoCarga = this.add.text(
                 this.scale.width / 2,
                 this.scale.height / 2,
-                "Cargando nivel...",
+                "Loading level...",
                 { fontFamily: "Fuente", fontSize: "20px", color: "#cbdbfc" }
             ).setOrigin(0.5);
             try {
@@ -3314,7 +3650,7 @@ async create() {
                 if (cargaActual !== this.numeroCarga) {
                     return;
                 }
-                window.alert("No se pudo abrir el nivel oficial:\n\n" + String(error));
+                window.alert("Could not load the official level:\n\n" + String(error));
                 this.volver();
                 return;
             }
@@ -3964,10 +4300,12 @@ async create() {
         }
         this.cursors = this.input.keyboard!.createCursorKeys();
         this.crearPantallaMuerte();
+        this.crearAyudaMovimiento();
         this.laserFunction();
         this.crearBarraSuperior();
         this.cargandoNivel = false;
         this.flagCheck();
+        this.sonidosPreparados = true;
         this.animateEntrance();
     }
 
@@ -3976,9 +4314,12 @@ async create() {
     //////////////////////////////
 
     private doMovement(direction: string) {
+        this.movimientoEmpujo = false;
+        this.movimientoConPortal = false;
         this.pushTweens = [];
         this.portalTweens = [];
         const player = this.entities.find(entity => entity.type === "player");
+        let movimientoRealizado = false;
         if (direction === "left") {
             if (!player) {
                 console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
@@ -3986,7 +4327,7 @@ async create() {
             }
             player.dir = 3;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
-            this.updatePosition(-1, 0, 1);
+            movimientoRealizado = this.updatePosition(-1, 0, 1);
             this.playerVertical = false; 
         }
 
@@ -3997,7 +4338,7 @@ async create() {
             }
             player.dir = 1;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
-            this.updatePosition(1, 0, 3);
+            movimientoRealizado = this.updatePosition(1, 0, 3);
             this.playerVertical = false; 
         }
 
@@ -4008,7 +4349,7 @@ async create() {
             }
             player.dir = 0;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
-            this.updatePosition(0, -1, 2);
+            movimientoRealizado = this.updatePosition(0, -1, 2);
             this.playerVertical = true; 
         }
 
@@ -4019,8 +4360,32 @@ async create() {
             }
             player.dir = 2;
             this.history.push({entities: this.entities.map(entity => ({type: entity.type, x: entity.x, y: entity.y, dir: entity.dir, portal: entity.portal}))});
-            this.updatePosition(0, 1, 0);
+            movimientoRealizado = this.updatePosition(0, 1, 0);
             this.playerVertical = true; 
+        }
+        if (movimientoRealizado) {
+            if (this.movimientoEmpujo) {
+                this.reproducirSonido("empujar");
+            } else {
+                this.reproducirSonido("paso");
+            }
+            if (this.movimientoConPortal) {
+                this.reproducirSonido("portal");
+            }
+        }
+        if (movimientoRealizado && this.ayudaPendiente()) {
+            this.movimientosAyuda++;
+            if (this.ayudaPendiente() === false) {
+                this.tweens.add({
+                    targets: this.ayudaMovimiento,
+                    alpha: 0,
+                    duration: 350,
+                    ease: "Sine.Out",
+                    onComplete: () => {
+                        this.ayudaMovimiento.setVisible(false);
+                    }
+                });
+            }
         }
         if (this.saliendoDelNivel || this.cargandoNivel) {
             return;
@@ -4039,6 +4404,29 @@ async create() {
         if (this.saliendoDelNivel || this.cargandoNivel || !this.cursors) {
          return;
         }
+        const flechaIzquierda = Phaser.Input.Keyboard.JustDown(this.cursors.left!);
+        const flechaDerecha = Phaser.Input.Keyboard.JustDown(this.cursors.right!);
+        const flechaArriba = Phaser.Input.Keyboard.JustDown(this.cursors.up!);
+        const flechaAbajo = Phaser.Input.Keyboard.JustDown(this.cursors.down!);
+        const teclaA = Phaser.Input.Keyboard.JustDown(this.aKey);
+        const teclaD = Phaser.Input.Keyboard.JustDown(this.dKey);
+        const teclaW = Phaser.Input.Keyboard.JustDown(this.wKey);
+        const teclaS = Phaser.Input.Keyboard.JustDown(this.sKey);
+        const izquierdaSostenida = this.cursors.left!.isDown || this.aKey.isDown;
+        const derechaSostenida = this.cursors.right!.isDown || this.dKey.isDown;
+        const arribaSostenida = this.cursors.up!.isDown || this.wKey.isDown;
+        const abajoSostenida = this.cursors.down!.isDown || this.sKey.isDown;
+
+        const izquierda = (flechaIzquierda || teclaA) && !this.izquierdaPresionada;
+        const derecha = (flechaDerecha || teclaD) && !this.derechaPresionada;
+        const arriba = (flechaArriba || teclaW) && !this.arribaPresionada;
+        const abajo = (flechaAbajo || teclaS) && !this.abajoPresionada;
+
+        this.izquierdaPresionada = izquierdaSostenida;
+        this.derechaPresionada = derechaSostenida;
+        this.arribaPresionada = arribaSostenida;
+        this.abajoPresionada = abajoSostenida;
+
         if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
             if (this.menuup == 0) {
                 this.abrirMenuPausa();
@@ -4055,7 +4443,7 @@ async create() {
         if (this.playerMoving) {
             if (this.menuup === 0) {
                 const player = this.entities.find(entity => entity.type === "player");
-                if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
+                if (izquierda) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "left";
@@ -4063,7 +4451,7 @@ async create() {
                     if (player.dir === -1 && this.playerVertical === false && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
-                else if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
+                else if (derecha) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "right";
@@ -4071,7 +4459,7 @@ async create() {
                     if (player.dir === 1 && this.playerVertical === false && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
-                else if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
+                else if (arriba) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer ="up";
@@ -4079,7 +4467,7 @@ async create() {
                     if (player.dir === -1 && this.playerVertical === true && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
 
-                else if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
+                else if (abajo) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
                     this.inputBuffer = "down";
@@ -4087,25 +4475,25 @@ async create() {
                     if (player.dir === 1 && this.playerVertical === true && this.pushTweens.length === 0) this.playerTween?.setTimeScale(50);
                 }
                 else if (this.holdBufferOpen && this.inputBuffer === "") {
-                    if (this.cursors.left!.isDown){
+                    if (izquierdaSostenida){
                         if (this.movenumber) this.movenumber = false
                         else this.movenumber = true;
                         this.inputBuffer = "left";
                     }
 
-                    else if (this.cursors.right!.isDown) {
+                    else if (derechaSostenida) {
                         if (this.movenumber) this.movenumber = false
                         else this.movenumber = true;
                         this.inputBuffer = "right";
                     }
 
-                    else if (this.cursors.up!.isDown) {
+                    else if (arribaSostenida) {
                         if (this.movenumber) this.movenumber = false
                         else this.movenumber = true;
                         this.inputBuffer ="up";
                     }
 
-                    else if (this.cursors.down!.isDown) {
+                    else if (abajoSostenida) {
                         if (this.movenumber) this.movenumber = false
                         else this.movenumber = true;
                         this.inputBuffer = "down";
@@ -4123,28 +4511,28 @@ async create() {
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.left!) && this.menuup == 0) {
+        if (izquierda && this.menuup == 0) {
             if (this.movenumber) this.movenumber = false
             else this.movenumber = true;
             this.doMovement("left");
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.right!) && this.menuup == 0) {
+        if (derecha && this.menuup == 0) {
             if (this.movenumber) this.movenumber = false
             else this.movenumber = true;
             this.doMovement("right");
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.up!) && this.menuup == 0) {
+        if (arriba && this.menuup == 0) {
             if (this.movenumber) this.movenumber = false
             else this.movenumber = true;
             this.doMovement("up");
             return;
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.down!) && this.menuup == 0) {
+        if (abajo && this.menuup == 0) {
             if (this.movenumber) this.movenumber = false
             else this.movenumber = true;
             this.doMovement("down");

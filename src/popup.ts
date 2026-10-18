@@ -256,7 +256,7 @@ export function mostrarConfirmacion(
   if (mostrarCancelar) {
     crearBotonPopup(
       centroX - separacionCentros,
-      "Cancelar",
+      "Cancel",
       0x95add6,
       () => {}
     );
@@ -289,7 +289,7 @@ export function mostrarAviso(
     escena,
     titulo,
     mensaje,
-    "Entendido",
+    "Got It",
     0xe6c56a,
     () => {},
     false

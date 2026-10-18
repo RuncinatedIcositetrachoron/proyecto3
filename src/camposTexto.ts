@@ -42,7 +42,7 @@ export function crearCampoTexto(
   input.placeholder = etiqueta;
   input.autocomplete = "off";
   input.spellcheck = false;
-  input.title = "Maximo " + limite + " caracteres de la fuente";
+  input.title = "Maximum " + limite + " supported characters";
   input.autocomplete = "off";
 
   input.setAttribute("aria-label", etiqueta);

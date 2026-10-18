@@ -37,23 +37,23 @@ export const demo: {
 
   niveles: [
     {
-      id: 676, nombre: "Mi primer nivel", autorId: 1,
+      id: 676, nombre: "My First Level", autorId: 1,
       autor: "demo", publicado: true, descargas: 100, version: 1
     },
     {
-      id: 2, nombre: "Laberinto", autorId: 2,
+      id: 2, nombre: "Maze", autorId: 2,
       autor: "Darío", publicado: true, descargas: 42, version: 1
     },
     {
-      id: 3, nombre: "Muchas cajas", autorId: 3,
+      id: 3, nombre: "Lots of Crates", autorId: 3,
       autor: "Ivo", publicado: true, descargas: 208, version: 1
     },
     {
-      id: 4, nombre: "Ataque láser", autorId: 3,
+      id: 4, nombre: "Laser Attack", autorId: 3,
       autor: "Ivo", publicado: true, descargas: 17, version: 1
     },
     {
-      id: 5, nombre: "Espejos", autorId: 4,
+      id: 5, nombre: "Mirrors", autorId: 4,
       autor: "Bruno Fiszelew", publicado: true, descargas: 9, version: 1
     }
   ],
@@ -98,7 +98,7 @@ export function cerrarSesion(): void {
 export function continuarComoInvitado(): void {
   demo.usuarioActual = {
     id: 0,
-    nombre: "Invitado",
+    nombre: "Guest",
     contrasena: ""
   };
 
@@ -143,7 +143,7 @@ function cargarSesion(): void {
     if (idGuardado === "0") {
       demo.usuarioActual = {
         id: 0,
-        nombre: "Invitado",
+        nombre: "Guest",
         contrasena: ""
       };
       return;

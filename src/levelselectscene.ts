@@ -45,7 +45,7 @@ export class LevelselectScene extends Phaser.Scene {
 
     this.nivelesOficiales = [];
     this.totalNiveles = 0;
-    this.mensajeNiveles = "Cargando niveles...";
+    this.mensajeNiveles = "Loading levels...";
     this.dibujar();
 
     let oficiales: NivelBackend[];
@@ -59,8 +59,8 @@ export class LevelselectScene extends Phaser.Scene {
         return;
       }
 
-      console.error("No se pudieron cargar los niveles oficiales:", error);
-      this.mensajeNiveles = "No se pudieron cargar los niveles oficiales.";
+      console.error("Could not load official levels:", error);
+      this.mensajeNiveles = "Could not load official levels.";
       this.dibujar();
       return;
     }
@@ -75,7 +75,7 @@ export class LevelselectScene extends Phaser.Scene {
       try {
         const progresoCargado = await leerProgresoOriginalBackend(usuario.nombre, this.archivoGuardado);
         if (Array.isArray(progresoCargado) === false) {
-          throw new Error("El servidor no devolvio una lista de progreso.");
+          throw new Error("The server did not return a progress list.");
         }
         progreso = progresoCargado;
       } catch (error) {
@@ -83,8 +83,8 @@ export class LevelselectScene extends Phaser.Scene {
           return;
         }
 
-        console.error("No se pudo cargar el progreso oficial:", error);
-        this.mensajeNiveles = "No se pudo cargar el progreso.";
+        console.error("Could not load official progress:", error);
+        this.mensajeNiveles = "Could not load progress.";
       }
     }
     if (cargaActual !== this.numeroCarga) {
@@ -135,7 +135,7 @@ export class LevelselectScene extends Phaser.Scene {
     titulo.setOrigin(0.5, 0);
 
     const centroTitulo = titulo.y + titulo.displayHeight / 2;
-    this.boton(100, centroTitulo, 120, "Volver", () => {
+    this.boton(100, centroTitulo, 120, "Back", () => {
       const transition = this.scene.get("transition") as TransitionScene;
       transition.changeScene(
         this.sys.settings.key,
@@ -145,7 +145,7 @@ export class LevelselectScene extends Phaser.Scene {
 
     if (this.totalNiveles === 0) {
       let mensaje = this.mensajeNiveles;
-      if (mensaje === "") mensaje = "Todavia no hay niveles oficiales.";
+      if (mensaje === "") mensaje = "No official levels available yet.";
       this.add.text(400, 300, mensaje, {
         fontFamily: "Fuente", fontSize: "20px", color: "#cbdbfc", align: "center",
         wordWrap: { width: 640 }
@@ -297,7 +297,7 @@ export class LevelselectScene extends Phaser.Scene {
   }
 
   dibujarPaginacion(paginas: number, y: number) {
-    this.boton(280, y, 150, "Anterior", () => {
+    this.boton(280, y, 150, "Previous", () => {
       if (this.paginaActual <= 0) {
         return;
       }
@@ -309,7 +309,7 @@ export class LevelselectScene extends Phaser.Scene {
       fontFamily: "Fuente", fontSize: "16px", color: "#b39ddb",
     }).setOrigin(0.5);
 
-    this.boton(520, y, 150, "Siguiente", () => {
+    this.boton(520, y, 150, "Next", () => {
       if (this.paginaActual >= paginas - 1) {
         return;
       }
@@ -334,7 +334,7 @@ export class LevelselectScene extends Phaser.Scene {
   }
 
   textoProgreso() {
-    return (this.nivelesCompletados + " / " + this.totalNiveles + " niveles completados");
+    return (this.nivelesCompletados + " / " + this.totalNiveles + " levels completed");
   }
 
   calcularPaginas() {
