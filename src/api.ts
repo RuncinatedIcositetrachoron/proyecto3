@@ -18,12 +18,12 @@ async function pedir(ruta: string, metodo = "GET", datos?: any): Promise<any> {
     try {
       resultado = JSON.parse(texto);
     } catch {
-      throw new Error(metodo + " " + ruta + " devolvio HTML o texto en vez de JSON (HTTP " + respuesta.status + ").");
+      throw new Error(metodo + " " + ruta + " returned HTML or text instead of JSON (HTTP " + respuesta.status + ").");
     }
   }
 
   if (respuesta.ok === false) {
-    let mensaje = "Error del servidor";
+    let mensaje = "Server error";
     if (resultado !== null && typeof resultado.estatus === "string") {
       mensaje = resultado.estatus;
     }
@@ -71,7 +71,7 @@ export type ConfiguracionBackend = {
 export async function comprobarBackendActivo(): Promise<boolean> {
   const respuesta = await fetch(API + "/health");
   if (respuesta.ok === false) {
-    throw new Error("No se pudo conectar con el backend (HTTP " + respuesta.status + ").");
+    throw new Error("Could not connect to the server (HTTP " + respuesta.status + ").");
   }
   return (await respuesta.text()).trim() === "OK";
 }
@@ -162,7 +162,7 @@ export async function guardarNivelCreadoBackend(
   for (let i = 0; i < creados.length; i++) {
     if (creados[i].nombre === nombre) return creados[i];
   }
-  throw new Error("No se encontro el nivel creado: " + nombre);
+  throw new Error("Could not find the created level: " + nombre);
 }
 
 export async function renombrarNivelCreadoBackend(
@@ -191,13 +191,13 @@ async function comprobarNombrePublicacionBackend(
     const publicacion = publicaciones[i];
     if (publicacion.nombre === nombre &&
         (publicacion.id !== id || publicacion.usuario !== usuario)) {
-      throw new Error("Ya existe otra publicacion con ese nombre. Elegi otro nombre.");
+      throw new Error("Another published level already has that name. Choose a different name.");
     }
   }
   try {
     const encontrada = await leerNivelPublicadoBackend(nombre);
     if (encontrada.id !== id || encontrada.usuario !== usuario) {
-      throw new Error("Ya existe otra publicacion con ese nombre. Elegi otro nombre.");
+      throw new Error("Another published level already has that name. Choose a different name.");
     }
   } catch (error) {
     if (String(error).indexOf("(HTTP 404)") === -1) throw error;
@@ -214,7 +214,7 @@ export async function publicarNivelBackend(
     if (publicaciones[i].nombre === nombre) {
       if (nivel !== undefined &&
           (esNivelDelEditorBackend(publicaciones[i]) === false || apiAEditor(publicaciones[i]).id !== nivel.id)) {
-        throw new Error("Ya existe otra publicacion con ese nombre. Elegi otro nombre.");
+        throw new Error("Another published level already has that name. Choose a different name.");
       }
       existente = publicaciones[i];
       break;
@@ -244,7 +244,7 @@ export async function renombrarPublicacionBackend(id: number, nombre: string): P
   const publicaciones = await leerPublicaciones();
   for (let i = 0; i < publicaciones.length; i++) {
     if (publicaciones[i].nombre === nombre && publicaciones[i].id !== id) {
-      throw new Error("Ya existe otra publicacion con ese nombre. Elegi otro nombre.");
+      throw new Error("Another published level already has that name. Choose a different name.");
     }
   }
   await pedir("/level/name/online/" + id, "PATCH", { nombre: nombre });
@@ -256,7 +256,7 @@ export async function actualizarPublicacionBackend(
   publicacion: NivelBackend
 ): Promise<void> {
   if (publicacion.usuario !== usuario) {
-    throw new Error("Esta publicacion pertenece a otro usuario.");
+    throw new Error("This published level belongs to another user.");
   }
   await comprobarNombrePublicacionBackend(usuario, nivel.nombre, publicacion.id);
   await guardarNivelCreadoBackend(usuario, nivel.nombre, nivel);
@@ -309,7 +309,7 @@ export async function descargarNivelBackend(usuario: string, nombre: string): Pr
       return nuevas[i];
     }
   }
-  throw new Error("El backend no registro la descarga.");
+  throw new Error("The server did not register the download.");
 }
 
 export async function eliminarNivelGuardadoBackend(usuario: string, id: number): Promise<void> {
@@ -322,7 +322,7 @@ export async function eliminarNivelGuardadoBackend(usuario: string, id: number):
       return;
     }
   }
-  throw new Error("No se encontro la descarga a desinstalar.");
+  throw new Error("Could not find the download to uninstall.");
 }
 
 export async function completarNivelDescargadoBackend(usuario: string, id: number): Promise<void> {
@@ -336,7 +336,7 @@ export async function completarNivelDescargadoBackend(usuario: string, id: numbe
     }
   }
 
-  if (descarga === null) throw new Error("No se encontro el nivel descargado.");
+  if (descarga === null) throw new Error("Could not find the downloaded level.");
   if (descarga.usuariosQueCompletaron.indexOf(usuario) !== -1) return;
 
   await pedir("/level/" + encodeURIComponent(descarga.nombre), "POST", { username: usuario });
@@ -348,7 +348,7 @@ export async function completarNivelDescargadoBackend(usuario: string, id: numbe
       return;
     }
   }
-  throw new Error("El servidor no guardo el progreso de la descarga.");
+  throw new Error("The server did not save progress for the downloaded level.");
 }
 
 // NIVELES ORIGINALES (OG)
@@ -377,5 +377,5 @@ export async function leerProgresoOriginalBackend(
   if (archivo === 1) return guardado.nivelesOG1;
   if (archivo === 2) return guardado.nivelesOG2;
   if (archivo === 3) return guardado.nivelesOG3;
-  throw new Error("El archivo de guardado debe ser 1, 2 o 3.");
+  throw new Error("The save slot must be 1, 2 or 3.");
 }

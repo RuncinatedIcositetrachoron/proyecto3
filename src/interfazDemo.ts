@@ -103,14 +103,14 @@ export class InterfazDemo extends Phaser.Scene {
       250,
       365,
       220,
-      'Cancelar',
+      'Cancel',
       cancelar
     );
     this.boton(
       550,
       365,
       220,
-      'Aceptar',
+      'Confirm',
       aceptar,
       VERDE
     );

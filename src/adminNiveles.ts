@@ -67,7 +67,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     }
   }
 
-  const titulo = texto(centroX, 0, "EXPORTAR NIVELES", 24, "#ffd166");
+  const titulo = texto(centroX, 0, "EXPORT LEVELS", 24, "#ffd166");
   const altoLista = nivelesPorPagina * 32;
   const alto = margen + titulo.displayHeight + 20 + altoLista +
     20 + 44 + 20 + 32 + 20 + 44 + margen;
@@ -88,13 +88,13 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
   const izquierda = centroX - anchoTexto / 2;
   const derecha = centroX + anchoTexto / 2;
   const botonAnterior = boton(izquierda + anchoPagina / 2, yPagina, anchoPagina - 4,
-    "Anterior", () => {
+    "Previous", () => {
       paginaActual--;
       mostrarNiveles();
     }, 0x95add6);
   const textoPagina = texto(centroX, yPagina, "", 16).setOrigin(0.5);
   const botonSiguiente = boton(derecha - anchoPagina / 2, yPagina, anchoPagina - 4,
-    "Siguiente", () => {
+    "Next", () => {
       paginaActual++;
       mostrarNiveles();
     }, 0x95add6);
@@ -105,11 +105,11 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
   const separacion = anchoBoton + 20;
   const y = arriba + alto - margen - 22;
   boton(centroX - separacion, y, anchoBoton - 4,
-    "Cerrar", cerrar, 0xe57373);
+    "Close", cerrar, 0xe57373);
   const botonCrear = boton(centroX, y, anchoBoton - 4,
-    "Crear nivel", crear, 0x9ccc65);
+    "Create Level", crear, 0x9ccc65);
   const botonExportar = boton(centroX + separacion, y, anchoBoton - 4,
-    "Guardar", exportarJson, 0xffd166);
+    "Save", exportarJson, 0xffd166);
 
   escena.events.once(Phaser.Scenes.Events.SHUTDOWN, cerrar);
   if (teclado) {
@@ -121,12 +121,12 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     cargarSeleccion();
   } catch (error) {
     mostrarNiveles();
-    estado.setText("No se pudieron cargar tus niveles: " + String(error));
+    estado.setText("Could not load your levels: " + String(error));
     return;
   }
   if (niveles.length === 0) {
     objetos.push(texto(centroX, arribaLista + 64,
-      "Todavia no tenes niveles.", 18).setOrigin(0.5));
+      "You have no levels yet.", 18).setOrigin(0.5));
   }
   mostrarNiveles();
 
@@ -188,7 +188,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
       let titulo = nivel.nombre;
       let color = "#cbdbfc";
       if (posicion !== -1) {
-        titulo = "Nivel " + (posicion + 1) + " - " + nivel.nombre;
+        titulo = "Level " + (posicion + 1) + " - " + nivel.nombre;
         color = "#9ccc65";
       }
       const x = centroX - ancho / 2 + margen;
@@ -205,7 +205,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
 
     const paginas = Math.max(1, Math.ceil(niveles.length / nivelesPorPagina));
     textoPagina.setText((paginaActual + 1) + " / " + paginas);
-    estado.setText(seleccion.length + " niveles seleccionados.");
+    estado.setText(seleccion.length + " levels selected.");
     actualizarBotones();
   }
 
@@ -263,17 +263,17 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     }
     const navegador: any = window;
     if (typeof navegador.showSaveFilePicker !== "function") {
-      estado.setText("Este navegador no permite exportar archivos.");
+      estado.setText("This browser does not support exporting files.");
       return;
     }
 
     ocupado = true;
     actualizarBotones();
-    let mensaje = "JSON exportado.";
+    let mensaje = "JSON exported.";
     try {
       const contenido = generarJson();
       const archivo = await navegador.showSaveFilePicker({
-        suggestedName: "nivelesExportados.json",
+        suggestedName: "exportedLevels.json",
         types: [{ description: "JSON", accept: { "application/json": [".json"] } }]
       });
       if (!abierto) {
@@ -288,9 +288,9 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
       localStorage.setItem("seleccionOficiales:" + usuario, JSON.stringify(seleccion));
     } catch (error: any) {
       if (error.name === "AbortError") {
-        mensaje = "Exportacion cancelada.";
+        mensaje = "Export canceled.";
       } else {
-        mensaje = "No se pudo exportar: " + String(error);
+        mensaje = "Could not export: " + String(error);
       }
     }
     if (!abierto) {
@@ -310,7 +310,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
       cerrar();
       escena.scene.start("editor", { nivelId: nivel.id });
     } catch (error: any) {
-      estado.setText("No se pudo crear el nivel: " + String(error));
+      estado.setText("Could not create the level: " + String(error));
     }
   }
 

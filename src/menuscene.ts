@@ -1,15 +1,43 @@
 import Phaser from "phaser";
-import { crearBoton } from "./niveles";
-import { demo, cerrarSesion, esInvitado } from "./datosDemo";
+import {
+  demo,
+  cerrarSesion,
+  esInvitado,
+  leerProgresoInvitado
+} from "./datosDemo";
 import { TransitionScene } from "./transitionScene";
+import { mostrarConfirmacion } from "./popup";
+import {
+  leerNivelesOriginalesBackend,
+  leerProgresoOriginalBackend
+} from "./api";
 
 export class MenuScene extends Phaser.Scene {
+  abriendoPartida = false;
+  numeroCarga = 0;
+  abajoLogo = 0;
+  cargandoProgreso = false;
+  progresoCargado = false;
+  primerNivelCompletado = false;
+  hayProgreso = false;
+  mensajeProgreso = "";
+  idsNiveles: number[] = [];
+  progreso: boolean[] = [];
+  opcionesMenu: Phaser.GameObjects.Container | null = null;
+
   constructor() {
     super("menu");
   }
 
   preload() {
-    this.load.image("logo", "assets/logo.png");
+    this.load.image("logoMenu", "assets/logo.png");
+    this.load.image("iconosMenu", "assets/icons.png");
+    this.load.spritesheet("arteMenu", "assets/start menu art.png", {
+      frameWidth: 139,
+      frameHeight: 123,
+      endFrame: 14
+    });
+
     this.load.bitmapFont(
       "FuenteBitmap",
       "./laserfont_0.png",
@@ -19,7 +47,22 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    this.cameras.main.setBackgroundColor("#222034");
+    this.abriendoPartida = false;
+    this.numeroCarga++;
+    this.cargandoProgreso = false;
+    this.progresoCargado = false;
+    this.primerNivelCompletado = false;
+    this.hayProgreso = false;
+    this.mensajeProgreso = "";
+    this.idsNiveles = [];
+    this.progreso = [];
+    this.opcionesMenu = null;
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.numeroCarga++;
+    });
+
+    this.cameras.main.setBackgroundColor("#0f102e");
 
     const usuario = demo.usuarioActual;
 
@@ -28,91 +71,355 @@ export class MenuScene extends Phaser.Scene {
       return;
     }
 
-    const invitado = esInvitado();
+    const ancho = this.scale.width;
+    const alto = this.scale.height;
+    const escalaX = ancho / 1600;
+    const escalaY = alto / 900;
+    const escalaTexto = Math.min(escalaX, escalaY);
+    const anchoMenu = Math.round(583 * escalaX);
 
-    this.crearUsuario(usuario.nombre, invitado);
+    this.crearIconos();
+    this.textures.get("logoMenu").setFilter(Phaser.Textures.FilterMode.NEAREST);
+    this.textures.get("iconosMenu").setFilter(Phaser.Textures.FilterMode.NEAREST);
+    this.textures.get("arteMenu").setFilter(Phaser.Textures.FilterMode.NEAREST);
 
-    const centroMenu = 230;
-
-    const logo = this.add.image(centroMenu, 135, "logo");
-    const escala = Math.min(2, 380 / logo.width, 140 / logo.height);
-    logo.setScale(escala);
-
-    const opciones = [
-      "JUGAR",
-      "COMMUNITY",
-      "LEVEL EDITOR",
-      "CRÉDITOS"
-    ];
-
-    const colores = [
-      0x9ccc65,
-      0x95add6,
-      0xb39ddb,
-      0xe6c56a
-    ];
-
-    for (let i = 0; i < opciones.length; i++) {
-      const boton = crearBoton(
-        this,
-        centroMenu - 1.5,
-        278.5 + i * 60,
-        320,
-        opciones[i],
-        () => {
-          this.abrirOpcion(i);
-        }
-      );
-
-      boton.removeAllListeners("pointerover");
-      boton.removeAllListeners("pointerout");
-      boton.setFillStyle(colores[i]);
-
-      if (invitado && i !== 0 && i !== 3) {
-        boton.setFillStyle(0x777784);
-        boton.disableInteractive();
-      } else {
-        boton.on("pointerover", () => {
-          boton.setAlpha(0.8);
-        });
-
-        boton.on("pointerout", () => {
-          boton.setAlpha(1);
-        });
-      }
+    if (!this.anims.exists("arteMenuAnimado")) {
+      this.anims.create({
+        key: "arteMenuAnimado",
+        frames: this.anims.generateFrameNumbers("arteMenu", {
+          start: 0,
+          end: 14
+        }),
+        frameRate: 8,
+        repeat: -1
+      });
     }
 
-    if (invitado) {
-      this.add.text(
+    const arte = this.add.sprite(anchoMenu, 0, "arteMenu", 0);
+    arte.setOrigin(0, 0);
+    arte.setScale(Math.max((ancho - anchoMenu) / 139, alto / 123));
+    arte.play("arteMenuAnimado");
+
+    this.add.rectangle(0, 0, anchoMenu, alto, 0x0f102e).setOrigin(0);
+
+    this.add.rectangle(
+      anchoMenu, 0, 8 * escalaTexto, alto, 0x080b17, 0.2
+    ).setOrigin(0);
+
+    const anchoBorde = Math.max(2, Math.round(8 * escalaTexto));
+    this.add.rectangle(anchoMenu - anchoBorde, 0, anchoBorde, alto, 0x80759d, 0.28).setOrigin(0);
+
+    const logo = this.add.image(anchoMenu / 2, Math.round(alto * 0.055), "logoMenu");
+    logo.setOrigin(0.5, 0);
+    logo.setScale((anchoMenu - 96 * escalaX) / logo.width);
+    this.abajoLogo = logo.y + logo.displayHeight;
+
+    this.crearUsuario(usuario.nombre, esInvitado());
+    this.cargarProgreso();
+  }
+
+  async cargarProgreso() {
+    const usuario = demo.usuarioActual;
+
+    if (usuario === null || usuario === undefined || this.cargandoProgreso) {
+      return;
+    }
+
+    const cargaActual = ++this.numeroCarga;
+    this.cargandoProgreso = true;
+    this.progresoCargado = false;
+    this.mensajeProgreso = "";
+    this.dibujarOpciones();
+
+    try {
+      const niveles = await leerNivelesOriginalesBackend();
+
+      niveles.sort(function (a, b) {
+        return a.id - b.id;
+      });
+
+      if (niveles.length === 0) {
+        throw new Error("No official levels available yet.");
+      }
+
+      let progreso: boolean[] = [];
+
+      if (esInvitado()) {
+        progreso = leerProgresoInvitado(1);
+      } else {
+        progreso = await leerProgresoOriginalBackend(usuario.nombre, 1);
+      }
+
+      if (
+        cargaActual !== this.numeroCarga ||
+        this.scene.isActive("menu") === false ||
+        demo.usuarioActual !== usuario
+      ) {
+        return;
+      }
+
+      this.idsNiveles = [];
+      this.progreso = progreso;
+      this.hayProgreso = false;
+
+      for (let i = 0; i < niveles.length; i++) {
+        this.idsNiveles.push(niveles[i].id);
+
+        if (progreso[niveles[i].id] === true) {
+          this.hayProgreso = true;
+        }
+      }
+
+      this.primerNivelCompletado = progreso[this.idsNiveles[0]] === true;
+      this.progresoCargado = true;
+    } catch (error) {
+      if (
+        cargaActual === this.numeroCarga &&
+        this.scene.isActive("menu") &&
+        demo.usuarioActual === usuario
+      ) {
+        this.mensajeProgreso = "Could not load progress.";
+      }
+    } finally {
+      if (
+        cargaActual === this.numeroCarga &&
+        this.scene.isActive("menu") &&
+        demo.usuarioActual === usuario
+      ) {
+        this.cargandoProgreso = false;
+        this.dibujarOpciones();
+      }
+    }
+  }
+
+  dibujarOpciones() {
+    if (this.opcionesMenu !== null) {
+      this.opcionesMenu.destroy();
+    }
+
+    const grupo = this.add.container(0, 0);
+    this.opcionesMenu = grupo;
+
+    const escalaX = this.scale.width / 1600;
+    const escalaY = this.scale.height / 900;
+    const escalaTexto = Math.min(escalaX, escalaY);
+    const anchoMenu = Math.round(583 * escalaX);
+    const centroMenu = anchoMenu / 2;
+    const margenLateral = 48 * escalaX;
+    const anchoBoton = anchoMenu - 2 * margenLateral;
+
+    if (this.cargandoProgreso) {
+      const textoCarga = this.add.text(
         centroMenu,
-        510,
-        "Iniciá sesión para acceder a las demás opciones.",
+        this.abajoLogo + (this.scale.height - this.abajoLogo) / 2,
+        "Loading progress...",
         {
           fontFamily: "Fuente",
-          fontSize: "14px",
+          fontSize: 28 * escalaTexto + "px",
           color: "#a9a3bc",
-          align: "center",
-          wordWrap: { width: 340 },
+          resolution: 4
+        }
+      ).setOrigin(0.5);
+      grupo.add(textoCarga);
+      return;
+    }
+
+    const acciones: number[] = [];
+
+    if (this.primerNivelCompletado) {
+      acciones.push(0);
+    }
+
+    acciones.push(1);
+    acciones.push(2);
+    acciones.push(3);
+    acciones.push(4);
+    acciones.push(5);
+    acciones.push(6);
+
+    const nombres = [
+      "Resume",
+      "Start New Game",
+      "Level Selector",
+      "Community Levels",
+      "Level Editor",
+      "Credits",
+      "Exit"
+    ];
+
+    const iconos = [
+      "RESUME",
+      "Start New Game",
+      "Level Selector",
+      "Community Levels",
+      "Level Editor",
+      "Credits",
+      "Exit"
+    ];
+
+    const medida = this.add.text(0, 0, "Community Levels", {
+      fontFamily: "Fuente",
+      fontSize: 42 * escalaTexto + "px",
+      resolution: 4
+    }).setVisible(false);
+
+    const anchoIcono = 48 * escalaTexto;
+    const espacioIcono = 20 * escalaTexto;
+    const anchoContenido = anchoIcono + espacioIcono + medida.width * 0.99;
+    const escalaContenido = Math.min(1, anchoBoton / anchoContenido);
+    const izquierdaContenido = centroMenu - anchoContenido * escalaContenido / 2;
+    const xIcono = izquierdaContenido + anchoIcono * escalaContenido / 2;
+    const xTexto = izquierdaContenido + (anchoIcono + espacioIcono) * escalaContenido;
+    medida.destroy();
+
+    let reservaMensaje = 0;
+
+    if (this.mensajeProgreso !== "") {
+      reservaMensaje = 100 * escalaY;
+    }
+
+    const altoBoton = 60 * escalaY;
+    const altoArea = this.scale.height - this.abajoLogo - reservaMensaje;
+    const altoGrupo = Math.min(516 * escalaY, altoArea - 80 * escalaY);
+    const primeraY = this.abajoLogo + (altoArea - altoGrupo) / 2 + altoBoton / 2;
+    const separacion = (altoGrupo - altoBoton) / (acciones.length - 1);
+
+    for (let i = 0; i < acciones.length; i++) {
+      const accion = acciones[i];
+      const y = primeraY + i * separacion;
+      let habilitado = true;
+
+      if (accion <= 2 && this.progresoCargado === false) {
+        habilitado = false;
+      }
+
+      if (accion === 2 && this.primerNivelCompletado === false) {
+        habilitado = false;
+      }
+
+      if (esInvitado() && (accion === 3 || accion === 4)) {
+        habilitado = false;
+      }
+
+      let colorTexto = "#ffffff";
+      let colorIcono = 0xffffff;
+
+      if (habilitado === false) {
+        colorTexto = "#51515f";
+        colorIcono = 0x51515f;
+      }
+
+      const icono = this.add.image(
+        xIcono,
+        y,
+        "iconosMenu",
+        iconos[accion]
+      ).setOrigin(0.5)
+        .setScale(3 * escalaTexto * escalaContenido)
+        .setTint(colorIcono);
+
+      const texto = this.add.text(
+        xTexto,
+        y,
+        nombres[accion],
+        {
+          fontFamily: "Fuente",
+          fontSize: 42 * escalaTexto + "px",
+          color: colorTexto,
+          resolution: 4
+        }
+      ).setOrigin(0, 0.5).setScale(0.99 * escalaContenido, escalaContenido);
+
+      grupo.add([icono, texto]);
+
+      if (habilitado === false) {
+        continue;
+      }
+
+      const boton = this.add.zone(
+        centroMenu,
+        y,
+        anchoBoton,
+        altoBoton
+      ).setInteractive({ useHandCursor: true });
+      grupo.add(boton);
+
+      boton.on("pointerover", () => {
+        texto.setColor("#ffd166");
+        icono.setTint(0xffd166);
+      });
+
+      boton.on("pointerout", () => {
+        texto.setColor(colorTexto);
+        icono.setTint(colorIcono);
+      });
+
+      boton.on("pointerdown", () => {
+        texto.setColor(colorTexto);
+        icono.setTint(colorIcono);
+        this.abrirOpcion(accion);
+      });
+    }
+
+    if (this.mensajeProgreso !== "") {
+      const mensaje = this.add.text(
+        centroMenu,
+        this.scale.height - 76 * escalaY,
+        this.mensajeProgreso,
+        {
+          fontFamily: "Fuente",
+          fontSize: 22 * escalaTexto + "px",
+          color: "#e6a39f",
           resolution: 4
         }
       ).setOrigin(0.5, 0);
+      grupo.add(mensaje);
+
+      const reintentar = this.add.text(
+        centroMenu,
+        this.scale.height - 37 * escalaY,
+        "Retry",
+        {
+          fontFamily: "Fuente",
+          fontSize: 24 * escalaTexto + "px",
+          color: "#ffd166",
+          resolution: 4
+        }
+      ).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
+
+      reintentar.on("pointerdown", () => {
+        this.cargarProgreso();
+      });
+
+      grupo.add(reintentar);
     }
+  }
+
+  crearIconos() {
+    const textura = this.textures.get("iconosMenu");
+
+    if (textura.has("Start New Game")) {
+      return;
+    }
+
+    textura.add("RESUME", 0, 16, 32, 16, 16);
+    textura.add("Start New Game", 0, 16, 48, 16, 16);
+    textura.add("Level Selector", 0, 16, 0, 16, 16);
+    textura.add("Community Levels", 0, 32, 0, 15, 16);
+    textura.add("Level Editor", 0, 0, 16, 16, 16);
+    textura.add("Credits", 0, 16, 16, 16, 16);
+    textura.add("Exit", 0, 32, 16, 15, 16);
   }
 
   crearUsuario(nombre: string, invitado: boolean) {
     const derechaUsuario = this.scale.width - 32;
 
-    const textoUsuario = this.add.text(
-      derechaUsuario,
-      36,
-      nombre,
-      {
-        fontFamily: "Fuente",
-        fontSize: "16px",
-        color: "#cbdbfc",
-        resolution: 4
-      }
-    ).setOrigin(1, 0.5);
+    const textoUsuario = this.add.text(derechaUsuario, 36, nombre, {
+      fontFamily: "Fuente",
+      fontSize: "16px",
+      color: "#cbdbfc",
+      resolution: 4
+    }).setOrigin(1, 0.5);
 
     let nombreVisible = nombre;
 
@@ -121,24 +428,19 @@ export class MenuScene extends Phaser.Scene {
       textoUsuario.setText(nombreVisible + "...");
     }
 
-    let accionCuenta = "Cerrar sesión";
+    let accionCuenta = "Sign Out";
 
     if (invitado) {
-      accionCuenta = "Iniciar sesión";
+      accionCuenta = "Sign In";
     }
 
-    const enlaceCuenta = this.add.text(
-      derechaUsuario,
-      66,
-      accionCuenta,
-      {
-        fontFamily: "Fuente",
-        fontSize: "14px",
-        color: "#b39ddb",
-        padding: { left: 0, right: 0, top: 5, bottom: 5 },
-        resolution: 4
-      }
-    ).setOrigin(1, 0.5)
+    const enlaceCuenta = this.add.text(derechaUsuario, 66, accionCuenta, {
+      fontFamily: "Fuente",
+      fontSize: "14px",
+      color: "#b39ddb",
+      padding: { left: 0, right: 0, top: 5, bottom: 5 },
+      resolution: 4
+    }).setOrigin(1, 0.5)
       .setInteractive({ useHandCursor: true });
 
     enlaceCuenta.on("pointerover", () => {
@@ -150,59 +452,105 @@ export class MenuScene extends Phaser.Scene {
     });
 
     enlaceCuenta.on("pointerdown", () => {
-      cerrarSesion();
-      const transition = this.scene.get("transition") as TransitionScene;
-      transition.changeScene(
-        this.sys.settings.key,
-        "usuariosDemo",
-      );
+      this.abrirOpcion(6);
     });
   }
 
   abrirOpcion(opcion: number) {
-    if (demo.usuarioActual === null || demo.usuarioActual === undefined) {
-      const transition = this.scene.get("transition") as TransitionScene;
-      transition.changeScene(
-        this.sys.settings.key,
-        "usuariosDemo",
-      );
-      return;
-    }
-
-    if (esInvitado() && opcion !== 0) {
+    if (this.abriendoPartida && opcion !== 6) {
       return;
     }
 
     const transition = this.scene.get("transition") as TransitionScene;
+
+    if (demo.usuarioActual === null || demo.usuarioActual === undefined) {
+      transition.changeScene("menu", "usuariosDemo");
+      return;
+    }
+
+    if (opcion <= 2 && this.progresoCargado === false) {
+      return;
+    }
+
+    if ((opcion === 0 || opcion === 2) && this.primerNivelCompletado === false) {
+      return;
+    }
+
+    if (esInvitado() && (opcion === 3 || opcion === 4)) {
+      return;
+    }
+
     switch (opcion) {
       case 0:
-      transition.changeScene(
-        this.sys.settings.key,
-        "selectscene",
-      );
+        this.abrirPartida(false);
         break;
-
       case 1:
-      transition.changeScene(
-        this.sys.settings.key,
-        "communityDemo",
-      );
+        if (this.hayProgreso) {
+          mostrarConfirmacion(
+            this,
+            "Start Again?",
+            "You will return to the first level. Your completed levels will stay saved.",
+            "Start Again",
+            0xffd166,
+            () => {
+              this.abrirPartida(true);
+            }
+          );
+        } else {
+          this.abrirPartida(true);
+        }
         break;
-
       case 2:
-      transition.changeScene(
-        this.sys.settings.key,
-        "LevelsScene", 
-        {escenaAnterior: "menu"}
-      );
+        transition.changeScene("menu", "selectscene");
         break;
-
       case 3:
-      transition.changeScene(
-        this.sys.settings.key,
-        "credits",
-      );
+        transition.changeScene("menu", "communityDemo");
+        break;
+      case 4:
+        transition.changeScene("menu", "LevelsScene", { escenaAnterior: "menu" });
+        break;
+      case 5:
+        transition.changeScene("menu", "credits");
+        break;
+      case 6:
+        cerrarSesion();
+        transition.changeScene("menu", "usuariosDemo");
         break;
     }
+  }
+
+  abrirPartida(nueva: boolean) {
+    const usuario = demo.usuarioActual;
+
+    if (
+      usuario === null ||
+      usuario === undefined ||
+      this.abriendoPartida ||
+      this.progresoCargado === false ||
+      this.idsNiveles.length === 0
+    ) {
+      return;
+    }
+
+    this.abriendoPartida = true;
+    let indiceNivel = 0;
+
+    if (nueva === false) {
+      indiceNivel = this.idsNiveles.length - 1;
+
+      for (let i = 0; i < this.idsNiveles.length; i++) {
+        if (this.progreso[this.idsNiveles[i]] !== true) {
+          indiceNivel = i;
+          break;
+        }
+      }
+    }
+
+    const transition = this.scene.get("transition") as TransitionScene;
+    transition.changeScene("menu", "game", {
+      level: this.idsNiveles[indiceNivel],
+      escenaAnterior: "menu",
+      idsNivelesOficiales: this.idsNiveles.slice()
+    });
   }
 }

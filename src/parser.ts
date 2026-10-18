@@ -103,8 +103,6 @@ const tablaTiles: ConversionTile[] = [
   { capa: -1, caracter: "" }  // 67 Relieve del jugador
 ];
 
-// La sexta capa usa el mismo codigo de caracteres que GameScene.
-// Cada numero representa un frame del spritesheet "dark".
 const tablaDark: string[] = [];
 const caracteresDark = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!?@";
 const framesDark: number[] = [];
@@ -218,7 +216,6 @@ export function convertirNivel(nivel: NivelParseable): string {
   }
 
   if (nivel.links !== undefined && nivel.portales !== undefined) {
-    // Primero se numeran SOLO los pares de portales (1-5).
     let numeroGrupo = 0;
 
     for (let i = 0; i < nivel.links.length; i++) {
@@ -255,7 +252,6 @@ export function convertirNivel(nivel: NivelParseable): string {
       }
     }
 
-    // Un link placa-portal comparte el numero del PAR de portales.
     for (let i = 0; i < nivel.links.length; i++) {
       const link: number[] = nivel.links[i];
 
@@ -294,7 +290,6 @@ export function convertirNivel(nivel: NivelParseable): string {
     }
   }
 
-  // Un nivel antiguo no tiene darkLayer: se agrega una capa vacia compatible.
   if (nivel.darkLayer !== undefined) {
     for (let y = 0; y < filas; y++) {
       if (nivel.darkLayer[y] === undefined) {
