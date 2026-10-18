@@ -313,6 +313,7 @@ export class GameScene extends Phaser.Scene {
     private tempstorage2b: Phaser.GameObjects.Sprite | undefined;
     private tempstorage3: Entity | undefined;
     private movenumber: Boolean = false;
+    private pushing: Boolean = false;
     private playerMoving = false;
     private inputBuffer: string = "";
     private holdBufferOpen: Boolean = false;
@@ -1290,6 +1291,19 @@ private crearBarraSuperior() {
         return false;
     }
 
+    private getEntityAt(x: number, y: number): Entity | undefined {
+        return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
+    }
+    private getAnythingAt(x: number, y: number): Entity | undefined {
+        return this.entities.find(entity => entity.x === x && entity.y === y);
+    }
+    private getMirrorAt(x: number, y: number): Entity | undefined {
+        return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror");
+    }
+    private findPair(group: number | undefined, exclude: Entity | undefined): Entity | undefined {
+        return (this.entities.find(entity => entity.portal !== undefined && entity.group === group && entity !== exclude && this.isPortalActive(entity)));
+    }
+
     //PORTAL WITH PRESSURE PLATES
 
     private isPortalActive(portal: Entity): boolean {
@@ -1315,21 +1329,6 @@ private crearBarraSuperior() {
         } else {
             return this.entities.find(entity => entity.portal !== undefined && entity.x === x && entity.y === y && this.isPortalActive(entity));
         }
-    }
-
-
-
-    private getEntityAt(x: number, y: number): Entity | undefined {
-        return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
-    }
-    private getAnythingAt(x: number, y: number): Entity | undefined {
-        return this.entities.find(entity => entity.x === x && entity.y === y);
-    }
-    private getMirrorAt(x: number, y: number): Entity | undefined {
-        return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror");
-    }
-    private findPair(group: number | undefined, exclude: Entity | undefined): Entity | undefined {
-        return (this.entities.find(entity => entity.portal !== undefined && entity.group === group && entity !== exclude && this.isPortalActive(entity)));
     }
     
     /////////////////////
@@ -1376,7 +1375,7 @@ private crearBarraSuperior() {
         };
         return visual;
     }
-    
+
     private addLaserCap(laser: LaserVisual) {
         const body = laser.sprite;       
         let frame = 0;
@@ -1397,7 +1396,7 @@ private crearBarraSuperior() {
         laser.cap = cap;
         this.updateLaserCapDepth(laser);
     }
-    
+
     private updateEntityDepth(entity: Entity) {
         const depth = 2 * (entity.sprite.y - this.offsetY) / this.tilesize;
         entity.sprite.setDepth(depth);
@@ -1850,7 +1849,6 @@ private crearBarraSuperior() {
         cap.setDepth(depth);
     }
 
-
     private addLaser(x: number, y: number, dir: number, first: boolean = false, phase: number = 0, source?: Entity): LaserVisual | undefined {
         let dx = 0;
         let dy = 0;
@@ -2054,7 +2052,7 @@ private crearBarraSuperior() {
 
         laser.play({key: animation, startFrame: frame});
     }
-        
+
     private raycast() {
         while (this.emitterQueue.length > 0) {
             const emitter = this.emitterQueue.shift();
@@ -2302,6 +2300,7 @@ private crearBarraSuperior() {
 
     private updatePosition(dx: number, dy: number, dir: number, origDx = dx, origDy = dy, origDir = dir): boolean {
         const player = this.entities.find(entity => entity.type === "player");
+        this.pushing = false;
         if (player !== undefined) {
         const newX = player.x + dx;
         const newY = player.y + dy;
@@ -2348,6 +2347,7 @@ private crearBarraSuperior() {
 
         const entity = this.getEntityAt(newX, newY);
         if (entity) {
+            this.pushing = true;
             this.tempstorage = entity;
             const newEntityX = entity.x + dx;
             const newEntityY = entity.y + dy;
@@ -2695,6 +2695,8 @@ private crearBarraSuperior() {
 
     private animatePushable(entity: Entity, saliendoPortal: boolean = false) {
         const sprites: Phaser.GameObjects.Sprite[] = [];
+        let speed = this.lindseyspeed;
+        if (this.pushing === true) speed = this.lindseyspeed * 1.3;
 
         sprites.push(entity.sprite);
         if (entity.sprite2) {
@@ -2708,7 +2710,7 @@ private crearBarraSuperior() {
             targets: sprites,
             x: this.offsetX + entity.x * this.tilesize,
             y: this.offsetY + entity.y * this.tilesize,
-            duration: this.lindseyspeed,
+            duration: speed,
             ease: "Linear",
             onUpdate: () => {
                 this.updateEntityDepth(entity);
@@ -2777,6 +2779,8 @@ private crearBarraSuperior() {
         let maskH = 5000;
         let maskX = this.offsetX;
         let maskY = this.offsetY;
+        let speed = this.lindseyspeed;
+        if (this.pushing === true) speed = this.lindseyspeed * 1.3;
         switch(portalDir) {
             case 0: maskH = portalY*this.tilesize - 23*this.pixelmultiplier; break;
             case 1: maskX = portalX*this.tilesize + this.offsetX; break;
@@ -2810,7 +2814,7 @@ private crearBarraSuperior() {
             targets: copia, 
             x: this.offsetX + portalX * 16*this.pixelmultiplier,
             y: this.offsetY + portalY * 16*this.pixelmultiplier,
-            duration: this.lindseyspeed,
+            duration: speed,
             ease: "Linear",
             onUpdate: () => {
                 const distancia = Math.abs(copia.x - inicioX) + Math.abs(copia.y - inicioY);
@@ -2846,6 +2850,9 @@ private crearBarraSuperior() {
         let maskH = 5000;
         let maskX = this.offsetX;
         let maskY = this.offsetY;
+        let speed = this.lindseyspeed;
+        if (this.pushing === true) speed = this.lindseyspeed * 1.3;
+        
         switch(portalDir) {
             case 0: maskH = portalY*this.tilesize - 23*this.pixelmultiplier; break;
             case 1: maskX = portalX*this.tilesize + this.offsetX; break;
@@ -2875,7 +2882,7 @@ private crearBarraSuperior() {
             targets: maskShape, 
             x: maskShape.x + dx*this.tilesize,
             y: maskShape.y + dy*this.tilesize,
-            duration: this.lindseyspeed,
+            duration: speed,
             ease: "Linear",
             onUpdate: () => {
                 const distancia = Math.abs(maskShape.x - inicioX) + Math.abs(maskShape.y - inicioY);
@@ -2920,20 +2927,28 @@ private crearBarraSuperior() {
 
     private getLindseyAnimation(facing: number | undefined): string {
         let animation = "";
-
-        if (this.movenumber == false) {
-            switch(facing) {
-                case 0: animation = "lindsey-up"; break;
-                case 1: animation = "lindsey-right"; break;
-                case 2: animation = "lindsey-down"; break;
-                case 3: animation = "lindsey-left"; break;
+        if (this.pushing == false) {
+            if (this.movenumber == false) {
+                switch(facing) {
+                    case 0: animation = "lindsey-up"; break;
+                    case 1: animation = "lindsey-right"; break;
+                    case 2: animation = "lindsey-down"; break;
+                    case 3: animation = "lindsey-left"; break;
+                }
+            } else {
+                switch(facing) {
+                    case 0: animation = "lindsey-up2"; break;
+                    case 1: animation = "lindsey-right2"; break;
+                    case 2: animation = "lindsey-down2"; break;
+                    case 3: animation = "lindsey-left2"; break;
+                }
             }
         } else {
             switch(facing) {
-                case 0: animation = "lindsey-up2"; break;
-                case 1: animation = "lindsey-right2"; break;
-                case 2: animation = "lindsey-down2"; break;
-                case 3: animation = "lindsey-left2"; break;
+                case 0: animation = "lindseypush0"; break;
+                case 1: animation = "lindseypush1"; break;
+                case 2: animation = "lindseypush2"; break;
+                case 3: animation = "lindseypush3"; break;
             }
         }
 
@@ -2942,7 +2957,10 @@ private crearBarraSuperior() {
 
     private animatePortalEntry(startX: number, startY: number, portalX: number, portalY: number, portalDir: number | undefined, facing: number | undefined) {
         const animation = this.getLindseyAnimation(facing);
-        const copy = this.add.sprite(this.offsetX + startX * 16*this.pixelmultiplier, this.offsetY + startY * 16*this.pixelmultiplier, "lindsey", 0).setOrigin(1, 1.04).setScale(this.pixelmultiplier).setDepth(2 * startY);
+        let speed = this.lindseyspeed;
+        if (this.pushing === true) speed = this.lindseyspeed * 1.3;
+
+        const copy = this.add.sprite(this.offsetX + startX * 16*this.pixelmultiplier, this.offsetY + startY * 16*this.pixelmultiplier, "lindsey", 0).setOrigin(1, 1.04).setScale(this.pixelmultiplier).setDepth(2 * startY + 1.1);
         copy.play(animation);
         const inicioX = copy.x;
         const inicioY = copy.y;
@@ -2969,7 +2987,7 @@ private crearBarraSuperior() {
             targets: copy,
             x: this.offsetX + portalX * 16*this.pixelmultiplier,
             y: this.offsetY + portalY * 16*this.pixelmultiplier,
-            duration: this.lindseyspeed,
+            duration: speed,
             ease: "Linear",
             onUpdate: () => {
                 const distancia = Math.abs(copy.x - inicioX) + Math.abs(copy.y - inicioY);
@@ -3008,6 +3026,8 @@ private crearBarraSuperior() {
 
     private animatePlayer(player: Entity, facing: number | undefined) {
         const animation = this.getLindseyAnimation(facing);
+        let speed = this.lindseyspeed;
+        if (this.pushing === true) speed = this.lindseyspeed * 1.3;
 
         this.playerMoving = true;
         this.holdBufferOpen = false;
@@ -3025,7 +3045,7 @@ private crearBarraSuperior() {
             targets: player.sprite,
             x: this.offsetX + player.x * 16*this.pixelmultiplier,
             y: this.offsetY + player.y * 16*this.pixelmultiplier,
-            duration: this.lindseyspeed,
+            duration: speed,
             ease: "Linear",
             onUpdate: () => {
                 this.updateEntityDepth(player);
@@ -3204,6 +3224,10 @@ private crearBarraSuperior() {
     preload() {
         this.load.spritesheet("lindsey", "assets/lindsey.walking.anim.sheet.png", {
             frameWidth: 16,
+            frameHeight: 28,
+        });
+        this.load.spritesheet("lindseypush", "assets/lindsey.pushing.anim.png", {
+            frameWidth: 18,
             frameHeight: 28,
         });
         this.load.spritesheet("lindseyi", "assets/lindsey.idle.spr.png", {
@@ -3391,6 +3415,66 @@ async create() {
                     { key: "lindseyi", frame: 3 }
                 ],
                 frameRate: this.animationspeed / 2.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseypush0",
+                frames: [
+                    { key: "lindseypush", frame: 0 },
+                    { key: "lindseypush", frame: 4 },
+                    { key: "lindseypush", frame: 8 },
+                    { key: "lindseypush", frame: 12 },
+                    { key: "lindseypush", frame: 16 },
+                    { key: "lindseypush", frame: 20 },
+                    { key: "lindseypush", frame: 24 },
+                    { key: "lindseypush", frame: 28 }
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseypush1",
+                frames: [
+                    { key: "lindseypush", frame: 1 },
+                    { key: "lindseypush", frame: 5 },
+                    { key: "lindseypush", frame: 9 },
+                    { key: "lindseypush", frame: 13 },
+                    { key: "lindseypush", frame: 17 },
+                    { key: "lindseypush", frame: 21 },
+                    { key: "lindseypush", frame: 25 },
+                    { key: "lindseypush", frame: 29 }
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseypush2",
+                frames: [
+                    { key: "lindseypush", frame: 2 },
+                    { key: "lindseypush", frame: 6 },
+                    { key: "lindseypush", frame: 10 },
+                    { key: "lindseypush", frame: 14 },
+                    { key: "lindseypush", frame: 18 },
+                    { key: "lindseypush", frame: 22 },
+                    { key: "lindseypush", frame: 26 },
+                    { key: "lindseypush", frame: 30 }
+                ],
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseypush3",
+                frames: [
+                    { key: "lindseypush", frame: 3 },
+                    { key: "lindseypush", frame: 7 },
+                    { key: "lindseypush", frame: 11 },
+                    { key: "lindseypush", frame: 15 },
+                    { key: "lindseypush", frame: 19 },
+                    { key: "lindseypush", frame: 23 },
+                    { key: "lindseypush", frame: 27 },
+                    { key: "lindseypush", frame: 31 }
+                ],
+                frameRate: this.animationspeed*1.5,
                 repeat: -1
             });
 
