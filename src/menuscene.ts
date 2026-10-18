@@ -1,5 +1,10 @@
 import Phaser from "phaser";
-import { demo, cerrarSesion, esInvitado } from "./datosDemo";
+import {
+  demo,
+  cerrarSesion,
+  esInvitado,
+  leerProgresoInvitado
+} from "./datosDemo";
 import { TransitionScene } from "./transitionScene";
 import { mostrarConfirmacion } from "./popup";
 import {
@@ -139,7 +144,9 @@ export class MenuScene extends Phaser.Scene {
 
       let progreso: boolean[] = [];
 
-      if (esInvitado() === false) {
+      if (esInvitado()) {
+        progreso = leerProgresoInvitado(1);
+      } else {
         progreso = await leerProgresoOriginalBackend(usuario.nombre, 1);
       }
 

@@ -4,9 +4,10 @@ import { cargarPortales, crearAnimacionesPortales, configurarPortal, esParedExte
 import { obtenerNivel, crearBoton } from "./niveles";
 import { convertirNivel } from "./parser";
 
-import { demo } from "./datosDemo";
+import { demo, completarNivelInvitado } from "./datosDemo";
 import {
     completarNivelDescargadoBackend,
+    completarNivelOriginalBackend,
     leerNivelesOriginalesBackend,
     leerNivelOriginalBackend
 } from "./api";
@@ -795,7 +796,7 @@ private crearBarraSuperior() {
             transition.changeScene(this.sys.settings.key, this.escenaAnterior);
         }
 
-        private ganarNivel() {
+        private async ganarNivel() {
             if (this.saliendoDelNivel) {
                 return;
             }
@@ -810,7 +811,39 @@ private crearBarraSuperior() {
             }
 
             this.saliendoDelNivel = true;
-            if (this.escenaAnterior === "selectscene") {
+            const cargaActual = this.numeroCarga;
+            let progresoGuardado = false;
+
+            try {
+                const usuario = demo.usuarioActual;
+                if (usuario === null || usuario === undefined) {
+                    throw new Error("No active session.");
+                }
+                if (usuario.id === 0) {
+                    completarNivelInvitado(this.levelNumber, 1);
+                } else {
+                    await completarNivelOriginalBackend(
+                        usuario.nombre,
+                        this.levelNumber,
+                        1
+                    );
+                }
+                progresoGuardado = true;
+            } catch (error) {
+                if (cargaActual !== this.numeroCarga) {
+                    return;
+                }
+                window.alert(
+                    "Level completed, but your progress could not be saved:\n\n" +
+                    String(error)
+                );
+            }
+
+            if (cargaActual !== this.numeroCarga) {
+                return;
+            }
+
+            if (progresoGuardado && this.escenaAnterior === "selectscene") {
                 const selector: any = this.scene.get("selectscene");
                 if (typeof selector.marcarNivelCompletado === "function") {
                     selector.marcarNivelCompletado(this.levelNumber);
