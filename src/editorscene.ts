@@ -84,7 +84,7 @@ export class EditorScene extends Phaser.Scene {
   private arribaPaneles: number = 88;
   private anchoPanelHerramientas: number = 220;
   private altoPanelHotbar: number = 68;
-  private separacionHotbar: number = 20;
+  private separacionHotbar: number = 12;
   private anchoPanelTablero: number = 0;
   private yHotbar: number = 0;
 
@@ -205,16 +205,15 @@ export class EditorScene extends Phaser.Scene {
 
   private variantesTiles = [
     [3, 4, 5, 6],
-    [11, 12, 13, 14],
-    [27, 28, 29, 30],
+    [11, 14, 12, 13],
+    [27, 30, 28, 29],
     [41, 200, 201],
     [66, 25],
-    [17, 20, 18, 19, 16, 39],
+    [17, 18, 20, 19, 16, 39],
     [21, 22, 23, 24]
   ];
 
   private casillasHotbar: Phaser.GameObjects.Rectangle[] = [];
-  private casillaGoma!: Phaser.GameObjects.Rectangle;
 
   private seleccionCopiada: number[][] = [];
   private portapapelesArrastre: number[][] | null = null;
@@ -902,12 +901,8 @@ export class EditorScene extends Phaser.Scene {
       }
 
       if (control === false && evento.altKey === false) {
-        for (let i = 0; i <= this.tilesHotbar.length; i++) {
-          let atajo = String(i + 1);
-
-          if (i === 9) {
-            atajo = "0";
-          }
+        for (let i = 0; i < this.tilesHotbar.length; i++) {
+          const atajo = String(i + 1);
 
           if (tecla === atajo) {
             evento.preventDefault();
@@ -983,12 +978,13 @@ export class EditorScene extends Phaser.Scene {
       }
 
       if (tecla === "delete" || tecla === "backspace") {
-        if (this.haySeleccion === false) {
-          return;
+        evento.preventDefault();
+
+        if (evento.repeat === false) {
+          this.borrarOGoma();
         }
 
-        this.borrarSeleccion();
-        this.saveIfChanged();
+        return;
       }
 
       if (tecla === "escape") {
@@ -1099,10 +1095,7 @@ this.bordeTooltipTile.setVisible(false);
       );
     }
 
-    this.configurarZonaHotbar(
-      this.casillaGoma,
-      () => this.herramienta === 0
-    );
+    this.configurarZonaHotbar(this.botonBorrar);
 
     this.herramienta = this.sinHerramienta;
     this.actualizarInterfaz();
@@ -2043,23 +2036,26 @@ this.bordeTooltipTile.setVisible(false);
       this.actualizarHoverTile();
     }
 
+    this.botonBorrar.setInteractive({ useHandCursor: true });
+    this.botonBorrar.setAlpha(1);
+
     if (this.haySeleccion) {
-      this.botonBorrar.setInteractive({ useHandCursor: true });
       this.botonCopiar.setInteractive({ useHandCursor: true });
 
       this.botonBorrar.setFillStyle(0xe57373);
       this.botonCopiar.setFillStyle(colorNormal);
 
-      this.botonBorrar.setAlpha(1);
       this.botonCopiar.setAlpha(1);
     } else {
-      this.botonBorrar.disableInteractive();
       this.botonCopiar.disableInteractive();
 
-      this.botonBorrar.setFillStyle(colorDesactivado);
-      this.botonCopiar.setFillStyle(colorDesactivado);
+      if (this.herramienta === 0) {
+        this.botonBorrar.setFillStyle(colorSeleccionado);
+      } else {
+        this.botonBorrar.setFillStyle(colorNormal);
+      }
 
-      this.botonBorrar.setAlpha(1);
+      this.botonCopiar.setFillStyle(colorDesactivado);
       this.botonCopiar.setAlpha(1);
     }
 
@@ -2158,7 +2154,7 @@ this.bordeTooltipTile.setVisible(false);
             boton.setFillStyle(0x7eaa4c);
           } else if (boton === this.botonTest) {
             boton.setFillStyle(0x957bc1);
-          } else if (boton === this.botonBorrar) {
+          } else if (boton === this.botonBorrar && this.haySeleccion) {
             boton.setFillStyle(0xc05757);
           } else {
             boton.setFillStyle(0x95add6);
@@ -2252,11 +2248,7 @@ this.bordeTooltipTile.setVisible(false);
       y,
       ancho,
       "Borrar",
-      () => {
-        this.borrarSeleccion();
-        this.quitarSeleccion();
-        this.actualizarInterfaz();
-      }
+      () => this.borrarOGoma()
     );
 
     y += separacion;
@@ -2383,10 +2375,9 @@ this.bordeTooltipTile.setVisible(false);
     this.imagenesHotbar = [];
 
     const tamaño = 40;
-    const espacio = 8;
+    const espacio = 12;
     const separacion = tamaño + espacio;
-    const anchoGoma = 96;
-    const anchoHotbar = this.tilesHotbar.length * separacion + anchoGoma;
+    const anchoHotbar = this.tilesHotbar.length * separacion - espacio;
     const y = this.yHotbar;
     const centroX = this.board_offset_x + this.board_width / 2;
 
@@ -2487,48 +2478,38 @@ this.bordeTooltipTile.setVisible(false);
       x += separacion;
     }
 
-    x += (anchoGoma - tamaño) / 2;
+  }
 
-    this.casillaGoma = crearBoton(
-      this,
-      x,
-      y,
-      anchoGoma,
-      "Goma",
-      () => {
-        if (this.herramienta === 0) {
-          this.herramienta = this.sinHerramienta;
-        } else {
-          this.herramienta = 0;
-          this.vistaPegado.setVisible(false);
-          this.capaVistaPegado.setVisible(false);
-          this.capaVistaPortalesPegado.setVisible(false);
-          this.restaurarTilesVistaPegado();
-        }
+  private borrarOGoma(): void {
+    if (this.haySeleccion) {
+      this.borrarSeleccion();
+      this.saveIfChanged();
+    } else if (this.herramienta === 0) {
+      this.herramienta = this.sinHerramienta;
+    } else {
+      this.herramienta = 0;
+      this.vistaPegado.setVisible(false);
+      this.capaVistaPegado.setVisible(false);
+      this.capaVistaPortalesPegado.setVisible(false);
+      this.restaurarTilesVistaPegado();
+    }
 
-        this.cerrarSubHotbar();
-        this.actualizarInterfaz();
-        this.actualizarHotbar();
-      }
-    );
-
-    this.casillaGoma.setData("atajo", "0");
+    this.cerrarSubHotbar();
+    this.actualizarInterfaz();
+    this.actualizarHotbar();
+    this.actualizarHoverTile();
   }
 
   private seleccionarHotbar(indice: number): void {
     if (
-      indice < 0 || indice > this.tilesHotbar.length ||
+      indice < 0 || indice >= this.tilesHotbar.length ||
       this.popupSalida !== null || this.bloquearMouseHastaSoltar ||
       this.arrastrandoSeleccion || this.seleccionando
     ) {
       return;
     }
 
-    if (indice === this.tilesHotbar.length) {
-      this.herramienta = 0;
-    } else {
-      this.herramienta = this.tilesHotbar[indice];
-    }
+    this.herramienta = this.tilesHotbar[indice];
 
     this.cerrarSubHotbar();
     this.cancelarLinkTemporal();
@@ -2592,10 +2573,6 @@ this.bordeTooltipTile.setVisible(false);
       );
     }
 
-    this.pintarCasillaHotbar(
-      this.casillaGoma,
-      this.herramienta === 0
-    );
   }
 
   private orientarPortalEnTile(tile: number, portal: number): number {
@@ -4052,7 +4029,7 @@ this.bordeTooltipTile.setVisible(false);
     const margen = 12;
     let columnas = Math.min(3, variantes.length);
 
-    if (variantes.length === 4) {
+    if (variantes.length === 4 || variantes.length === 6) {
       columnas = 2;
     }
     const filas = Math.ceil(variantes.length / columnas);
@@ -4081,8 +4058,15 @@ this.bordeTooltipTile.setVisible(false);
 
     for (let i = 0; i < variantes.length; i++) {
       const variante = variantes[i];
-      const x = izquierda + margen + tamaño / 2 + (i % columnas) * separacion;
-      const y = arriba + margen + tamaño / 2 + Math.floor(i / columnas) * separacion;
+      let posicion = i;
+
+      if (variantes.length === 4 || variantes.length === 6) {
+        if (i === 2) posicion = 3;
+        if (i === 3) posicion = 2;
+      }
+
+      const x = izquierda + margen + tamaño / 2 + (posicion % columnas) * separacion;
+      const y = arriba + margen + tamaño / 2 + Math.floor(posicion / columnas) * separacion;
 
       const casilla = this.add.rectangle(
         x,
@@ -4368,25 +4352,6 @@ this.bordeTooltipTile.setVisible(false);
     seleccionada: boolean
   ): void {
     const hover = casilla.getData("hoverHotbar") === true;
-
-    if (casilla === this.casillaGoma) {
-      let color = 0xcbdbfc;
-
-      if (seleccionada) {
-        color = 0xffd166;
-      }
-
-      if (hover) {
-        if (seleccionada) {
-          color = 0xd9ad4f;
-        } else {
-          color = 0x95add6;
-        }
-      }
-
-      casilla.setFillStyle(color);
-      return;
-    }
 
     let color = 0x303038;
     let borde = 0x62626e;
