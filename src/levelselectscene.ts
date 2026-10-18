@@ -3,6 +3,7 @@ import { crearBoton } from "./niveles";
 import { leerNivelesOriginalesBackend, leerProgresoOriginalBackend } from "./api";
 import type { NivelBackend } from "./api";
 import { TransitionScene } from "./transitionScene";
+import { demo } from "./datosDemo";
 
 export class LevelselectScene extends Phaser.Scene {
   totalNiveles = 0;
@@ -47,34 +48,53 @@ export class LevelselectScene extends Phaser.Scene {
     this.mensajeNiveles = "Cargando niveles...";
     this.dibujar();
 
+    let oficiales: NivelBackend[];
     try {
-      const oficiales = await leerNivelesOriginalesBackend();
-      let progreso = this.progresoOficial;
-      if (usuario !== null && usuario !== undefined && usuario.id !== 0) {
-        progreso = await leerProgresoOriginalBackend(usuario.nombre, this.archivoGuardado);
-      }
-      if (cargaActual !== this.numeroCarga) {
-        return;
-      }
-
+      oficiales = await leerNivelesOriginalesBackend();
       oficiales.sort(function (a, b) {
         return a.id - b.id;
       });
-
-      this.nivelesOficiales = oficiales;
-      this.totalNiveles = oficiales.length;
-      this.progresoOficial = progreso;
-      this.nivelesCompletados = this.cantidadCompletados();
-      this.mensajeNiveles = "";
     } catch (error) {
       if (cargaActual !== this.numeroCarga) {
         return;
       }
 
-      this.mensajeNiveles = "No se pudieron cargar los niveles oficiales o su progreso.";
+      console.error("No se pudieron cargar los niveles oficiales:", error);
+      this.mensajeNiveles = "No se pudieron cargar los niveles oficiales.";
       this.dibujar();
       return;
     }
+
+    if (cargaActual !== this.numeroCarga) {
+      return;
+    }
+
+    let progreso = this.progresoOficial;
+    this.mensajeNiveles = "";
+    if (usuario !== null && usuario !== undefined && usuario.id !== 0) {
+      try {
+        const progresoCargado = await leerProgresoOriginalBackend(usuario.nombre, this.archivoGuardado);
+        if (Array.isArray(progresoCargado) === false) {
+          throw new Error("El servidor no devolvio una lista de progreso.");
+        }
+        progreso = progresoCargado;
+      } catch (error) {
+        if (cargaActual !== this.numeroCarga) {
+          return;
+        }
+
+        console.error("No se pudo cargar el progreso oficial:", error);
+        this.mensajeNiveles = "No se pudo cargar el progreso.";
+      }
+    }
+    if (cargaActual !== this.numeroCarga) {
+      return;
+    }
+
+    this.nivelesOficiales = oficiales;
+    this.totalNiveles = oficiales.length;
+    this.progresoOficial = progreso;
+    this.nivelesCompletados = this.cantidadCompletados();
 
     if (this.nivelesCompletados > this.totalNiveles) {
       this.nivelesCompletados = this.totalNiveles;
@@ -131,6 +151,13 @@ export class LevelselectScene extends Phaser.Scene {
         wordWrap: { width: 640 }
       }).setOrigin(0.5);
       return;
+    }
+
+    if (this.mensajeNiveles !== "") {
+      this.add.text(400, 72, this.mensajeNiveles, {
+        fontFamily: "Fuente", fontSize: "14px", color: "#ffd166", align: "center",
+        wordWrap: { width: 640 }
+      }).setOrigin(0.5, 0);
     }
 
     const paginas = this.calcularPaginas();

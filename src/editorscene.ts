@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { cargarPortales, crearAnimacionesPortales, configurarPortal, direccionPortalEditor, esParedExteriorPortal } from "./portales";
 import { obtenerNivel, actualizarNivel, crearBoton } from "./niveles";
 import { convertirNivel } from "./parser";
 import { mostrarConfirmacion } from "./popup";
@@ -31,6 +32,8 @@ export class EditorScene extends Phaser.Scene {
     this.links = [];
     this.botonesInterfaz = [];
     this.imagenesProfundidad = [];
+    this.spritesPortales = [];
+    this.hoverPortal = null;
     this.botonTest = null;
     this.textoEstado = null;
     this.textoTile = null;
@@ -79,6 +82,11 @@ export class EditorScene extends Phaser.Scene {
   private margenTablero: number = 16;
   private separacionPaneles: number = 24;
   private arribaPaneles: number = 88;
+  private anchoPanelHerramientas: number = 220;
+  private altoPanelHotbar: number = 68;
+  private separacionHotbar: number = 20;
+  private anchoPanelTablero: number = 0;
+  private yHotbar: number = 0;
 
   private estadoGuardado: EstadoEditor | null = null;
   private popupSalida: Phaser.GameObjects.GameObject | null = null;
@@ -99,6 +107,11 @@ export class EditorScene extends Phaser.Scene {
   private tilesSinPortal: number[] = [2, 5, 6, 7, 8];
   private tileJugador: number = 66;
   private tileBandera: number = 25;
+  private tileSalidaArriba: number = 26;
+  private formaSalida: number[][] = [
+    [0, 0, this.tileBandera],
+    [0, -1, this.tileSalidaArriba]
+  ];
   private tilePlaca: number = 2;
   private colorLinkPortales: number = 0x9ccc65;
   private colorLinkPlaca: number = 0xb39ddb;
@@ -165,7 +178,6 @@ export class EditorScene extends Phaser.Scene {
   private botonSeleccionar!: Phaser.GameObjects.Rectangle;
   private botonPegar!: Phaser.GameObjects.Rectangle;
   private botonBorrar!: Phaser.GameObjects.Rectangle;
-  private botonDeseleccionar!: Phaser.GameObjects.Rectangle;
   private botonCopiar!: Phaser.GameObjects.Rectangle;
   private botonRedo!: Phaser.GameObjects.Rectangle;
   private botonUndo!: Phaser.GameObjects.Rectangle;
@@ -180,6 +192,8 @@ export class EditorScene extends Phaser.Scene {
   private bordeTooltipTile: Phaser.GameObjects.Rectangle | null = null;
   private zonaTooltipTile: Phaser.GameObjects.Rectangle | null = null;
   private imagenesProfundidad: Phaser.GameObjects.Image[][] = [];
+  private spritesPortales: Phaser.GameObjects.Sprite[][] = [];
+  private hoverPortal: Phaser.GameObjects.Sprite | null = null;
 
   private imagenesHotbar: Phaser.GameObjects.Image[] = [];
   private objetosSubHotbar: Phaser.GameObjects.GameObject[] = [];
@@ -187,7 +201,7 @@ export class EditorScene extends Phaser.Scene {
 
   //CUSTOMIZAR HOTBAR
   
-  private tilesHotbar = [37, 3, 11, 27, 39, 41, 66, 2, 17, 21];
+  private tilesHotbar = [37, 3, 11, 27, 41, 66, 2, 17, 21];
 
   private variantesTiles = [
     [3, 4, 5, 6],
@@ -195,7 +209,7 @@ export class EditorScene extends Phaser.Scene {
     [27, 28, 29, 30],
     [41, 200, 201],
     [66, 25],
-    [17, 20, 18, 19, 16],
+    [17, 20, 18, 19, 16, 39],
     [21, 22, 23, 24]
   ];
 
@@ -241,6 +255,7 @@ export class EditorScene extends Phaser.Scene {
   private herramienta: number = 1;
 
   preload(): void {
+    cargarPortales(this);
     this.load.spritesheet("editorTiles", "./tileset.png", {
       frameWidth: this.tileGraphicSize,
       frameHeight: this.tileGraphicSize
@@ -248,6 +263,7 @@ export class EditorScene extends Phaser.Scene {
   }
 
   create(): void {
+    crearAnimacionesPortales(this);
     this.cameras.main.setBackgroundColor("#222034");
     this.columns = 17;
     this.rows = 11;
@@ -264,9 +280,6 @@ export class EditorScene extends Phaser.Scene {
         this.columns = nivel.tablero[0].length;
       }
     }
-
-    this.board_width = this.columns * this.cellsize;
-    this.board_height = this.rows * this.cellsize;
 
     this.crearFondoTablero();
 
@@ -310,12 +323,13 @@ export class EditorScene extends Phaser.Scene {
     this.hoverCell = this.add.rectangle(
       this.board_offset_x + this.cellsize / 2,
       this.board_offset_y + this.cellsize / 2,
-      this.cellsize - 1,
-      this.cellsize - 1,
+      this.cellsize - 2,
+      this.cellsize - 2,
       0x000000,
-      0.6
+      0.12
     );
 
+    this.hoverCell.setStrokeStyle(2, 0x6f87b0, 0.65);
     this.hoverCell.setVisible(false);
     this.hoverCell.setDepth(6);
 
@@ -473,7 +487,7 @@ export class EditorScene extends Phaser.Scene {
             this.mouseY - Math.floor((altoSeleccion - 1) / 2);
 
           this.borrarSeleccion();
-          this.pegarSeleccion();
+          this.pegarSeleccion(true);
 
           this.ubicarSeleccion(
             inicioX,
@@ -888,8 +902,14 @@ export class EditorScene extends Phaser.Scene {
       }
 
       if (control === false && evento.altKey === false) {
-        for (let i = 0; i <= this.tilesHotbar.length && i < 9; i++) {
-          if (tecla === String(i + 1)) {
+        for (let i = 0; i <= this.tilesHotbar.length; i++) {
+          let atajo = String(i + 1);
+
+          if (i === 9) {
+            atajo = "0";
+          }
+
+          if (tecla === atajo) {
             evento.preventDefault();
 
             if (evento.repeat === false) {
@@ -1066,7 +1086,6 @@ this.bordeTooltipTile.setVisible(false);
       this.botonCopiar,
       this.botonPegar,
       this.botonBorrar,
-      this.botonDeseleccionar,
       this.botonUndo,
       this.botonRedo
     ]);
@@ -1135,18 +1154,35 @@ this.bordeTooltipTile.setVisible(false);
     this.actualizarHoverTile();
   }
 
+  private obtenerFormaTile(tile: number): number[][] | undefined {
+    if (tile === this.tileBandera) {
+      return this.formaSalida;
+    }
+
+    return this.formasPared[tile - 200];
+  }
+
   private puedeColocarSalida(columna: number, fila: number): boolean {
-    if (fila !== 0 || columna <= 0 || columna >= this.columns - 1) {
+    if (fila !== 1 || columna <= 0 || columna >= this.columns - 1) {
       return false;
     }
 
     const tile = this.tablero.getTileAt(columna, fila);
-    if (tile === null) {
+    const arriba = this.tablero.getTileAt(columna, fila - 1);
+
+    if (tile === null || arriba === null) {
       return false;
     }
 
-    return tile.index === 39 || tile.index === 64 ||
+    const baseLibre = tile.index === this.tileInvisible ||
+      tile.index === 17 || tile.index === 39 || tile.index === 64 ||
       tile.index === this.tileBandera;
+
+    const paredSuperior = arriba.index === 16 ||
+      arriba.index === 39 || arriba.index === 64 ||
+      arriba.index === this.tileSalidaArriba || arriba.index === this.tileBandera;
+
+    return baseLibre && paredSuperior;
   }
 
   usarHerramienta() {
@@ -1169,7 +1205,7 @@ this.bordeTooltipTile.setVisible(false);
       return;
     }
 
-    let forma = this.formasPared[this.herramienta - 200];
+    let forma = this.obtenerFormaTile(this.herramienta);
 
     if (forma === undefined) {
       let tile = this.herramienta;
@@ -1191,6 +1227,10 @@ this.bordeTooltipTile.setVisible(false);
         x < 0 || y < 0 ||
         x >= this.columns || y >= this.rows
       ) {
+        return;
+      }
+
+      if (y === 0 && this.obtenerRelieve(forma[i][2]) !== -1) {
         return;
       }
 
@@ -1372,14 +1412,14 @@ this.bordeTooltipTile.setVisible(false);
     this.actualizarInterfaz();
   }
 
-  private pegarSeleccion() {
+  private pegarSeleccion(posicionValidada: boolean = false) {
     const pegando =
       this.herramienta === this.pasteTool ||
       this.arrastrandoSeleccion;
 
     if (
       pegando === false ||
-      this.puedePegarSeleccion() === false
+      (posicionValidada === false && this.puedePegarSeleccion() === false)
     ) {
       return;
     }
@@ -1417,7 +1457,7 @@ this.bordeTooltipTile.setVisible(false);
         const x = inicioX + columna;
         const y = inicioY + fila;
         const tile = this.seleccionCopiada[fila][columna];
-        const portal = this.portalesCopiados[fila][columna];
+        const portal = this.orientarPortalEnTile(tile, this.portalesCopiados[fila][columna]);
 
         this.tablero.putTileAt(tile, x, y);
 
@@ -1619,8 +1659,33 @@ this.bordeTooltipTile.setVisible(false);
 
     for (let fila = 0; fila < altoSeleccion; fila++) {
       for (let columna = 0; columna < anchoSeleccion; columna++) {
-        if (this.seleccionCopiada[fila][columna] === this.tileBandera) {
-          if (!this.puedeColocarSalida(inicioX + columna, inicioY + fila)) {
+        const tile = this.seleccionCopiada[fila][columna];
+
+        const portal = this.portalesCopiados[fila][columna];
+
+        if (
+          inicioY + fila === 0 &&
+          (this.obtenerRelieve(tile) !== -1 ||
+            (this.obtenerRelieve(portal) !== -1 && !esParedExteriorPortal(tile)))
+        ) {
+          return false;
+        }
+
+        if (tile === this.tileBandera) {
+          if (
+            fila === 0 ||
+            this.seleccionCopiada[fila - 1][columna] !== this.tileSalidaArriba ||
+            !this.puedeColocarSalida(inicioX + columna, inicioY + fila)
+          ) {
+            return false;
+          }
+        }
+
+        if (tile === this.tileSalidaArriba) {
+          if (
+            fila + 1 >= altoSeleccion ||
+            this.seleccionCopiada[fila + 1][columna] !== this.tileBandera
+          ) {
             return false;
           }
         }
@@ -1875,7 +1940,7 @@ this.bordeTooltipTile.setVisible(false);
         this.existeTile(this.tileJugador) &&
         this.existeTile(this.tileBandera)
       ) {
-        mensaje = "La salida debe estar en la pared superior.\nSi salís, se perderán los cambios sin guardar.";
+        mensaje = "La puerta debe ocupar la primera y la segunda fila.\nSi salís, se perderán los cambios sin guardar.";
       } else {
         mensaje = "Falta el jugador o la salida.\nSi salís, se perderán los cambios sin guardar.";
       }
@@ -1980,27 +2045,21 @@ this.bordeTooltipTile.setVisible(false);
 
     if (this.haySeleccion) {
       this.botonBorrar.setInteractive({ useHandCursor: true });
-      this.botonDeseleccionar.setInteractive({ useHandCursor: true });
       this.botonCopiar.setInteractive({ useHandCursor: true });
 
       this.botonBorrar.setFillStyle(0xe57373);
-      this.botonDeseleccionar.setFillStyle(colorNormal);
       this.botonCopiar.setFillStyle(colorNormal);
 
       this.botonBorrar.setAlpha(1);
-      this.botonDeseleccionar.setAlpha(1);
       this.botonCopiar.setAlpha(1);
     } else {
       this.botonBorrar.disableInteractive();
-      this.botonDeseleccionar.disableInteractive();
       this.botonCopiar.disableInteractive();
 
       this.botonBorrar.setFillStyle(colorDesactivado);
-      this.botonDeseleccionar.setFillStyle(colorDesactivado);
       this.botonCopiar.setFillStyle(colorDesactivado);
 
       this.botonBorrar.setAlpha(1);
-      this.botonDeseleccionar.setAlpha(1);
       this.botonCopiar.setAlpha(1);
     }
 
@@ -2069,16 +2128,16 @@ this.bordeTooltipTile.setVisible(false);
           this.existeTile(this.tileJugador) &&
           this.existeTile(this.tileBandera)
         ) {
-          this.textoEstado.setText("Level Editor - La salida debe ir en la pared superior");
+          this.textoEstado.setText("La puerta debe ocupar las filas 1 y 2");
         } else {
-          this.textoEstado.setText("Level Editor - Falta jugador o salida");
+          this.textoEstado.setText("Falta jugador o salida");
         }
         this.textoEstado.setColor("#e6a05a");
       } else if (this.hayCambiosSinGuardar()) {
-        this.textoEstado.setText("Level Editor - Hay cambios sin guardar");
+        this.textoEstado.setText("Hay cambios sin guardar");
         this.textoEstado.setColor("#ffd166");
       } else {
-        this.textoEstado.setText("Level Editor - Nivel guardado");
+        this.textoEstado.setText("Nivel guardado");
         this.textoEstado.setColor("#9ccc65");
       }
     }
@@ -2114,15 +2173,14 @@ this.bordeTooltipTile.setVisible(false);
 
   private crearInterfaz(): void {
     const altoBoton = 40;
-    const cantidadBotones = 9;
-    const izquierda = this.board_offset_x + this.board_width +
-      this.margenTablero + this.separacionPaneles;
+    const cantidadFilas = 8;
     const derecha = this.scale.width - this.margenPanel;
+    const izquierda = derecha - this.anchoPanelHerramientas;
     const x = (izquierda + derecha) / 2;
-    const ancho = derecha - izquierda - this.margenPanel * 2;
+    const ancho = this.anchoPanelHerramientas - this.margenPanel * 2;
     const arriba = this.arribaPaneles + this.margenPanel;
     const abajo = this.scale.height - this.margenPanel * 2;
-    const separacion = (abajo - arriba - altoBoton) / (cantidadBotones - 1);
+    const separacion = (abajo - arriba - altoBoton) / (cantidadFilas - 1);
     let y = arriba + altoBoton / 2;
 
     this.botonSeleccionar = crearBoton(
@@ -2140,58 +2198,6 @@ this.bordeTooltipTile.setVisible(false);
           this.capaVistaPegado.setVisible(false);
           this.capaVistaPortalesPegado.setVisible(false);
           this.restaurarTilesVistaPegado();
-        }
-
-        this.actualizarInterfaz();
-        this.actualizarHotbar();
-      }
-    );
-
-    y += separacion;
-
-    this.botonPortal = crearBoton(
-      this,
-      x,
-      y,
-      ancho,
-      "Portal",
-      () => {
-        if (this.herramienta === this.portalTool) {
-          this.herramienta = this.sinHerramienta;
-        } else {
-          this.herramienta = this.portalTool;
-          this.cancelarLinkTemporal();
-          this.vistaPegado.setVisible(false);
-          this.capaVistaPegado.setVisible(false);
-          this.capaVistaPortalesPegado.setVisible(false);
-          this.restaurarTilesVistaPegado();
-          this.quitarSeleccion();
-        }
-
-        this.actualizarInterfaz();
-        this.actualizarHotbar();
-      }
-    );
-
-    y += separacion;
-
-    this.botonLink = crearBoton(
-      this,
-      x,
-      y,
-      ancho,
-      "Link",
-      () => {
-        if (this.herramienta === this.linkTool) {
-          this.herramienta = this.sinHerramienta;
-          this.cancelarLinkTemporal();
-        } else {
-          this.herramienta = this.linkTool;
-          this.vistaPegado.setVisible(false);
-          this.capaVistaPegado.setVisible(false);
-          this.capaVistaPortalesPegado.setVisible(false);
-          this.restaurarTilesVistaPegado();
-          this.quitarSeleccion();
         }
 
         this.actualizarInterfaz();
@@ -2255,15 +2261,53 @@ this.bordeTooltipTile.setVisible(false);
 
     y += separacion;
 
-    this.botonDeseleccionar = crearBoton(
+    this.botonPortal = crearBoton(
       this,
       x,
       y,
       ancho,
-      "Deseleccionar",
+      "Portal",
       () => {
-        this.quitarSeleccion();
+        if (this.herramienta === this.portalTool) {
+          this.herramienta = this.sinHerramienta;
+        } else {
+          this.herramienta = this.portalTool;
+          this.cancelarLinkTemporal();
+          this.vistaPegado.setVisible(false);
+          this.capaVistaPegado.setVisible(false);
+          this.capaVistaPortalesPegado.setVisible(false);
+          this.restaurarTilesVistaPegado();
+          this.quitarSeleccion();
+        }
+
         this.actualizarInterfaz();
+        this.actualizarHotbar();
+      }
+    );
+
+    y += separacion;
+
+    this.botonLink = crearBoton(
+      this,
+      x,
+      y,
+      ancho,
+      "Link",
+      () => {
+        if (this.herramienta === this.linkTool) {
+          this.herramienta = this.sinHerramienta;
+          this.cancelarLinkTemporal();
+        } else {
+          this.herramienta = this.linkTool;
+          this.vistaPegado.setVisible(false);
+          this.capaVistaPegado.setVisible(false);
+          this.capaVistaPortalesPegado.setVisible(false);
+          this.restaurarTilesVistaPegado();
+          this.quitarSeleccion();
+        }
+
+        this.actualizarInterfaz();
+        this.actualizarHotbar();
       }
     );
 
@@ -2294,7 +2338,6 @@ this.bordeTooltipTile.setVisible(false);
     this.botonLink.setData("atajo", "L");
     this.botonCopiar.setData("atajo", "Ctrl/Cmd + C");
     this.botonPegar.setData("atajo", "Ctrl/Cmd + V");
-    this.botonDeseleccionar.setData("atajo", "Esc");
     this.botonBorrar.setData("atajo", "Delete / Backspace");
     this.botonUndo.setData("atajo", "Ctrl/Cmd + Z");
     this.botonRedo.setData("atajo", "Ctrl/Cmd + Y");
@@ -2306,7 +2349,6 @@ this.bordeTooltipTile.setVisible(false);
       this.botonCopiar,
       this.botonPegar,
       this.botonBorrar,
-      this.botonDeseleccionar,
       this.botonUndo,
       this.botonRedo,
       this.botonGuardar,
@@ -2341,13 +2383,14 @@ this.bordeTooltipTile.setVisible(false);
     this.imagenesHotbar = [];
 
     const tamaño = 40;
-    const espacio = 12;
+    const espacio = 8;
     const separacion = tamaño + espacio;
     const anchoGoma = 96;
-    const anchoHotbar = this.tilesHotbar.length * (tamaño + espacio) + anchoGoma;
-    const y = this.board_offset_y + this.board_height +
-      this.margenTablero + this.separacionPaneles + tamaño / 2;
-    let x = this.board_offset_x + (this.board_width - anchoHotbar) / 2 + tamaño / 2;
+    const anchoHotbar = this.tilesHotbar.length * separacion + anchoGoma;
+    const y = this.yHotbar;
+    const centroX = this.board_offset_x + this.board_width / 2;
+
+    let x = centroX - anchoHotbar / 2 + tamaño / 2;
 
     for (let i = 0; i < this.tilesHotbar.length; i++) {
       const casillaX = x;
@@ -2469,7 +2512,7 @@ this.bordeTooltipTile.setVisible(false);
       }
     );
 
-    this.casillaGoma.setData("atajo", String(this.tilesHotbar.length + 1));
+    this.casillaGoma.setData("atajo", "0");
   }
 
   private seleccionarHotbar(indice: number): void {
@@ -2555,10 +2598,25 @@ this.bordeTooltipTile.setVisible(false);
     );
   }
 
+  private orientarPortalEnTile(tile: number, portal: number): number {
+    if (portal === -1) return -1;
+    if (tile === 17) return this.portalAbajo;
+    if (tile === 20) return this.portalArriba;
+    if (tile === 18) return this.portalIzquierda;
+    if (tile === 19) return this.portalDerecha;
+    if (tile >= 21 && tile <= 24) return -1;
+    return portal;
+  }
+
   private obtenerPortal(
     pointerX: number,
     pointerY: number
   ): number {
+    const tile = this.tablero.getTileAt(this.mouseX, this.mouseY);
+    if (tile !== null && esParedExteriorPortal(tile.index)) {
+      return this.orientarPortalEnTile(tile.index, this.portalArriba);
+    }
+
     const izquierda =
       this.board_offset_x + this.mouseX * this.cellsize;
 
@@ -2646,7 +2704,7 @@ this.bordeTooltipTile.setVisible(false);
   private puedeColocarPortal(
     columna: number,
     fila: number,
-    _portal: number
+    portal: number
   ): boolean {
     const tile = this.mapa.getTileAt(
       columna,
@@ -2659,7 +2717,19 @@ this.bordeTooltipTile.setVisible(false);
       return false;
     }
 
-    if (tile.index === this.tileInvisible) {
+    if (portal === -1 || this.orientarPortalEnTile(tile.index, portal) !== portal) {
+      return false;
+    }
+
+    if (fila === 0 && !esParedExteriorPortal(tile.index)) {
+      return false;
+    }
+
+    if (
+      tile.index === this.tileInvisible ||
+      tile.index === this.tileBandera ||
+      tile.index === this.tileSalidaArriba
+    ) {
       return false;
     }
 
@@ -2745,7 +2815,7 @@ this.bordeTooltipTile.setVisible(false);
 
         this.capaVistaPegado.putTileAt(tileEncontrada, x, y);
 
-        const portalEncontrado = this.portalesCopiados[fila][columna];
+        const portalEncontrado = this.orientarPortalEnTile(tileEncontrada, this.portalesCopiados[fila][columna]);
 
         if (portalEncontrado !== -1) {
           this.capaVistaPortalesPegado.putTileAt(
@@ -2855,9 +2925,13 @@ this.bordeTooltipTile.setVisible(false);
           continue;
         }
 
-        const portal = state[fila][columna];
+        let portal = state[fila][columna];
 
         if (portal !== undefined && portal !== -1) {
+          const tile = this.tablero.getTileAt(columna, fila);
+          if (tile !== null) portal = this.orientarPortalEnTile(tile.index, portal);
+          if (portal === -1) continue;
+
           this.capaPortales.putTileAt(
             portal,
             columna,
@@ -3471,7 +3545,9 @@ this.bordeTooltipTile.setVisible(false);
   private actualizarHoverTile() {
     this.restaurarTileHover();
     this.hoverTile.setVisible(false);
-    this.hoverCell.setFillStyle(0x000000, 0.6);
+    this.hoverTile.clearTint();
+    this.hoverCell.setFillStyle(0x000000, 0.12);
+    this.hoverCell.setStrokeStyle(2, 0x6f87b0, 0.65);
 
     if (
       this.hoverCell.visible === false ||
@@ -3489,48 +3565,44 @@ this.bordeTooltipTile.setVisible(false);
         mouse.worldY
       );
 
-      if (
-        this.puedeColocarPortal(
-          this.mouseX,
-          this.mouseY,
-          portal
-        ) === false
-      ) {
-        this.hoverCell.setFillStyle(0xff0000, 0.6);
-        return;
+      const puedeColocar = this.puedeColocarPortal(
+        this.mouseX,
+        this.mouseY,
+        portal
+      );
+
+      if (puedeColocar === false) {
+        this.hoverCell.setFillStyle(0xff0000, 0.25);
+        this.hoverCell.setStrokeStyle(2, 0xff0000, 0.6);
       }
 
-      this.hoverTile.setVisible(false);
+      const tile = this.tablero.getTileAt(this.mouseX, this.mouseY);
+      let normal = false;
+      if (tile !== null) normal = esParedExteriorPortal(tile.index);
 
-      if (portal !== this.portalArriba) {
-        this.hoverTile.setTexture("editorTiles", portal - 1);
-        this.hoverTile.setDisplaySize(this.cellsize, this.cellsize);
-        this.hoverTile.setPosition(this.hoverCell.x, this.hoverCell.y);
-        this.hoverTile.setDepth(this.profundidadFila(this.mouseY, 8));
-        this.hoverTile.setVisible(true);
+      if (this.hoverPortal === null) {
+        this.hoverPortal = this.add.sprite(0, 0, "portal-normal-green", 0);
       }
 
-      const indiceRelieve = this.obtenerRelieve(portal);
+      configurarPortal(
+        this.hoverPortal,
+        this.grupoPortalEn(this.mouseX, this.mouseY),
+        direccionPortalEditor(portal),
+        normal
+      );
+      this.hoverPortal.setScale(this.tileScale);
+      this.hoverPortal.setPosition(
+        this.board_offset_x + (this.mouseX + 1) * this.cellsize,
+        this.board_offset_y + (this.mouseY + 1) * this.cellsize
+      );
+      this.hoverPortal.setDepth(this.profundidadFila(this.mouseY, 9));
+      this.hoverPortal.setAlpha(0.6);
+      this.hoverPortal.clearTint();
+      this.hoverPortal.setVisible(true);
+      this.recortarPortalEditor(this.hoverPortal);
 
-      if (indiceRelieve !== -1) {
-        const imagenRelieve = this.add.image(
-          this.hoverCell.x,
-          this.hoverCell.y - this.cellsize,
-          "editorTiles",
-          indiceRelieve - 1
-        );
-
-        imagenRelieve.setDisplaySize(
-          this.cellsize,
-          this.cellsize
-        );
-
-        imagenRelieve.setAlpha(0.6);
-        imagenRelieve.setDepth(
-          this.profundidadFila(this.mouseY, 9)
-        );
-
-        this.hoverGrupo.push(imagenRelieve);
+      if (puedeColocar === false) {
+        this.hoverPortal.setTint(0xff0000);
       }
 
       return;
@@ -3554,7 +3626,7 @@ this.bordeTooltipTile.setVisible(false);
       return;
     }
 
-    let forma = this.formasPared[this.herramienta - 200];
+    let forma = this.obtenerFormaTile(this.herramienta);
 
     if (forma === undefined) {
       forma = [[0, 0, this.herramienta]];
@@ -3574,6 +3646,10 @@ this.bordeTooltipTile.setVisible(false);
       ) {
         entra = false;
       }
+
+      if (y === 0 && this.obtenerRelieve(forma[i][2]) !== -1) {
+        entra = false;
+      }
     }
 
     if (
@@ -3584,49 +3660,45 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     if (entra === false) {
-      this.hoverCell.setFillStyle(0xff0000, 0.6);
+      this.hoverCell.setFillStyle(0xff0000, 0.25);
+      this.hoverCell.setStrokeStyle(2, 0xff0000, 0.6);
     }
 
     for (let i = 0; i < forma.length; i++) {
       const x = this.mouseX + forma[i][0];
       const y = this.mouseY + forma[i][1];
 
-      if (
-        x < 0 ||
-        y < 0 ||
-        x >= this.columns ||
-        y >= this.rows
-      ) {
+      if (x < 0 || x >= this.columns || y < 0 || y > this.rows) {
         continue;
       }
-      this.ocultarGrupo(x, y);
 
-      const px =
-        this.board_offset_x + (x + 0.5) * this.cellsize;
+      const px = this.board_offset_x + (x + 0.5) * this.cellsize;
+      const py = this.board_offset_y + (y + 0.5) * this.cellsize;
 
-      const py =
-        this.board_offset_y + (y + 0.5) * this.cellsize;
+      if (y < this.rows) {
+        this.ocultarGrupo(x, y);
 
-      const imagen = this.add.image(
-        px,
-        py,
-        "editorTiles",
-        forma[i][2] - 1
-      );
+        const imagen = this.add.image(
+          px,
+          py,
+          "editorTiles",
+          forma[i][2] - 1
+        );
 
-      imagen.setDisplaySize(this.cellsize, this.cellsize);
-      imagen.setAlpha(0.6);
-      imagen.setDepth(this.profundidadFila(y, 8));
+        imagen.setDisplaySize(this.cellsize, this.cellsize);
+        imagen.setAlpha(0.6);
+        imagen.setDepth(this.profundidadFila(y, 8));
 
-      if (entra === false) {
-        imagen.setTint(0xff0000);
+        if (entra === false) {
+          imagen.setTint(0xff0000);
+        }
+
+        this.hoverGrupo.push(imagen);
       }
-
-      this.hoverGrupo.push(imagen);
 
       const indiceRelieve = this.obtenerRelieve(forma[i][2]);
 
-      if (indiceRelieve !== -1) {
+      if (indiceRelieve !== -1 && y > 0) {
         const imagenRelieve = this.add.image(
           px,
           py - this.cellsize,
@@ -3634,11 +3706,7 @@ this.bordeTooltipTile.setVisible(false);
           indiceRelieve - 1
         );
 
-        imagenRelieve.setDisplaySize(
-          this.cellsize,
-          this.cellsize
-        );
-
+        imagenRelieve.setDisplaySize(this.cellsize, this.cellsize);
         imagenRelieve.setAlpha(0.6);
         imagenRelieve.setDepth(this.profundidadFila(y, 9));
 
@@ -3652,6 +3720,10 @@ this.bordeTooltipTile.setVisible(false);
   }
 
   private restaurarTileHover() {
+    if (this.hoverPortal !== null) {
+      this.hoverPortal.setVisible(false);
+    }
+
     for (let i = 0; i < this.hoverGrupo.length; i++) {
       this.hoverGrupo[i].destroy();
     }
@@ -3717,14 +3789,35 @@ this.bordeTooltipTile.setVisible(false);
         );
 
         if (tile !== null && tile.index === tileBuscada) {
-          let reemplazo = this.tileInvisible;
+          if (tileBuscada === this.tileBandera) {
+            const izquierda = this.tablero.getTileAt(columna - 1, 0);
+            const derecha = this.tablero.getTileAt(columna + 1, 0);
+            let paredSuperior = 39;
 
-          if (tileBuscada === this.tileBandera && fila === 0) {
-            reemplazo = 39;
+            if (
+              (izquierda !== null && izquierda.index === 16) ||
+              (derecha !== null && derecha.index === 16)
+            ) {
+              paredSuperior = 16;
+            }
+
+            this.borrarGrupoEn(columna, fila);
+
+            if (fila === 0 || fila === 1) {
+              this.tablero.putTileAt(paredSuperior, columna, 0);
+
+              if (fila === 1 && paredSuperior === 16) {
+                this.tablero.putTileAt(17, columna, fila);
+              }
+
+              this.actualizarParedesConexas(columna, 0);
+            }
+
+            continue;
           }
 
           this.mapa.putTileAt(
-            reemplazo,
+            this.tileInvisible,
             columna,
             fila,
             true,
@@ -3773,6 +3866,20 @@ this.bordeTooltipTile.setVisible(false);
           if (fila !== 1 || columna <= 0 || columna >= this.columns - 1) {
             return false;
           }
+
+          const arriba = this.tablero.getTileAt(columna, fila - 1);
+
+          if (arriba === null || arriba.index !== this.tileSalidaArriba) {
+            return false;
+          }
+        }
+
+        if (tile !== null && tile.index === this.tileSalidaArriba) {
+          const abajo = this.tablero.getTileAt(columna, fila + 1);
+
+          if (fila !== 0 || abajo === null || abajo.index !== this.tileBandera) {
+            return false;
+          }
         }
       }
     }
@@ -3797,7 +3904,7 @@ this.bordeTooltipTile.setVisible(false);
         return { textura: nombre, frame: 0 };
     }
 
-    let forma = this.formasPared[tile - 200];
+    let forma = this.obtenerFormaTile(tile);
 
     if (forma === undefined) {
         forma = [[0, 0, tile]];
@@ -3943,18 +4050,25 @@ this.bordeTooltipTile.setVisible(false);
     const tamaño = 40;
     const separacion = 52;
     const margen = 12;
-    const yFinal = centroY - 64;
+    let columnas = Math.min(3, variantes.length);
 
-    let y = yFinal - (variantes.length - 1) * separacion;
-
-    const alto =
-      tamaño + (variantes.length - 1) * separacion;
+    if (variantes.length === 4) {
+      columnas = 2;
+    }
+    const filas = Math.ceil(variantes.length / columnas);
+    const ancho = tamaño + (columnas - 1) * separacion + margen * 2;
+    const alto = tamaño + (filas - 1) * separacion + margen * 2;
+    const izquierda = Math.max(
+      8,
+      Math.min(centroX - ancho / 2, this.scale.width - ancho - 8)
+    );
+    const arriba = Math.max(8, centroY - tamaño / 2 - 12 - alto);
 
     const fondo = this.add.rectangle(
-      centroX,
-      (y + yFinal) / 2,
-      tamaño + margen * 2,
-      alto + margen * 2,
+      izquierda + ancho / 2,
+      arriba + alto / 2,
+      ancho,
+      alto,
       0x302641
     );
 
@@ -3967,9 +4081,11 @@ this.bordeTooltipTile.setVisible(false);
 
     for (let i = 0; i < variantes.length; i++) {
       const variante = variantes[i];
+      const x = izquierda + margen + tamaño / 2 + (i % columnas) * separacion;
+      const y = arriba + margen + tamaño / 2 + Math.floor(i / columnas) * separacion;
 
       const casilla = this.add.rectangle(
-        centroX,
+        x,
         y,
         tamaño,
         tamaño,
@@ -3985,7 +4101,7 @@ this.bordeTooltipTile.setVisible(false);
         () => this.herramienta === variante
       );
 
-      this.crearIconoSubHotbar(variante, centroX, y);
+      this.crearIconoSubHotbar(variante, x, y);
       this.configurarTooltipTile(casilla, () => variante, false);
 
       casilla.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
@@ -4014,8 +4130,6 @@ this.bordeTooltipTile.setVisible(false);
       });
 
       this.objetosSubHotbar.push(casilla);
-
-      y += separacion;
     }
   }
 
@@ -4034,8 +4148,8 @@ this.bordeTooltipTile.setVisible(false);
 
   private ajustarIconoHotbar(imagen: Phaser.GameObjects.Image): void {
     const escala = Math.min(
-      this.cellsize / imagen.width,
-      this.cellsize / imagen.height
+      32 / imagen.width,
+      32 / imagen.height
     );
 
     imagen.setScale(escala);
@@ -4058,7 +4172,34 @@ this.bordeTooltipTile.setVisible(false);
       return "Placa de presión";
     }
     if (tile === 39) {
-      return "Pared";
+      return "Pared interior";
+    }
+    if (tile === 17) {
+      return "Pared superior";
+    }
+    if (tile === 20) {
+      return "Pared inferior";
+    }
+    if (tile === 18) {
+      return "Pared derecha";
+    }
+    if (tile === 19) {
+      return "Pared izquierda";
+    }
+    if (tile === 16) {
+      return "Techo";
+    }
+    if (tile === 21) {
+      return "Esquina superior izquierda";
+    }
+    if (tile === 22) {
+      return "Esquina superior derecha";
+    }
+    if (tile === 23) {
+      return "Esquina inferior derecha";
+    }
+    if (tile === 24) {
+      return "Esquina inferior izquierda";
     }
     if (tile === 41) {
       return "Maquinaria simple";
@@ -4182,42 +4323,36 @@ this.bordeTooltipTile.setVisible(false);
 
   private crearFondoTablero(): void {
     const margen = this.margenTablero;
-    let altoRelieve = 0;
 
-    for (let i = 0; i < this.relieves.length; i++) {
-      const frame = this.relieves[i][1] - 1;
-      let primeraFila = this.tileGraphicSize;
+    // Reservar el panel lateral y la hotbar antes de escalar el tablero.
+    const anchoDisponible = this.scale.width - this.margenPanel * 2 -
+      this.separacionPaneles - this.anchoPanelHerramientas;
+    const altoDisponible = this.scale.height - this.margenPanel -
+      this.arribaPaneles - this.altoPanelHotbar - this.separacionHotbar;
+    const tamañoCelda = Math.min(
+      32,
+      (anchoDisponible - margen * 2) / this.columns,
+      (altoDisponible - margen * 2) / this.rows
+    );
 
-      for (let y = 0; y < this.tileGraphicSize; y++) {
-        for (let x = 0; x < this.tileGraphicSize; x++) {
-          const alpha = this.textures.getPixelAlpha(x, y, "editorTiles", frame);
+    this.cellsize = Math.max(2, Math.floor(tamañoCelda / 2) * 2);
+    this.tileScale = this.cellsize / this.tileGraphicSize;
+    this.board_width = this.columns * this.cellsize;
+    this.board_height = this.rows * this.cellsize;
 
-          if (alpha > 0) {
-            primeraFila = y;
-            break;
-          }
-        }
+    this.anchoPanelTablero = this.board_width + margen * 2;
 
-        if (primeraFila < this.tileGraphicSize) {
-          break;
-        }
-      }
-
-      altoRelieve = Math.max(
-        altoRelieve,
-        (this.tileGraphicSize - primeraFila) * this.tileScale
-      );
-    }
-
+    const centroX = this.margenPanel + anchoDisponible / 2;
     const arriba = this.arribaPaneles;
-    this.board_offset_x = this.margenPanel + margen;
-    this.board_offset_y = arriba + margen + altoRelieve;
+    this.board_offset_x = centroX - this.board_width / 2;
+    this.board_offset_y = arriba + margen;
     const abajo = this.board_offset_y + this.board_height + margen;
+    this.yHotbar = abajo + this.separacionHotbar + this.altoPanelHotbar / 2;
 
     const fondo = this.add.rectangle(
-      this.board_offset_x + this.board_width / 2,
+      centroX,
       (arriba + abajo) / 2,
-      this.board_width + margen * 2,
+      this.anchoPanelTablero,
       abajo - arriba,
       0x171a2e
     );
@@ -4363,6 +4498,26 @@ this.bordeTooltipTile.setVisible(false);
     const tile = this.tablero.getTileAt(x, y);
 
     if (tile === null) {
+      return [[x, y]];
+    }
+
+    if (tile.index === this.tileBandera || tile.index === this.tileSalidaArriba) {
+      let baseY = y;
+
+      if (tile.index === this.tileSalidaArriba) {
+        baseY++;
+      }
+
+      const base = this.tablero.getTileAt(x, baseY);
+      const arriba = this.tablero.getTileAt(x, baseY - 1);
+
+      if (
+        base !== null && base.index === this.tileBandera &&
+        arriba !== null && arriba.index === this.tileSalidaArriba
+      ) {
+        return [[x, baseY], [x, baseY - 1]];
+      }
+
       return [[x, y]];
     }
 
@@ -4588,7 +4743,10 @@ this.bordeTooltipTile.setVisible(false);
 
         const indice = this.obtenerRelieve(tile.index);
 
-        if (indice === -1) {
+        const vistaPegado = base === this.capaVistaPegado ||
+          base === this.capaVistaPortalesPegado;
+
+        if (indice === -1 || (vistaPegado && fila === 0)) {
           relieve.removeTileAt(columna, fila);
         } else {
           relieve.putTileAt(indice, columna, fila);
@@ -4695,6 +4853,79 @@ this.bordeTooltipTile.setVisible(false);
     }
   }
 
+  private grupoPortalEn(columna: number, fila: number): number {
+    let grupo = 0;
+
+    for (let i = 0; i < this.links.length; i++) {
+      const link = this.links[i];
+      if (!this.esParDePortales(link)) continue;
+      grupo++;
+
+      if ((link[0] === columna && link[1] === fila) ||
+          (link[2] === columna && link[3] === fila)) {
+        return grupo;
+      }
+    }
+
+    return 0;
+  }
+
+  private recortarPortalEditor(sprite: Phaser.GameObjects.Sprite): void {
+    const arriba = sprite.y - sprite.height * sprite.originY * sprite.scaleY;
+    const recorte = Math.max(0, Math.ceil((this.board_offset_y - arriba) / sprite.scaleY));
+
+    if (recorte >= sprite.height) {
+      sprite.setVisible(false);
+    } else if (recorte > 0) {
+      sprite.setCrop(0, recorte, sprite.width, sprite.height - recorte);
+    } else {
+      sprite.setCrop();
+    }
+  }
+
+  private actualizarCapaPortalesAnimados(
+    capa: Phaser.Tilemaps.TilemapLayer,
+    base: Phaser.Tilemaps.TilemapLayer,
+    orden: number,
+    alpha: number
+  ): void {
+    capa.setAlpha(0);
+    if (this.spritesPortales[orden] === undefined) this.spritesPortales[orden] = [];
+    const sprites = this.spritesPortales[orden];
+
+    for (let fila = 0; fila < this.rows; fila++) {
+      for (let columna = 0; columna < this.columns; columna++) {
+        const posicion = fila * this.columns + columna;
+        const tile = capa.getTileAt(columna, fila);
+        let sprite = sprites[posicion];
+
+        if (!capa.visible || tile === null || !tile.visible || direccionPortalEditor(tile.index) === -1) {
+          if (sprite !== undefined) sprite.setVisible(false);
+          continue;
+        }
+
+        if (sprite === undefined) {
+          sprite = this.add.sprite(0, 0, "portal-normal-green", 0);
+          sprites[posicion] = sprite;
+        }
+
+        const soporte = base.getTileAt(columna, fila);
+        let normal = false;
+        if (soporte !== null) normal = esParedExteriorPortal(soporte.index);
+        let grupo = 0;
+        if (capa === this.capaPortales) grupo = this.grupoPortalEn(columna, fila);
+
+        configurarPortal(sprite, grupo, direccionPortalEditor(tile.index), normal);
+        sprite.setScale(this.tileScale);
+        sprite.setPosition(capa.x + (columna + 1) * this.cellsize, capa.y + (fila + 1) * this.cellsize);
+        sprite.setDepth(this.profundidadFila(fila, orden + 1));
+        sprite.setAlpha(alpha);
+        sprite.setVisible(true);
+        this.recortarPortalEditor(sprite);
+      }
+    }
+  }
+
   private actualizarProfundidad(): void {
     this.actualizarCapaProfundidad(
       this.tablero,
@@ -4708,17 +4939,14 @@ this.bordeTooltipTile.setVisible(false);
       1
     );
 
-    this.actualizarCapaProfundidad(
+    this.actualizarCapaPortalesAnimados(
       this.capaPortales,
+      this.tablero,
       2,
       1
     );
 
-    this.actualizarCapaProfundidad(
-      this.capaRelievePortales,
-      3,
-      1
-    );
+    if (this.capaRelievePortales !== null) this.capaRelievePortales.setAlpha(0);
 
     this.actualizarCapaProfundidad(
       this.capaVistaPegado,
@@ -4732,17 +4960,14 @@ this.bordeTooltipTile.setVisible(false);
       0.6
     );
 
-    this.actualizarCapaProfundidad(
+    this.actualizarCapaPortalesAnimados(
       this.capaVistaPortalesPegado,
+      this.capaVistaPegado,
       6,
       0.6
     );
 
-    this.actualizarCapaProfundidad(
-      this.capaRelievePortalesPegado,
-      7,
-      0.6
-    );
+    if (this.capaRelievePortalesPegado !== null) this.capaRelievePortalesPegado.setAlpha(0);
   }
 
   private testearNivel(): void {

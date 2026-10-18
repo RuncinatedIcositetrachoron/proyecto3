@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { cargarPortales, crearAnimacionesPortales, configurarPortal, esParedExteriorPortal } from "./portales";
 
 import { obtenerNivel, crearBoton } from "./niveles";
 import { convertirNivel } from "./parser";
@@ -6,7 +7,6 @@ import { convertirNivel } from "./parser";
 import { demo } from "./datosDemo";
 import {
     completarNivelDescargadoBackend,
-    completarNivelOriginalBackend,
     leerNivelesOriginalesBackend,
     leerNivelOriginalBackend
 } from "./api";
@@ -270,9 +270,15 @@ export class GameScene extends Phaser.Scene {
             String(error)
         );
     }
+    const transition = this.scene.get("transition") as TransitionScene;
 
-    this.scene.wake("communityDemo");
-    this.scene.stop();
+    transition.changeScene(
+        this.sys.settings.key,
+        "communityDemo",
+        {
+            pestana: "Descargados"
+        }
+    );
 }
       
     private crearBotonJuego(
@@ -421,7 +427,7 @@ nombre.setOrigin(0, 0.5);
 
         nombre.setText(nombreVisible + "...");
     }
-    if (this.modoTest || this.testeando || this.nivelId !== "") {
+    if (this.modoTest || this.testeando || (this.nivelId !== "" && this.nivelDescargado === null)) {
         const etiquetaTest = this.add.text(
             nombre.x + nombre.width + 8,
             nombre.y,
@@ -555,7 +561,7 @@ nombre.setOrigin(0, 0.5);
             transition.changeScene(this.sys.settings.key, this.escenaAnterior);
         }
 
-        private async ganarNivel() {
+        private ganarNivel() {
             if (this.saliendoDelNivel) {
                 return;
             }
@@ -570,22 +576,6 @@ nombre.setOrigin(0, 0.5);
             }
 
             this.saliendoDelNivel = true;
-
-            const usuario = demo.usuarioActual;
-            if (usuario !== null && usuario !== undefined && usuario.id !== 0) {
-                try {
-                    await completarNivelOriginalBackend(
-                        usuario.nombre,
-                        this.levelNumber,
-                        1
-                    );
-                } catch (error) {
-                    window.alert(
-                        "Se gano el nivel, pero no se pudo guardar el progreso:\n\n" +
-                        String(error)
-                    );
-                }
-            }
             if (this.escenaAnterior === "selectscene") {
                 const selector: any = this.scene.get("selectscene");
                 if (typeof selector.marcarNivelCompletado === "function") {
@@ -630,46 +620,8 @@ nombre.setOrigin(0, 0.5);
             entity.dir = oldEntity.dir;
             entity.portal = oldEntity.portal;
             entity.sprite.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier).setDepth(2*entity.y);
-            let portalOffset = 0;
-            if (entity.portal === 1 || entity.portal === 3) {
-                portalOffset = 3;
-            }
-            if (entity.sprite2 && entity.group == 1 && entity.type === "wall") {
-                entity.sprite2.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier - portalOffset * this.pixelmultiplier).setDepth(2*entity.y+1);
-                switch(entity.portal) {
-                    case 0: entity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
-                    case 1: entity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
-                    case 2: entity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
-                    case 3: entity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
-                }
-            }
-            if (entity.sprite2 && entity.group == 2 && entity.type === "wall") {
-                entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier - portalOffset * this.pixelmultiplier).setDepth(2*entity.y+1);
-                switch(entity.portal) {
-                    case 0: entity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
-                    case 1: entity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
-                    case 2: entity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
-                    case 3: entity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
-                }
-            }
-            if (entity.sprite2 && entity.group == 1 && entity.type !== "wall") {
-                entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y+1);
-                switch(entity.portal) {
-                    case 0: entity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
-                    case 1: entity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
-                    case 2: entity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
-                    case 3: entity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
-                }
-            }
-            if (entity.sprite2 && entity.group == 2 && entity.type !== "wall") {
-                entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y+1);
-                switch(entity.portal) {
-                    case 0: entity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
-                    case 1: entity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
-                    case 2: entity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
-                    case 3: entity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
-                }
-            }
+            this.actualizarPortal(entity);
+            this.actualizarAlphaPortal(entity, 1);
             if (entity.type === "player") {
                 entity.sprite.setTexture("lindseyi", entity.dir).setScale(this.pixelmultiplier).setDepth(10);
                 entity.sprite.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier);
@@ -950,21 +902,22 @@ nombre.setOrigin(0, 0.5);
             this.objetosMenuPausa.push(objetosBoton[i]);
         }
     }
-private cerrarMenuPausa() {
-    if (this.menuup != 1) {
-        return;
-    }
 
-    this.menuup = 0;
-
-    for (let i = 0; i < this.objetosMenuPausa.length; i++) {
-        if (this.objetosMenuPausa[i].scene) {
-            this.objetosMenuPausa[i].destroy();
+    private cerrarMenuPausa() {
+        if (this.menuup != 1) {
+            return;
         }
-    }
 
-    this.objetosMenuPausa = [];
-}
+        this.menuup = 0;
+
+        for (let i = 0; i < this.objetosMenuPausa.length; i++) {
+            if (this.objetosMenuPausa[i].scene) {
+                this.objetosMenuPausa[i].destroy();
+            }
+        }
+
+        this.objetosMenuPausa = [];
+    }
 
     //////////////////////////
     //LUCAS HELPERS DEL GAME//
@@ -978,6 +931,16 @@ private cerrarMenuPausa() {
             case 3: return 1;
         }
         return 4;
+    }
+    private isDoor(x: number, y: number): boolean {
+        for (let i = 0; i < this.entities.length; i++) {
+            const entity = this.entities[i];
+            if (entity.secret === "flag" && entity.x === x &&
+                (entity.y === y || entity.y - 1 === y)) {
+                return true;
+            }
+        }
+        return false;
     }
     private isWall(x: number, y: number): boolean {
         if (y < 0 || y >= this.staticRows.length || x < 0 || x >= this.staticRows[y].length) {
@@ -1103,6 +1066,25 @@ private cerrarMenuPausa() {
         if (entity.sprite2) {
             entity.sprite2.setDepth(depth + 1);
         }
+    }
+
+    private actualizarPortal(entity: Entity, mover: boolean = true, profundidad: boolean = true): void {
+        if (entity.portal === undefined) return;
+
+        const normal = entity.type === "wall" &&
+            entity.sprite.texture.key === "tileset-fogo" &&
+            esParedExteriorPortal(Number(entity.sprite.frame.name) + 1);
+
+        if (!entity.sprite2) {
+            entity.sprite2 = this.add.sprite(entity.sprite.x, entity.sprite.y, "portal-normal-green", 0);
+        }
+
+        let grupo = 0;
+        if (entity.group !== undefined) grupo = entity.group;
+        configurarPortal(entity.sprite2, grupo, entity.portal, normal);
+        entity.sprite2.setScale(this.pixelmultiplier);
+        if (mover) entity.sprite2.setPosition(entity.sprite.x, entity.sprite.y);
+        if (profundidad) entity.sprite2.setDepth(2 * entity.y + 1);
     }
 
     private addLaserTail(laser: LaserVisual) {
@@ -1841,9 +1823,9 @@ private cerrarMenuPausa() {
                 portal.emitting = undefined;
                 if (portal.sprite2) {
                     if (this.isPortalActive(portal)) {
-                        portal.sprite2.setAlpha(1);
+                        portal.sprite2.setAlpha(portal.sprite.alpha);
                     } else {
-                        portal.sprite2.setAlpha(0.25);
+                        portal.sprite2.setAlpha(0.25 * portal.sprite.alpha);
                     }
                 }
             }
@@ -2046,6 +2028,9 @@ private cerrarMenuPausa() {
                 player.x = savedPlayerX; player.y = savedPlayerY; player.dir = savedPlayerDir;
                 player.sprite.setPosition(this.offsetX + player.x * 16*this.pixelmultiplier, this.offsetY + player.y * 16*this.pixelmultiplier).setDepth(2 * player.y);
             }
+            if (this.isDoor(newEntityX, newEntityY)) {
+                return false;
+            }
             if (this.getPortalAt(newEntityX, newEntityY, dir)) {
                 const entry = this.getPortalAt(newEntityX, newEntityY);
                 if (!entry){
@@ -2068,6 +2053,7 @@ private cerrarMenuPausa() {
                 else {
                 const savedX = entity.x, savedY = entity.y, savedDir = entity.dir, savedPortal = entity.portal;
                 this.tempstorage2a = this.duplicateSprite(entity.sprite);
+                this.tempstorage2b = undefined;
                 if (entity.sprite2) this.tempstorage2b = this.duplicateSprite(entity.sprite2);
                 this.tempstorage = entity;
 
@@ -2097,24 +2083,7 @@ private cerrarMenuPausa() {
                 }
                 
                 entity.sprite.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier);
-                if (entity.sprite2 && entity.group === 1) {
-                    entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier);
-                    switch(entity.portal) {
-                        case 0: entity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
-                        case 1: entity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
-                        case 2: entity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
-                        case 3: entity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
-                    }
-                }
-                if (entity.sprite2 && entity.group === 2) {
-                    entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier);
-                    switch(entity.portal) {
-                        case 0: entity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
-                        case 1: entity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
-                        case 2: entity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
-                        case 3: entity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
-                    }
-                }
+                this.actualizarPortal(entity, true, false);
 
                 let done = false;
                 switch(exit.portal) {
@@ -2130,24 +2099,7 @@ private cerrarMenuPausa() {
                     entity.dir = savedDir;
                     entity.portal = savedPortal;
                     entity.sprite.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y);
-                    if (entity.sprite2 && entity.group === 1) {
-                        entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y+1);
-                        switch(entity.portal) {
-                            case 0: entity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
-                            case 1: entity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
-                            case 2: entity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
-                            case 3: entity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
-                        }
-                    }
-                    if (entity.sprite2 && entity.group === 2) {
-                        entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y+1);
-                        switch(entity.portal) {
-                            case 0: entity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
-                            case 1: entity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
-                            case 2: entity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
-                            case 3: entity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
-                        }
-                    }
+                    this.actualizarPortal(entity);
 
                     if (this.tempstorage2a) {
                         this.tempstorage2a.destroy();
@@ -2189,6 +2141,7 @@ private cerrarMenuPausa() {
                         const savedDir = otherEntity.dir;
                         const savedPortal = otherEntity.portal;
                         this.tempstorage2a = this.duplicateSprite(otherEntity.sprite);
+                        this.tempstorage2b = undefined;
                         if (otherEntity.sprite2) this.tempstorage2b = this.duplicateSprite(otherEntity.sprite2);
 
                         let exitX = exit.x;
@@ -2232,24 +2185,7 @@ private cerrarMenuPausa() {
 
                             otherEntity.sprite.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y);
 
-                            if (otherEntity.sprite2 && otherEntity.group === 1) {
-                                otherEntity.sprite2.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y+1);
-                                switch(otherEntity.portal) {
-                                    case 0: otherEntity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
-                                    case 1: otherEntity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
-                                    case 2: otherEntity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
-                                    case 3: otherEntity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
-                                }
-                            }
-                            if (otherEntity.sprite2 && otherEntity.group === 2) {
-                                otherEntity.sprite2.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y+1);
-                                switch(otherEntity.portal) {
-                                    case 0: otherEntity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
-                                    case 1: otherEntity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
-                                    case 2: otherEntity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
-                                    case 3: otherEntity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
-                                }
-                            }
+                            this.actualizarPortal(otherEntity);
 
                             let done = false;
 
@@ -2270,24 +2206,7 @@ private cerrarMenuPausa() {
 
                                 otherEntity.sprite.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y);
 
-                                if (otherEntity.sprite2 && otherEntity.group === 1) {
-                                    otherEntity.sprite2.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y+1);
-                                    switch(otherEntity.portal) {
-                                        case 0: otherEntity.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
-                                        case 1: otherEntity.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
-                                        case 2: otherEntity.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
-                                        case 3: otherEntity.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
-                                    }
-                                }
-                                if (otherEntity.sprite2 && otherEntity.group === 2) {
-                                    otherEntity.sprite2.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y+1);
-                                    switch(otherEntity.portal) {
-                                        case 0: otherEntity.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
-                                        case 1: otherEntity.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
-                                        case 2: otherEntity.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
-                                        case 3: otherEntity.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
-                                    }
-                                }
+                                this.actualizarPortal(otherEntity);
 
                                 return false;
                             }
@@ -2318,14 +2237,12 @@ private cerrarMenuPausa() {
         player.dir = dx !== 0 ? dx : dy;
 
         const facing = this.opposite(dir);
-        player.sprite.setScale(this.pixelmultiplier).setDepth(2*player.y);
-        if (this.pushTweens.length > 0) {
-            this.updateEntityDepth(player);
-        }
+        player.sprite.setScale(this.pixelmultiplier);
+        this.updateEntityDepth(player);
         this.laserFunction();
         const flag = this.entities.find(entity => entity.type === "flag");
         if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
-            this.animateLindseyExit(player);
+            this.animateLindseyExit(player, flag);
             return true;
         }
         this.animatePlayer(player, facing);
@@ -2349,6 +2266,9 @@ private cerrarMenuPausa() {
         const newX = this.tempstorage.x + dx;
         const newY = this.tempstorage.y + dy;
 
+        if (this.isDoor(newX, newY)) {
+            return false;
+        }
         if (this.getPortalAt(newX, newY, dir)) {
             const entry = this.getPortalAt(newX, newY);
             if (!entry){
@@ -2380,7 +2300,7 @@ private cerrarMenuPausa() {
 
         this.tempstorage.x = newX;
         this.tempstorage.y = newY;
-        this.animatePushable(this.tempstorage);
+        this.animatePushable(this.tempstorage, true);
         if (!entry) {
             console.log("ERROR: YOU ARE EXITING A PORTAL WITH NO ENTRY");
             return false;
@@ -2389,22 +2309,7 @@ private cerrarMenuPausa() {
             this.animateBPortalEntry(entry.x, entry.y, entry.portal);
         }
         this.maskBoxPortal(this.tempstorage, this.tempstorage.x-dx, this.tempstorage.y-dy, this.opposite(dir));
-        if (this.tempstorage.sprite2 && this.tempstorage.group === 1) {
-            switch(this.tempstorage.portal) {
-                case 0: this.tempstorage.sprite2.setTexture("portals", 0).setScale(this.pixelmultiplier); break;
-                case 1: this.tempstorage.sprite2.setTexture("portals", 3).setScale(this.pixelmultiplier); break;
-                case 2: this.tempstorage.sprite2.setTexture("portals", 1).setScale(this.pixelmultiplier); break;
-                case 3: this.tempstorage.sprite2.setTexture("portals", 2).setScale(this.pixelmultiplier); break;
-            }
-        }   
-        if (this.tempstorage.sprite2 && this.tempstorage.group === 2) {
-            switch(this.tempstorage.portal) {
-                case 0: this.tempstorage.sprite2.setTexture("portals", 4).setScale(this.pixelmultiplier); break;
-                case 1: this.tempstorage.sprite2.setTexture("portals", 7).setScale(this.pixelmultiplier); break;
-                case 2: this.tempstorage.sprite2.setTexture("portals", 5).setScale(this.pixelmultiplier); break;
-                case 3: this.tempstorage.sprite2.setTexture("portals", 6).setScale(this.pixelmultiplier); break;
-            }
-        }   
+        this.actualizarPortal(this.tempstorage, false, false);   
         return true;
     }
 
@@ -2417,10 +2322,24 @@ private cerrarMenuPausa() {
         copy.setOrigin(sprite.originX, sprite.originY);
         copy.setScale(sprite.scaleX, sprite.scaleY);
         copy.setDepth(sprite.depth);
+        copy.setAlpha(sprite.alpha);
+        if (sprite.anims.isPlaying && sprite.anims.currentAnim) {
+            copy.play(sprite.anims.currentAnim.key);
+            copy.anims.setProgress(sprite.anims.getProgress());
+        }
         return copy;
     }
 
-    private animatePushable(entity: Entity) {
+    private actualizarAlphaPortal(entity: Entity, alpha: number): void {
+        entity.sprite.setAlpha(alpha);
+        if (entity.sprite2) {
+            let alphaPortal = alpha;
+            if (!this.isPortalActive(entity)) alphaPortal *= 0.25;
+            entity.sprite2.setAlpha(alphaPortal);
+        }
+    }
+
+    private animatePushable(entity: Entity, saliendoPortal: boolean = false) {
         const sprites: Phaser.GameObjects.Sprite[] = [];
 
         sprites.push(entity.sprite);
@@ -2428,6 +2347,9 @@ private cerrarMenuPausa() {
             sprites.push(entity.sprite2);
         }
 
+        const inicioX = entity.sprite.x;
+        const inicioY = entity.sprite.y;
+        if (saliendoPortal) this.actualizarAlphaPortal(entity, 0);
         const tween = this.tweens.add({
             targets: sprites,
             x: this.offsetX + entity.x * this.tilesize,
@@ -2437,12 +2359,38 @@ private cerrarMenuPausa() {
             onUpdate: () => {
                 this.updateEntityDepth(entity);
                 this.updateLaserPositions();
+                if (saliendoPortal) {
+                    const distancia = Math.abs(entity.sprite.x - inicioX) + Math.abs(entity.sprite.y - inicioY);
+                    const avance = Math.min(1, distancia / this.tilesize);
+                    this.actualizarAlphaPortal(entity, Math.min(1, avance / 0.5));
+                }
+            },
+            onComplete: () => {
+                if (saliendoPortal) this.actualizarAlphaPortal(entity, 1);
             }
         });
 
         this.pushTweens.push(tween);
     }
     
+    private ajustarMascaraPortalPared(region: Phaser.Geom.Rectangle, portalX: number, portalY: number, portalDir: number | undefined): void {
+        const portal = this.entities.find(entity => entity.x === portalX && entity.y === portalY && entity.portal === portalDir);
+        if (!portal || portal.type !== "wall") return;
+        if (portal.sprite.texture.key !== "tileset-fogo") return;
+        if (!esParedExteriorPortal(Number(portal.sprite.frame.name) + 1)) return;
+
+        const bounds = portal.sprite.getBounds();
+        const margenLateral = this.tilesize * 0.5;
+        // El dibujo circular tiene otro origen: 8 px de diferencia arriba y 4 px abajo.
+        if (portalDir === 0) region.height += 8 * this.pixelmultiplier;
+        if (portalDir === 1) {
+            region.x = bounds.right - margenLateral;
+            region.width += margenLateral;
+        }
+        if (portalDir === 2) region.y += 4 * this.pixelmultiplier;
+        if (portalDir === 3) region.width = bounds.left + margenLateral - region.x;
+    }
+
     private maskBoxPortal(box: Entity, portalX: number, portalY: number, portalDir: number | undefined) {
         this.tempstorage3 = box;
         let maskW = 5000;
@@ -2451,11 +2399,12 @@ private cerrarMenuPausa() {
         let maskY = this.offsetY;
         switch(portalDir) {
             case 0: maskH = portalY*this.tilesize - 23 * this.pixelmultiplier; break;
-            case 3: maskW = portalX*this.tilesize + this.offsetX; break;
+            case 3: maskW = (portalX - 1)*this.tilesize; break;
             case 2: maskY = portalY*this.tilesize - 13 * this.pixelmultiplier + this.offsetY; break;
-            case 1: maskW = portalX*this.tilesize + this.offsetX; break; // i have no clue why this works, it's literally the same logic as leftward portal but w/e it works
+            case 1: maskX = portalX*this.tilesize + this.offsetX; break;
         }
         const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
+        this.ajustarMascaraPortalPared(region, portalX, portalY, portalDir);
         const masks = Phaser.Actions.AddMaskShape(box.sprite, {
             shape: "rectangle",
             region: region
@@ -2482,6 +2431,7 @@ private cerrarMenuPausa() {
             case 3: maskW = portalX*this.tilesize - this.tilesize; break;
         }
         const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
+        this.ajustarMascaraPortalPared(region, portalX, portalY, portalDir);
         if (!this.tempstorage2a) return;
         const masks = Phaser.Actions.AddMaskShape(this.tempstorage2a, {
             shape: "rectangle",
@@ -2496,28 +2446,42 @@ private cerrarMenuPausa() {
         }
         const maskFilter = masks[0];
         if (!this.tempstorage2a) {console.log ("fuck you"); return;}
+        const copia = this.tempstorage2a;
+        const copiaPortal = this.tempstorage2b;
+        const inicioX = copia.x;
+        const inicioY = copia.y;
+        const alphaInicial = copia.alpha;
+        let alphaPortalInicial = 1;
+        if (copiaPortal) alphaPortalInicial = copiaPortal.alpha;
         const tween = this.tweens.add({
-            targets: this.tempstorage2a, 
+            targets: copia, 
             x: this.offsetX + portalX * 16*this.pixelmultiplier,
             y: this.offsetY + portalY * 16*this.pixelmultiplier,
             duration: this.lindseyspeed,
             ease: "Linear",
+            onUpdate: () => {
+                const distancia = Math.abs(copia.x - inicioX) + Math.abs(copia.y - inicioY);
+                const avance = Math.min(1, distancia / this.tilesize);
+                const alpha = 1 - Math.max(0, (avance - 0.5) / 0.5);
+                copia.setAlpha(alphaInicial * alpha);
+                if (copiaPortal) copiaPortal.setAlpha(alphaPortalInicial * alpha);
+            },
 
             onComplete: () => {
-                if (this.tempstorage2a) this.tempstorage2a.destroy();
+                copia.destroy();
             }
         });
         this.portalTweens.push(tween);
-        if (this.tempstorage2b) {
+        if (copiaPortal) {
             const tween2 = this.tweens.add({
-                targets: this.tempstorage2b, 
+                targets: copiaPortal, 
                 x: this.offsetX + portalX * 16*this.pixelmultiplier,
                 y: this.offsetY + portalY * 16*this.pixelmultiplier,
                 duration: this.lindseyspeed,
                 ease: "Linear",
 
                 onComplete: () => {
-                    if (this.tempstorage2b) this.tempstorage2b.destroy();
+                    if (copiaPortal) copiaPortal.destroy();
                 }
             });
             this.portalTweens.push(tween2);
@@ -2547,24 +2511,37 @@ private cerrarMenuPausa() {
 
         if (!this.tempstorage2a) {console.log ("fuck you"); return;}
 
+        const copia = this.tempstorage2a;
+        const copiaPortal = this.tempstorage2b;
+        const inicioX = maskShape.x;
+        const inicioY = maskShape.y;
+        const alphaInicial = copia.alpha;
+        let alphaPortalInicial = 1;
+        if (copiaPortal) alphaPortalInicial = copiaPortal.alpha;
         const tween = this.tweens.add({
             targets: maskShape, 
             x: maskShape.x + dx*this.tilesize,
             y: maskShape.y + dy*this.tilesize,
             duration: this.lindseyspeed,
             ease: "Linear",
+            onUpdate: () => {
+                const distancia = Math.abs(maskShape.x - inicioX) + Math.abs(maskShape.y - inicioY);
+                const avance = Math.min(1, distancia / this.tilesize);
+                const alpha = 1 - Math.max(0, (avance - 0.5) / 0.5);
+                copia.setAlpha(alphaInicial * alpha);
+                if (copiaPortal) copiaPortal.setAlpha(alphaPortalInicial * alpha);
+            },
 
             onComplete: () => {
-                if (!this.tempstorage2a) {console.log ("fuck you"); return;}
-                if(this.tempstorage2a.filters) this.tempstorage2a.filters.external.remove(maskFilter);
+                if(copia.filters) copia.filters.external.remove(maskFilter);
                 maskShape.destroy();
 
-                if (this.tempstorage2a) this.tempstorage2a.destroy();
+                copia.destroy();
             }
         });
         this.portalTweens.push(tween);
-        if (this.tempstorage2b) {
-            const masks2 = Phaser.Actions.AddMaskShape(this.tempstorage2b, {
+        if (copiaPortal) {
+            const masks2 = Phaser.Actions.AddMaskShape(copiaPortal, {
                 shape: "rectangle",
                 region: region
             });
@@ -2579,10 +2556,9 @@ private cerrarMenuPausa() {
                 ease: "Linear",
 
                 onComplete: () => {
-                    if (!this.tempstorage2b) {console.log ("fuck you"); return;}
-                    if(this.tempstorage2b.filters) this.tempstorage2b.filters.external.remove(maskFilter);
+                    if(copiaPortal.filters) copiaPortal.filters.external.remove(maskFilter2);
                     maskShape2.destroy();
-                    if (this.tempstorage2b) this.tempstorage2b.destroy();
+                    copiaPortal.destroy();
                 }
             });
             this.portalTweens.push(tween2);
@@ -2613,8 +2589,10 @@ private cerrarMenuPausa() {
 
     private animatePortalEntry(startX: number, startY: number, portalX: number, portalY: number, portalDir: number | undefined, facing: number | undefined) {
         const animation = this.getLindseyAnimation(facing);
-        const copy = this.add.sprite(this.offsetX + startX * 16*this.pixelmultiplier, this.offsetY + startY * 16*this.pixelmultiplier, "lindsey", 0).setOrigin(1, 1.04).setScale(this.pixelmultiplier).setDepth(2 * startY + 1.1);
+        const copy = this.add.sprite(this.offsetX + startX * 16*this.pixelmultiplier, this.offsetY + startY * 16*this.pixelmultiplier, "lindsey", 0).setOrigin(1, 1.04).setScale(this.pixelmultiplier).setDepth(2 * startY);
         copy.play(animation);
+        const inicioX = copy.x;
+        const inicioY = copy.y;
 
         let maskW = 5000;
         let maskH = 5000;
@@ -2627,6 +2605,7 @@ private cerrarMenuPausa() {
             case 3: maskW = portalX*this.pixelmultiplier*16-16*this.pixelmultiplier; break;
         }
         const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
+        this.ajustarMascaraPortalPared(region, portalX, portalY, portalDir);
         const masks = Phaser.Actions.AddMaskShape(copy, {
             shape: "rectangle",
             region: region
@@ -2639,6 +2618,11 @@ private cerrarMenuPausa() {
             y: this.offsetY + portalY * 16*this.pixelmultiplier,
             duration: this.lindseyspeed,
             ease: "Linear",
+            onUpdate: () => {
+                const distancia = Math.abs(copy.x - inicioX) + Math.abs(copy.y - inicioY);
+                const avance = Math.min(1, distancia / this.tilesize);
+                copy.setAlpha(1 - Math.max(0, (avance - 0.5) / 0.5));
+            },
 
             onComplete: () => {
                 copy.destroy();
@@ -2657,14 +2641,16 @@ private cerrarMenuPausa() {
             case 0: maskH = portalY*this.pixelmultiplier*16-23*this.pixelmultiplier + this.offsetY; break;
             case 1: maskX = portalX*this.pixelmultiplier*16 + this.offsetX; break;
             case 2: maskY = portalY*this.pixelmultiplier*16-19*this.pixelmultiplier + this.offsetY; break;
-            case 3: maskW = portalX*this.pixelmultiplier*15 + this.offsetX; break;
+            case 3: maskW = (portalX - 1)*this.tilesize + this.offsetX; break;
         }
         const region = new Phaser.Geom.Rectangle(maskX, maskY, maskW, maskH);
+        this.ajustarMascaraPortalPared(region, portalX, portalY, portalDir);
         const masks = Phaser.Actions.AddMaskShape(player.sprite, {
             shape: "rectangle",
             region: region
         });
         this.playerPortalMask = masks[0];
+        if (!this.finishinglevel) this.actualizarAlphaPortal(player, 0);
     }
 
     private animatePlayer(player: Entity, facing: number | undefined) {
@@ -2680,6 +2666,8 @@ private cerrarMenuPausa() {
             }
         });
 
+        const inicioX = player.sprite.x;
+        const inicioY = player.sprite.y;
         this.playerTween = this.tweens.add({
             targets: player.sprite,
             x: this.offsetX + player.x * 16*this.pixelmultiplier,
@@ -2687,14 +2675,16 @@ private cerrarMenuPausa() {
             duration: this.lindseyspeed,
             ease: "Linear",
             onUpdate: () => {
-                if (this.pushTweens.length > 0) {
-                    this.updateEntityDepth(player);
+                this.updateEntityDepth(player);
+                if (this.playerPortalMask) {
+                    const distancia = Math.abs(player.sprite.x - inicioX) + Math.abs(player.sprite.y - inicioY);
+                    const avance = Math.min(1, distancia / this.tilesize);
+                    this.actualizarAlphaPortal(player, Math.min(1, avance / 0.5));
                 }
             },
             onComplete: () => {
-                if (this.pushTweens.length > 0) {
-                    this.updateEntityDepth(player);
-                }
+                this.actualizarAlphaPortal(player, 1);
+                this.updateEntityDepth(player);
                 player.sprite.stop();
                 player.sprite.setTexture("lindseyi", facing);
 
@@ -2749,6 +2739,7 @@ private cerrarMenuPausa() {
         player.sprite.setPosition(finalX, startY);
         player.sprite.setDepth(2 * player.y);
         if (this.community == false) {
+        this.updateEntityDepth(player);
         const region = new Phaser.Geom.Rectangle(0, 0, this.scale.width, this.scale.height-6*this.pixelmultiplier);
         const masks = Phaser.Actions.AddMaskShape(player.sprite,{
             shape: "rectangle",
@@ -2776,7 +2767,13 @@ private cerrarMenuPausa() {
             duration: speed,
             alpha: 1,
             ease: "Linear",
+            onUpdate: () => {
+                if (this.community == false) {
+                    this.updateEntityDepth(player);
+                }
+            },
             onComplete: () => {
+                this.updateEntityDepth(player);
                 player.sprite.stop();
                 player.sprite.setTexture("lindseyi", 0);
                 player.dir = 0;
@@ -2792,15 +2789,25 @@ private cerrarMenuPausa() {
         });
     }
 
-    private animateLindseyExit(player: Entity) {
-        player.sprite.setDepth(-0.01)
+    private animateLindseyExit(player: Entity, flag: Entity) {
         if (this.finishinglevel) return;
+        player.sprite.setDepth(-0.01)
         this.finishinglevel = true;
         this.playerMoving = true;
         this.inputBuffer = "";
         player.sprite.play("lindsey-up");
-        const finalX = player.sprite.x;
-        const finalY = player.sprite.y - this.tilesize * 3;
+        const finalX = flag.sprite.x;
+        const finalY = flag.sprite.y - this.tilesize * 3;
+        const maskY = flag.sprite.getTopLeft().y + this.tilesize;
+        const region = new Phaser.Geom.Rectangle(
+            0, maskY, this.scale.width, this.scale.height - maskY
+        );
+        const masks = Phaser.Actions.AddMaskShape(player.sprite, {
+            shape: "rectangle",
+            region: region
+        });
+        const maskFilter = masks[0];
+        const maskShape = maskFilter.maskGameObject as Phaser.GameObjects.Rectangle;
 
         this.playerTween = this.tweens.add({
             targets: player.sprite,
@@ -2811,6 +2818,11 @@ private cerrarMenuPausa() {
 
             onComplete: () => {
                 player.sprite.stop();
+                player.sprite.setVisible(false);
+                if (player.sprite.filters) {
+                    player.sprite.filters.external.remove(maskFilter);
+                }
+                maskShape.destroy();
                 this.ganarNivel();
             }
         });
@@ -2837,10 +2849,7 @@ private cerrarMenuPausa() {
             frameWidth: 16,
             frameHeight: 28,
         });
-        this.load.spritesheet("portals", "assets/portalsheet1.png", {
-            frameWidth: 16,
-            frameHeight: 23,
-        });
+        cargarPortales(this);
         this.load.spritesheet("laserBody", "assets/laser.body.spritesheet.png", {
             frameWidth: 16,
             frameHeight: 16,
@@ -2880,6 +2889,7 @@ private cerrarMenuPausa() {
     }
 
 async create() {
+    crearAnimacionesPortales(this);
     
     this.cargandoNivel = true;
     const cargaActual = ++this.numeroCarga;
@@ -3261,6 +3271,7 @@ async create() {
 
         //MORE TEST STUFF
 
+        this.community = true;
         let level = "";
         if (this.modoTest) {
             level = this.nivelTest;
@@ -3275,6 +3286,7 @@ async create() {
 
             level = convertirNivel(nivel);
         } else {
+            this.community = false;
             const textoCarga = this.add.text(
                 this.scale.width / 2,
                 this.scale.height / 2,
@@ -3369,7 +3381,7 @@ async create() {
                             });
                             break;
                         }
-                    case "t":
+                    case "1":
                         this.entities.push ({
                         type: "wall",
                         x: x,
@@ -3378,16 +3390,7 @@ async create() {
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 16).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
-                    case "f":
-                        this.entities.push ({
-                        type: "wall",
-                        x: x,
-                        y: y,
-                        pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 18).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
-                        });
-                        break;
-                    case "b":
+                    case "2":
                         this.entities.push ({
                         type: "wall",
                         x: x,
@@ -3396,7 +3399,16 @@ async create() {
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 17).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
-                    case "h":
+                    case "3":
+                        this.entities.push ({
+                        type: "wall",
+                        x: x,
+                        y: y,
+                        pushable: false,
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 18).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        });
+                        break;
+                    case "4":
                         this.entities.push ({
                         type: "wall",
                         x: x,
@@ -3405,7 +3417,7 @@ async create() {
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 19).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
-                    case "r":
+                    case "5":
                         this.entities.push ({
                         type: "wall",
                         x: x,
@@ -3414,25 +3426,7 @@ async create() {
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 20).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
-                    case "v":
-                        this.entities.push ({
-                        type: "wall",
-                        x: x,
-                        y: y,
-                        pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 23).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
-                        });
-                        break;
-                    case "y":
-                        this.entities.push ({
-                        type: "wall",
-                        x: x,
-                        y: y,
-                        pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 22).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
-                        });
-                        break;
-                    case "n":
+                    case "6":
                         this.entities.push ({
                         type: "wall",
                         x: x,
@@ -3441,8 +3435,26 @@ async create() {
                         sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 21).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
                         });
                         break;
-                    case "g": 
-                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 14).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-1);
+                    case "7":
+                        this.entities.push ({
+                        type: "wall",
+                        x: x,
+                        y: y,
+                        pushable: false,
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 22).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        });
+                        break;
+                    case "8":
+                        this.entities.push ({
+                        type: "wall",
+                        x: x,
+                        y: y,
+                        pushable: false,
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 23).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        });
+                        break;
+                    case "0": 
+                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 15).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-1);
                         break;
                     case "X":
                         this.entities.push ({
@@ -3705,99 +3717,34 @@ async create() {
             }
         }
         for (let y = 0; y<portalRows.length; y++) {
-            for (let x = 0; x<portalRows[y].length; x++){
-                const thistile = portalRows[y][x];
-                let entity = this.getAnythingAt(x, y);
-                switch(thistile) {
-                    case "w":
-                        if (entity){
-                            entity.portal = 0;
-                            entity.sprite2 = this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "portals", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y);
-                        } else {
-                            this.entities.push ({
-                            type: "box",
-                            x: x,
-                            y: y,
-                            dir: 0,
-                            emitting: 4,
-                            portal: 0,
-                            group: 0,
-                            pushable: true,
-                            sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
-                            sprite2: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "portals", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y+1)
-                            });
-                        }
-                        break;
-                    case "a":
-                        if (entity){
-                            if (entity.type === "wall"){
-                                entity.portal = 3;
-                                entity.sprite2 = this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 3*this.pixelmultiplier, "portals", 2).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y);
-                            }
-                            else {
-                                entity.portal = 3;
-                                entity.sprite2 = this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "portals", 2).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y);
-                            }
-                        } else {
-                            this.entities.push ({
-                            type: "box",
-                            x: x,
-                            y: y,
-                            dir: 0,
-                            emitting: 4,
-                            portal: 3,
-                            group: 0,
-                            pushable: true,
-                            sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
-                            sprite2: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "portals", 2).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y+1)
-                            });
-                        }
-                        break;
-                    case "s":
-                        if (entity){
-                            entity.portal = 2;
-                            entity.sprite2 = this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "portals", 1).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y);
-                        } else {
-                            this.entities.push ({
-                            type: "box",
-                            x: x,
-                            y: y,
-                            dir: 0,
-                            emitting: 4,
-                            portal: 2,
-                            group: 0,
-                            pushable: true,
-                            sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
-                            sprite2: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "portals", 1).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y+1)
-                            });
-                        }
-                        break;
-                    case "d":
-                        if (entity){
-                            if (entity.type === "wall"){
-                                entity.portal = 1;
-                                entity.sprite2 = this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 3*this.pixelmultiplier, "portals", 3).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y);
-                            }
-                            else {
-                                entity.portal = 1;
-                                entity.sprite2 = this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "portals", 3).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y);
-                            }
-                        } else {
-                            this.entities.push ({
-                            type: "box",
-                            x: x,
-                            y: y,
-                            dir: 0,
-                            emitting: 4,
-                            portal: 1,
-                            group: 0,
-                            pushable: true,
-                            sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 3).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
-                            sprite2: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "portals", Tile.PortalD).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y+1)
-                            });
-                        }
-                        break;
+            for (let x = 0; x<portalRows[y].length; x++) {
+                let direccion = -1;
+                switch (portalRows[y][x]) {
+                    case "w": direccion = 0; break;
+                    case "d": direccion = 1; break;
+                    case "s": direccion = 2; break;
+                    case "a": direccion = 3; break;
                 }
+                if (direccion === -1) continue;
+
+                let entity = this.getAnythingAt(x, y);
+                if (!entity) {
+                    let frame = 0;
+                    if (direccion === 1) frame = 3;
+                    entity = {
+                        type: "box",
+                        x: x,
+                        y: y,
+                        dir: 0,
+                        emitting: 4,
+                        group: 0,
+                        pushable: true,
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", frame).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
+                    };
+                    this.entities.push(entity);
+                }
+                entity.portal = direccion;
+                this.actualizarPortal(entity);
             }
         }
         for (let y = 0; y<darkRows.length; y++) {
@@ -4012,15 +3959,8 @@ async create() {
             }
         }
 
-        const portals2: Entity[] | undefined = this.entities.filter(entity => entity.portal !== undefined && entity.group === 2);
-        for(let i = 0; i<portals2.length; i++) {
-            switch(portals2[i].portal)
-            {
-                case 0: portals2[i].sprite2.setTexture("portals", 4); break;
-                case 1: portals2[i].sprite2.setTexture("portals", 7); break;
-                case 2: portals2[i].sprite2.setTexture("portals", 5); break;
-                case 3: portals2[i].sprite2.setTexture("portals", 6); break;
-            }
+        for (let i = 0; i < this.entities.length; i++) {
+            this.actualizarPortal(this.entities[i]);
         }
         this.cursors = this.input.keyboard!.createCursorKeys();
         this.crearPantallaMuerte();
@@ -4096,7 +4036,7 @@ async create() {
     }
 
     update() {
-        if (this.saliendoDelNivel || this.cargandoNivel) {
+        if (this.saliendoDelNivel || this.cargandoNivel || !this.cursors) {
          return;
         }
         if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
