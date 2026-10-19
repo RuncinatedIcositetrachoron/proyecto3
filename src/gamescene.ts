@@ -324,6 +324,7 @@ export class GameScene extends Phaser.Scene {
     private playerPortalMask: any;
     private maskFilter: any;
     private maskFilter2: any;
+    private dead: boolean = false;
     private qKey!: Phaser.Input.Keyboard.Key;
     private rKey!: Phaser.Input.Keyboard.Key;
     private zKey!: Phaser.Input.Keyboard.Key;
@@ -897,6 +898,7 @@ private crearBarraSuperior() {
             this.actualizarPortal(entity);
             this.actualizarAlphaPortal(entity, 1);
             if (entity.type === "player") {
+                entity.sprite.stop();
                 entity.sprite.setTexture("lindseyi", entity.dir).setScale(this.pixelmultiplier).setDepth(10);
                 entity.sprite.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier);
             }
@@ -2095,7 +2097,7 @@ private crearBarraSuperior() {
         if (player === undefined) {console.log("ERROR: there is no player, idiot."); return true;}
         const currX = player.x;
         const currY = player.y;
-        if (this.lasers.find((laser) => (laser.sprite.x === this.offsetX + currX * this.tilesize && laser.sprite.y === this.offsetY + (currY-1) * this.tilesize && laser.outgoingDir === 2)) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
+        if (this.lasers.find((laser) => (laser.sprite.x === this.offsetX + currX * this.tilesize && laser.sprite.y === this.offsetY + (currY-1) * this.tilesize && laser.outgoingDir == 2)) || this.entities.find((emissor) => (emissor.y === currY-1 && emissor.x === currX && emissor.emitting === 2))) {
             return true;
         }
         if (this.lasers.find((laser) => (laser.sprite.y === this.offsetY + currY * this.tilesize && laser.sprite.x === this.offsetX + (currX+1) * this.tilesize && laser.outgoingDir == 3)) || this.entities.find((emissor) => (emissor.y === currY && emissor.x === currX+1 && emissor.emitting === 3))) {
@@ -2301,6 +2303,7 @@ private crearBarraSuperior() {
     private updatePosition(dx: number, dy: number, dir: number, origDx = dx, origDy = dy, origDir = dir): boolean {
         const player = this.entities.find(entity => entity.type === "player");
         this.pushing = false;
+        this.dead = false;
         if (player !== undefined) {
         const newX = player.x + dx;
         const newY = player.y + dy;
@@ -2599,13 +2602,14 @@ private crearBarraSuperior() {
             this.animateLindseyExit(player, flag);
             return true;
         }
-        this.animatePlayer(player, facing);
         if (this.lindseyDeath()){
             this.menuup = 2;
             this.inputBuffer = "";
             this.holdBufferOpen = false;
             this.ayudaMovimiento.setVisible(false);
+            this.dead = true;
         }
+        this.animatePlayer(player, facing);
         return true;
         }
         console.log("ERROR: COULD NOT FIND PLAYER! THIS MEANS YOU DID NOT PUT A PLAYER IN YOUR LEVEL. MAKE A BETTER LEVEL.");
@@ -3059,6 +3063,15 @@ private crearBarraSuperior() {
                 this.actualizarAlphaPortal(player, 1);
                 this.updateEntityDepth(player);
                 player.sprite.stop();
+                if (this.dead === true) {
+                    player.sprite.play("lindseydie"+String(facing));
+                    player.sprite.once(
+                        Phaser.Animations.Events.ANIMATION_COMPLETE,
+                        () => {
+                            player.sprite.play("lindseydied"+String(facing));
+                        }
+                    );
+                }
                 player.sprite.setTexture("lindseyi", facing);
 
                 if (this.playerPortalMask) {
@@ -3230,6 +3243,14 @@ private crearBarraSuperior() {
             frameWidth: 18,
             frameHeight: 28,
         });
+        this.load.spritesheet("lindseydie", "assets/lindsey.dying.png", {
+            frameWidth: 18,
+            frameHeight: 35,
+        });
+        this.load.spritesheet("lindseydied", "assets/lindsey.dead.png", {
+            frameWidth: 18,
+            frameHeight: 42,
+        });
         this.load.spritesheet("lindseyi", "assets/lindsey.idle.spr.png", {
             frameWidth: 16,
             frameHeight: 28,
@@ -3316,6 +3337,7 @@ async create() {
         this.emitterQueue = [];
         this.firedEmitters = [];
         this.finishinglevel = false;
+        this.dead = false;
 
         if (!this.anims.exists("lindsey-up")) {
             this.anims.create({
@@ -3475,6 +3497,133 @@ async create() {
                     { key: "lindseypush", frame: 31 }
                 ],
                 frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseydie1",
+                frames: [
+                    { key: "lindseydie", frame: 3 },
+                    { key: "lindseydie", frame: 7 },
+                    { key: "lindseydie", frame: 11 },
+                    { key: "lindseydie", frame: 15 },
+                    { key: "lindseydie", frame: 19 },
+                    { key: "lindseydie", frame: 23 },
+                    { key: "lindseydie", frame: 27 },
+                    { key: "lindseydie", frame: 31 },
+                    { key: "lindseydie", frame: 35 },
+                    { key: "lindseydie", frame: 39 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: 0
+            });
+            this.anims.create({
+                key: "lindseydie2",
+                frames: [
+                    { key: "lindseydie", frame: 0 },
+                    { key: "lindseydie", frame: 4 },
+                    { key: "lindseydie", frame: 8 },
+                    { key: "lindseydie", frame: 12 },
+                    { key: "lindseydie", frame: 16 },
+                    { key: "lindseydie", frame: 20 },
+                    { key: "lindseydie", frame: 24 },
+                    { key: "lindseydie", frame: 18 },
+                    { key: "lindseydie", frame: 32 },
+                    { key: "lindseydie", frame: 36 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: 0
+            });
+            this.anims.create({
+                key: "lindseydie0",
+                frames: [
+                    { key: "lindseydie", frame: 1 },
+                    { key: "lindseydie", frame: 5 },
+                    { key: "lindseydie", frame: 9 },
+                    { key: "lindseydie", frame: 13 },
+                    { key: "lindseydie", frame: 17 },
+                    { key: "lindseydie", frame: 21 },
+                    { key: "lindseydie", frame: 25 },
+                    { key: "lindseydie", frame: 29 },
+                    { key: "lindseydie", frame: 33 },
+                    { key: "lindseydie", frame: 37 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: 0
+            });
+            this.anims.create({
+                key: "lindseydie3",
+                frames: [
+                    { key: "lindseydie", frame: 2 },
+                    { key: "lindseydie", frame: 6 },
+                    { key: "lindseydie", frame: 10 },
+                    { key: "lindseydie", frame: 14 },
+                    { key: "lindseydie", frame: 18 },
+                    { key: "lindseydie", frame: 22 },
+                    { key: "lindseydie", frame: 26 },
+                    { key: "lindseydie", frame: 30 },
+                    { key: "lindseydie", frame: 34 },
+                    { key: "lindseydie", frame: 38 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: 0
+            });this.anims.create({
+                key: "lindseydied1",
+                frames: [
+                    { key: "lindseydied", frame: 3 },
+                    { key: "lindseydied", frame: 7 },
+                    { key: "lindseydied", frame: 11 },
+                    { key: "lindseydied", frame: 15 },
+                    { key: "lindseydied", frame: 19 },
+                    { key: "lindseydied", frame: 23 },
+                    { key: "lindseydied", frame: 27 },
+                    { key: "lindseydied", frame: 31 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseydied2",
+                frames: [
+                    { key: "lindseydied", frame: 0 },
+                    { key: "lindseydied", frame: 4 },
+                    { key: "lindseydied", frame: 8 },
+                    { key: "lindseydied", frame: 12 },
+                    { key: "lindseydied", frame: 16 },
+                    { key: "lindseydied", frame: 20 },
+                    { key: "lindseydied", frame: 24 },
+                    { key: "lindseydied", frame: 18 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseydied0",
+                frames: [
+                    { key: "lindseydied", frame: 1 },
+                    { key: "lindseydied", frame: 5 },
+                    { key: "lindseydied", frame: 9 },
+                    { key: "lindseydied", frame: 13 },
+                    { key: "lindseydied", frame: 17 },
+                    { key: "lindseydied", frame: 21 },
+                    { key: "lindseydied", frame: 25 },
+                    { key: "lindseydied", frame: 29 },
+                ],
+                frameRate: this.animationspeed*1,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseydied3",
+                frames: [
+                    { key: "lindseydied", frame: 2 },
+                    { key: "lindseydied", frame: 6 },
+                    { key: "lindseydied", frame: 10 },
+                    { key: "lindseydied", frame: 14 },
+                    { key: "lindseydied", frame: 18 },
+                    { key: "lindseydied", frame: 22 },
+                    { key: "lindseydied", frame: 26 },
+                    { key: "lindseydied", frame: 30 },
+                ],
+                frameRate: this.animationspeed*1,
                 repeat: -1
             });
 
