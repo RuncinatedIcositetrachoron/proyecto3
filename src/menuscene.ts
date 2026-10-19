@@ -1,3 +1,4 @@
+
 import Phaser from "phaser";
 import {
   demo,
@@ -118,6 +119,16 @@ export class MenuScene extends Phaser.Scene {
     this.cargarProgreso();
   }
 
+  nivelCompletado(id: number) {
+    let indice = id;
+
+    if (!esInvitado()) {
+      indice = id - 1;
+    }
+
+    return this.progreso[indice] === true;
+  }
+
   async cargarProgreso() {
     const usuario = demo.usuarioActual;
 
@@ -165,12 +176,12 @@ export class MenuScene extends Phaser.Scene {
       for (let i = 0; i < niveles.length; i++) {
         this.idsNiveles.push(niveles[i].id);
 
-        if (progreso[niveles[i].id] === true) {
+        if (this.nivelCompletado(niveles[i].id)) {
           this.hayProgreso = true;
         }
       }
 
-      this.primerNivelCompletado = progreso[this.idsNiveles[0]] === true;
+      this.primerNivelCompletado = this.nivelCompletado(this.idsNiveles[0]);
       this.progresoCargado = true;
     } catch (error) {
       if (
@@ -539,7 +550,7 @@ export class MenuScene extends Phaser.Scene {
       indiceNivel = this.idsNiveles.length - 1;
 
       for (let i = 0; i < this.idsNiveles.length; i++) {
-        if (this.progreso[this.idsNiveles[i]] !== true) {
+        if (!this.nivelCompletado(this.idsNiveles[i])) {
           indiceNivel = i;
           break;
         }

@@ -1,3 +1,4 @@
+
 import { editorAApi, apiAEditor } from "./parserApi";
 import type { ElementoAPI, NivelEditor } from "./parserApi";
 
@@ -364,10 +365,16 @@ export async function leerNivelOriginalBackend(numero: number): Promise<NivelBac
 export async function completarNivelOriginalBackend(
   usuario: string, numero: number, archivo: number
 ): Promise<void> {
-  await pedir("/level/original/" + numero, "POST", {
+  const respuesta = await pedir("/level/original/" + numero, "POST", {
     username: usuario,
     saveFile: String(archivo)
   });
+
+  const progreso = await leerProgresoOriginalBackend(usuario, archivo);
+
+  console.log("Resultado del POST:", respuesta);
+  console.log("Nivel completado:", numero);
+  console.log("Progreso real del backend:", progreso);
 }
 
 export async function leerProgresoOriginalBackend(

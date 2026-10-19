@@ -1,3 +1,4 @@
+
 import Phaser from "phaser";
 import { crearBoton } from "./niveles";
 import { leerNivelesOriginalesBackend, leerProgresoOriginalBackend } from "./api";
@@ -500,7 +501,19 @@ export class LevelselectScene extends Phaser.Scene {
       return false;
     }
 
-    return this.progresoOficial[nivel.id] === true;
+    let indice = nivel.id;
+    const usuario = demo.usuarioActual;
+
+    if (
+      usuario !== null &&
+      usuario !== undefined &&
+      usuario.id !== 0 &&
+      this.progresoOficial.length === this.totalNiveles
+    ) {
+      indice = numeroNivel - 1;
+    }
+
+    return this.progresoOficial[indice] === true;
   }
 
   cantidadCompletados() {
@@ -568,7 +581,19 @@ export class LevelselectScene extends Phaser.Scene {
   marcarNivelCompletado(id: number) {
     for (let i = 0; i < this.nivelesOficiales.length; i++) {
       if (this.nivelesOficiales[i].id === id) {
-        this.progresoOficial[id] = true;
+        let indice = id;
+        const usuario = demo.usuarioActual;
+
+        if (
+          usuario !== null &&
+          usuario !== undefined &&
+          usuario.id !== 0 &&
+          this.progresoOficial.length === this.totalNiveles
+        ) {
+          indice = i;
+        }
+
+        this.progresoOficial[indice] = true;
         this.nivelesCompletados = this.cantidadCompletados();
         return;
       }
