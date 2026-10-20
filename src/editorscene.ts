@@ -50,6 +50,7 @@ export class EditorScene extends Phaser.Scene {
 
     this.tilesOcultasVistaPegado = [];
     this.portalesOcultosVistaPegado = [];
+    this.placasOcultasVistaPegado = [];
     this.tileOcultaHover = null;
     this.portalOcultoHover = null;
 
@@ -113,6 +114,8 @@ export class EditorScene extends Phaser.Scene {
     [0, -1, this.tileSalidaArriba]
   ];
   private tilePlaca: number = 2;
+  private tilePlacaConObjeto: number = 1000;
+  private colorLinkEmisor: number = 0xe6c56a;
   private colorLinkPortales: number = 0x9ccc65;
   private colorLinkPlaca: number = 0xb39ddb;
 
@@ -223,6 +226,7 @@ export class EditorScene extends Phaser.Scene {
   private vistaPegado!: Phaser.GameObjects.Rectangle;
   private tilesOcultasVistaPegado: Phaser.Tilemaps.Tile[] = [];
   private portalesOcultosVistaPegado: Phaser.Tilemaps.Tile[] = [];
+  private placasOcultasVistaPegado: Phaser.Tilemaps.Tile[] = [];
 
   private mouseX: number = -1;
   private mouseY: number = -1;
@@ -244,6 +248,8 @@ export class EditorScene extends Phaser.Scene {
 
   private mapa!: Phaser.Tilemaps.Tilemap;
   private tablero!: Phaser.Tilemaps.TilemapLayer;
+  private capaPlacas!: Phaser.Tilemaps.TilemapLayer;
+  private capaVistaPlacasPegado!: Phaser.Tilemaps.TilemapLayer;
   private capaPortales!: Phaser.Tilemaps.TilemapLayer;
   private capaVistaPegado!: Phaser.Tilemaps.TilemapLayer;
   private capaVistaPortalesPegado!: Phaser.Tilemaps.TilemapLayer;
@@ -516,6 +522,7 @@ export class EditorScene extends Phaser.Scene {
 
         this.vistaPegado.setVisible(false);
         this.capaVistaPegado.setVisible(false);
+        this.capaVistaPlacasPegado.setVisible(false);
         this.capaVistaPortalesPegado.setVisible(false);
         this.restaurarTilesVistaPegado();
 
@@ -600,6 +607,17 @@ export class EditorScene extends Phaser.Scene {
 
     this.tablero = capaCreada;
 
+    const capaPlacasCreada = this.mapa.createBlankLayer(
+      "placas", conjuntoTiles, this.board_offset_x, this.board_offset_y
+    );
+
+    if (capaPlacasCreada === null) {
+      return;
+    }
+
+    this.capaPlacas = capaPlacasCreada;
+    this.capaPlacas.setScale(this.tileScale);
+
     const capaPortalesCreada = this.mapa.createBlankLayer(
       "portales",
       conjuntoTiles,
@@ -627,6 +645,19 @@ export class EditorScene extends Phaser.Scene {
     this.capaVistaPegado = capaVistaPegadoCreada;
     this.capaVistaPegado.setAlpha(0.6);
     this.capaVistaPegado.setVisible(false);
+
+    const capaVistaPlacasCreada = this.mapa.createBlankLayer(
+      "vistaPlacasPegado", conjuntoTiles, this.board_offset_x, this.board_offset_y
+    );
+
+    if (capaVistaPlacasCreada === null) {
+      return;
+    }
+
+    this.capaVistaPlacasPegado = capaVistaPlacasCreada;
+    this.capaVistaPlacasPegado.setScale(this.tileScale);
+    this.capaVistaPlacasPegado.setAlpha(0.6);
+    this.capaVistaPlacasPegado.setVisible(false);
 
     const capaVistaPortalesPegadoCreada = this.mapa.createBlankLayer(
       "vistaPortalesPegado",
@@ -716,6 +747,7 @@ export class EditorScene extends Phaser.Scene {
     this.tablero.setScale(this.tileScale);
     this.capaPortales.setScale(this.tileScale);
     this.capaVistaPegado.setScale(this.tileScale);
+    this.capaVistaPlacasPegado.setScale(this.tileScale);
     this.capaVistaPortalesPegado.setScale(this.tileScale);
 
     for (let fila = 0; fila < this.rows; fila++) {
@@ -746,12 +778,7 @@ export class EditorScene extends Phaser.Scene {
           for (let i = 0; i < nivel.links.length; i++) {
             const link = nivel.links[i];
 
-            this.links.push([
-              link[0],
-              link[1],
-              link[2],
-              link[3]
-            ]);
+            this.links.push(link.slice());
           }
         }
 
@@ -952,6 +979,7 @@ export class EditorScene extends Phaser.Scene {
           this.herramienta = this.sinHerramienta;
           this.vistaPegado.setVisible(false);
           this.capaVistaPegado.setVisible(false);
+          this.capaVistaPlacasPegado.setVisible(false);
           this.capaVistaPortalesPegado.setVisible(false);
           this.restaurarTilesVistaPegado();
         } else {
@@ -970,6 +998,7 @@ export class EditorScene extends Phaser.Scene {
           this.herramienta = this.selectTool;
           this.vistaPegado.setVisible(false);
           this.capaVistaPegado.setVisible(false);
+          this.capaVistaPlacasPegado.setVisible(false);
           this.capaVistaPortalesPegado.setVisible(false);
           this.restaurarTilesVistaPegado();
         }
@@ -1034,6 +1063,7 @@ export class EditorScene extends Phaser.Scene {
     this.vistaPegado.setVisible(false);
 
     this.capaVistaPegado.setVisible(false);
+    this.capaVistaPlacasPegado.setVisible(false);
     this.capaVistaPortalesPegado.setVisible(false);
     this.restaurarTilesVistaPegado();
 
@@ -1234,8 +1264,33 @@ this.bordeTooltipTile.setVisible(false);
 
     this.restaurarTileHover();
 
+    if (this.herramienta === this.tilePlaca) {
+      const tileActual = this.tablero.getTileAt(this.mouseX, this.mouseY);
+      let admitePlaca = false;
+      if (tileActual !== null) {
+        admitePlaca = tileActual.index === this.tileInvisible ||
+          this.esTileSobrePlaca(tileActual.index);
+      }
+      if (!admitePlaca) {
+        this.borrarGrupoEn(this.mouseX, this.mouseY);
+      }
+      this.borrarPortalEn(this.mouseX, this.mouseY);
+      this.capaPlacas.putTileAt(this.tilePlaca, this.mouseX, this.mouseY);
+      this.actualizarHoverTile();
+      return;
+    }
+
     for (let i = 0; i < casillas.length; i++) {
-      this.borrarGrupoEn(casillas[i][0], casillas[i][1]);
+      const x = casillas[i][0];
+      const y = casillas[i][1];
+      let conservarPlaca = this.esTileSobrePlaca(forma[i][2]);
+      if (this.herramienta === 0) {
+        const actual = this.tablero.getTileAt(x, y);
+        conservarPlaca = actual !== null &&
+          actual.index !== this.tileInvisible &&
+          this.hayPlacaEn(x, y);
+      }
+      this.borrarGrupoEn(x, y, conservarPlaca);
     }
 
     if (this.herramienta === this.tileJugador) {
@@ -1367,6 +1422,7 @@ this.bordeTooltipTile.setVisible(false);
           this.capaPortales
         );
 
+        this.capaPlacas.removeTileAt(columna, fila);
         this.borrarLinksEn(columna, fila);
         this.actualizarParedesConexas(columna, fila);
       }
@@ -1430,18 +1486,21 @@ this.bordeTooltipTile.setVisible(false);
 
     for (let fila = 0; fila < alto; fila++) {
       for (let columna = 0; columna < ancho; columna++) {
+        const tile = this.seleccionCopiada[fila][columna];
+        const objeto = this.objetoDeTileCodificado(tile);
+        const conservarPlaca = this.esTileSobrePlaca(objeto) &&
+          !this.tienePlacaCodificada(tile);
         this.borrarGrupoEn(
           inicioX + columna,
-          inicioY + fila
+          inicioY + fila,
+          conservarPlaca
         );
 
-        const tile = this.seleccionCopiada[fila][columna];
-
-        if (tile === this.tileJugador) {
+        if (objeto === this.tileJugador) {
           this.borrarTileUnico(this.tileJugador);
         }
 
-        if (tile === this.tileBandera) {
+        if (objeto === this.tileBandera) {
           this.borrarTileUnico(this.tileBandera);
         }
       }
@@ -1452,11 +1511,12 @@ this.bordeTooltipTile.setVisible(false);
         const x = inicioX + columna;
         const y = inicioY + fila;
         const tile = this.seleccionCopiada[fila][columna];
-        const portal = this.orientarPortalEnTile(tile, this.portalesCopiados[fila][columna]);
+        const objeto = this.objetoDeTileCodificado(tile);
+        const portal = this.orientarPortalEnTile(objeto, this.portalesCopiados[fila][columna]);
 
-        this.tablero.putTileAt(tile, x, y);
+        this.colocarTileCodificado(tile, x, y);
 
-        if (portal >= 0) {
+        if (portal >= 0 && !this.hayPlacaEn(x, y)) {
           this.capaPortales.putTileAt(portal, x, y);
         }
       }
@@ -1481,6 +1541,7 @@ this.bordeTooltipTile.setVisible(false);
     ) {
       this.vistaPegado.setVisible(false);
       this.capaVistaPegado.setVisible(false);
+      this.capaVistaPlacasPegado.setVisible(false);
       this.capaVistaPortalesPegado.setVisible(false);
       this.restaurarTilesVistaPegado();
       return;
@@ -1532,6 +1593,7 @@ this.bordeTooltipTile.setVisible(false);
     if (anchoVisible <= 0 || altoVisible <= 0) {
       this.vistaPegado.setVisible(false);
       this.capaVistaPegado.setVisible(false);
+      this.capaVistaPlacasPegado.setVisible(false);
       this.capaVistaPortalesPegado.setVisible(false);
       this.restaurarTilesVistaPegado();
       return;
@@ -1654,7 +1716,7 @@ this.bordeTooltipTile.setVisible(false);
 
     for (let fila = 0; fila < altoSeleccion; fila++) {
       for (let columna = 0; columna < anchoSeleccion; columna++) {
-        const tile = this.seleccionCopiada[fila][columna];
+        const tile = this.objetoDeTileCodificado(this.seleccionCopiada[fila][columna]);
 
         const portal = this.portalesCopiados[fila][columna];
 
@@ -1690,34 +1752,80 @@ this.bordeTooltipTile.setVisible(false);
     return true;
   }
 
+  private esTileSobrePlaca(tile: number): boolean {
+    if (tile === this.tileJugador || tile === 37) {
+      return true;
+    }
+    if (tile >= 3 && tile <= 6) {
+      return true;
+    }
+    if (tile >= 11 && tile <= 14) {
+      return true;
+    }
+    return tile >= 27 && tile <= 30;
+  }
+
+  private tienePlacaCodificada(tile: number): boolean {
+    return tile === this.tilePlaca ||
+      (tile >= this.tilePlacaConObjeto && tile < 2000);
+  }
+
+  private objetoDeTileCodificado(tile: number): number {
+    if (tile === this.tilePlaca) {
+      return this.tileInvisible;
+    }
+    if (tile >= this.tilePlacaConObjeto && tile < 2000) {
+      return tile - this.tilePlacaConObjeto;
+    }
+    return tile;
+  }
+
+  private obtenerTileCodificado(columna: number, fila: number): number {
+    const tile = this.tablero.getTileAt(columna, fila);
+    let objeto = this.tileInvisible;
+    if (tile !== null) {
+      objeto = tile.index;
+    }
+
+    if (!this.hayPlacaEn(columna, fila)) {
+      return objeto;
+    }
+
+    if (objeto === this.tileInvisible || objeto === -1) {
+      return this.tilePlaca;
+    }
+
+    return this.tilePlacaConObjeto + objeto;
+  }
+
+  private colocarTileCodificado(tile: number, x: number, y: number): void {
+    const objeto = this.objetoDeTileCodificado(tile);
+    this.tablero.putTileAt(objeto, x, y);
+    if (this.tienePlacaCodificada(tile)) {
+      this.capaPlacas.putTileAt(this.tilePlaca, x, y);
+    }
+  }
+
   private getBoardState(): number[][] {
     const state: number[][] = [];
 
-    for (let row = 0; row < this.rows; row++) {
-      const savedRow: number[] = [];
-
-      for (let column = 0; column < this.columns; column++) {
-        const tile = this.mapa.getTileAt(
-          column,
-          row,
-          false,
-          this.tablero
-        );
-
-        savedRow.push(tile?.index ?? -1);
+    for (let y = 0; y < this.rows; y++) {
+      const row: number[] = [];
+      for (let x = 0; x < this.columns; x++) {
+        row.push(this.obtenerTileCodificado(x, y));
       }
-
-      state.push(savedRow);
+      state.push(row);
     }
 
     return state;
   }
 
   private restoreBoardState(state: number[][]): void {
-    for (let row = 0; row < this.rows; row++) {
-      for (let column = 0; column < this.columns; column++) {
-        const tileIndex = state[row][column];
-        this.tablero.putTileAt(tileIndex, column, row, true);
+    this.capaPlacas.fill(-1);
+
+    for (let y = 0; y < this.rows; y++) {
+      for (let x = 0; x < this.columns; x++) {
+        this.colocarTileCodificado(state[y][x], x, y);
       }
     }
   }
@@ -1810,18 +1918,7 @@ this.bordeTooltipTile.setVisible(false);
         columna <= this.seleccionDerecha;
         columna++
       ) {
-        const tileEncontrada = this.mapa.getTileAt(
-          columna,
-          fila,
-          true,
-          this.tablero
-        );
-
-        if (tileEncontrada === null) {
-          continue;
-        }
-
-        filaCopiada.push(tileEncontrada.index);
+        filaCopiada.push(this.obtenerTileCodificado(columna, fila));
       }
 
       contenido.push(filaCopiada);
@@ -1866,6 +1963,7 @@ this.bordeTooltipTile.setVisible(false);
     ) {
       this.vistaPegado.setVisible(false);
       this.capaVistaPegado.setVisible(false);
+      this.capaVistaPlacasPegado.setVisible(false);
       this.capaVistaPortalesPegado.setVisible(false);
       this.restaurarTilesVistaPegado();
     }
@@ -1917,6 +2015,7 @@ this.bordeTooltipTile.setVisible(false);
     this.hoverCell.setVisible(false);
     this.vistaPegado.setVisible(false);
     this.capaVistaPegado.setVisible(false);
+    this.capaVistaPlacasPegado.setVisible(false);
     this.capaVistaPortalesPegado.setVisible(false);
 
     this.restaurarTilesVistaPegado();
@@ -2200,6 +2299,7 @@ this.bordeTooltipTile.setVisible(false);
           this.herramienta = this.selectTool;
           this.vistaPegado.setVisible(false);
           this.capaVistaPegado.setVisible(false);
+          this.capaVistaPlacasPegado.setVisible(false);
           this.capaVistaPortalesPegado.setVisible(false);
           this.restaurarTilesVistaPegado();
         }
@@ -2247,6 +2347,7 @@ this.bordeTooltipTile.setVisible(false);
           this.herramienta = this.sinHerramienta;
           this.vistaPegado.setVisible(false);
           this.capaVistaPegado.setVisible(false);
+          this.capaVistaPlacasPegado.setVisible(false);
           this.capaVistaPortalesPegado.setVisible(false);
           this.restaurarTilesVistaPegado();
         } else {
@@ -2286,6 +2387,7 @@ this.bordeTooltipTile.setVisible(false);
           this.cancelarLinkTemporal();
           this.vistaPegado.setVisible(false);
           this.capaVistaPegado.setVisible(false);
+          this.capaVistaPlacasPegado.setVisible(false);
           this.capaVistaPortalesPegado.setVisible(false);
           this.restaurarTilesVistaPegado();
           this.quitarSeleccion();
@@ -2312,6 +2414,7 @@ this.bordeTooltipTile.setVisible(false);
           this.herramienta = this.linkTool;
           this.vistaPegado.setVisible(false);
           this.capaVistaPegado.setVisible(false);
+          this.capaVistaPlacasPegado.setVisible(false);
           this.capaVistaPortalesPegado.setVisible(false);
           this.restaurarTilesVistaPegado();
           this.quitarSeleccion();
@@ -2484,6 +2587,7 @@ this.bordeTooltipTile.setVisible(false);
           this.herramienta = tileActual;
           this.vistaPegado.setVisible(false);
           this.capaVistaPegado.setVisible(false);
+          this.capaVistaPlacasPegado.setVisible(false);
           this.capaVistaPortalesPegado.setVisible(false);
           this.restaurarTilesVistaPegado();
         }
@@ -2511,6 +2615,7 @@ this.bordeTooltipTile.setVisible(false);
       this.herramienta = 0;
       this.vistaPegado.setVisible(false);
       this.capaVistaPegado.setVisible(false);
+      this.capaVistaPlacasPegado.setVisible(false);
       this.capaVistaPortalesPegado.setVisible(false);
       this.restaurarTilesVistaPegado();
     }
@@ -2537,6 +2642,7 @@ this.bordeTooltipTile.setVisible(false);
     this.quitarSeleccion();
     this.vistaPegado.setVisible(false);
     this.capaVistaPegado.setVisible(false);
+    this.capaVistaPlacasPegado.setVisible(false);
     this.capaVistaPortalesPegado.setVisible(false);
     this.restaurarTilesVistaPegado();
     this.actualizarInterfaz();
@@ -2715,6 +2821,10 @@ this.bordeTooltipTile.setVisible(false);
       return false;
     }
 
+    if (this.hayPlacaEn(columna, fila)) {
+      return false;
+    }
+
     if (portal === -1 || this.orientarPortalEnTile(tile.index, portal) !== portal) {
       return false;
     }
@@ -2789,6 +2899,7 @@ this.bordeTooltipTile.setVisible(false);
     inicioY: number
   ): void {
     this.capaVistaPegado.fill(-1);
+    this.capaVistaPlacasPegado.fill(-1);
     this.capaVistaPortalesPegado.fill(-1);
 
     for (let fila = 0; fila < this.seleccionCopiada.length; fila++) {
@@ -2810,12 +2921,17 @@ this.bordeTooltipTile.setVisible(false);
         }
 
         const tileEncontrada = this.seleccionCopiada[fila][columna];
+        const objeto = this.objetoDeTileCodificado(tileEncontrada);
+        if (objeto !== this.tileInvisible) {
+          this.capaVistaPegado.putTileAt(objeto, x, y);
+        }
+        if (this.tienePlacaCodificada(tileEncontrada)) {
+          this.capaVistaPlacasPegado.putTileAt(this.tilePlaca, x, y);
+        }
 
-        this.capaVistaPegado.putTileAt(tileEncontrada, x, y);
+        const portalEncontrado = this.orientarPortalEnTile(objeto, this.portalesCopiados[fila][columna]);
 
-        const portalEncontrado = this.orientarPortalEnTile(tileEncontrada, this.portalesCopiados[fila][columna]);
-
-        if (portalEncontrado !== -1) {
+        if (portalEncontrado !== -1 && !this.tienePlacaCodificada(tileEncontrada)) {
           this.capaVistaPortalesPegado.putTileAt(
             portalEncontrado,
             x,
@@ -2826,6 +2942,7 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     this.capaVistaPegado.setVisible(true);
+    this.capaVistaPlacasPegado.setVisible(true);
     this.capaVistaPortalesPegado.setVisible(true);
   }
 
@@ -2838,8 +2955,13 @@ this.bordeTooltipTile.setVisible(false);
       portal.visible = true;
     }
 
+    for (const placa of this.placasOcultasVistaPegado) {
+      placa.visible = true;
+    }
+
     this.tilesOcultasVistaPegado = [];
     this.portalesOcultosVistaPegado = [];
+    this.placasOcultasVistaPegado = [];
   }
 
   ocultarTilesDebajoVistaPegado(
@@ -2950,12 +3072,7 @@ this.bordeTooltipTile.setVisible(false);
     for (let i = 0; i < state.links.length; i++) {
       const link = state.links[i];
 
-      this.links.push([
-        link[0],
-        link[1],
-        link[2],
-        link[3]
-      ]);
+      this.links.push(link.slice());
     }
 
     this.actualizarLinks();
@@ -3035,9 +3152,19 @@ this.bordeTooltipTile.setVisible(false);
     ) {
       return false;
     }
+    const placa = this.capaPlacas.getTileAt(columna, fila);
+    return placa !== null && placa.index === this.tilePlaca;
+  }
 
+  private hayEmisorEn(columna: number, fila: number): boolean {
+    if (
+      columna < 0 || fila < 0 ||
+      columna >= this.columns || fila >= this.rows
+    ) {
+      return false;
+    }
     const tile = this.tablero.getTileAt(columna, fila);
-    return tile !== null && tile.index === this.tilePlaca;
+    return tile !== null && tile.index >= 11 && tile.index <= 14;
   }
 
   private esParDePortales(link: number[]): boolean {
@@ -3046,11 +3173,19 @@ this.bordeTooltipTile.setVisible(false);
       this.hayPortalEn(link[2], link[3]);
   }
 
+  private esLinkDeEmisor(link: number[]): boolean {
+    return link.length === 5 && link[4] === 2 &&
+      this.hayPlacaEn(link[0], link[1]) &&
+      this.hayEmisorEn(link[2], link[3]);
+  }
+
   private esLinkDePlaca(link: number[]): boolean {
-    if (link.length !== 4) {
+    if (this.esLinkDeEmisor(link)) {
+      return true;
+    }
+    if (link.length !== 4 || this.esParDePortales(link)) {
       return false;
     }
-
     return (
       this.hayPlacaEn(link[0], link[1]) &&
       this.hayPortalEn(link[2], link[3])
@@ -3059,14 +3194,13 @@ this.bordeTooltipTile.setVisible(false);
       this.hayPlacaEn(link[2], link[3])
     );
   }
+
   private buscarLinkDePortal(columna: number, fila: number): number {
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
-
       if (!this.esParDePortales(link)) {
         continue;
       }
-
       if (
         (link[0] === columna && link[1] === fila) ||
         (link[2] === columna && link[3] === fila)
@@ -3074,38 +3208,54 @@ this.bordeTooltipTile.setVisible(false);
         return i;
       }
     }
-
     return -1;
   }
 
   private buscarLinkDePlaca(columna: number, fila: number): number {
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
-
       if (!this.esLinkDePlaca(link)) {
         continue;
       }
-
-      if (
-        (link[0] === columna && link[1] === fila) ||
-        (link[2] === columna && link[3] === fila)
-      ) {
+      if (link[0] === columna && link[1] === fila &&
+          this.hayPlacaEn(link[0], link[1])) {
+        return i;
+      }
+      if (link.length === 4 && link[2] === columna &&
+          link[3] === fila && this.hayPlacaEn(link[2], link[3])) {
         return i;
       }
     }
+    return -1;
+  }
 
+  private buscarLinkDeEmisor(columna: number, fila: number): number {
+    for (let i = 0; i < this.links.length; i++) {
+      const link = this.links[i];
+      if (this.esLinkDeEmisor(link) &&
+          link[2] === columna && link[3] === fila) {
+        return i;
+      }
+    }
     return -1;
   }
 
   private buscarLinkDeCasilla(columna: number, fila: number): number {
     if (this.hayPlacaEn(columna, fila)) {
-      return this.buscarLinkDePlaca(columna, fila);
+      const placa = this.buscarLinkDePlaca(columna, fila);
+      if (placa !== -1) {
+        return placa;
+      }
     }
-
     if (this.hayPortalEn(columna, fila)) {
-      return this.buscarLinkDePortal(columna, fila);
+      const portal = this.buscarLinkDePortal(columna, fila);
+      if (portal !== -1) {
+        return portal;
+      }
     }
-
+    if (this.hayEmisorEn(columna, fila)) {
+      return this.buscarLinkDeEmisor(columna, fila);
+    }
     return -1;
   }
 
@@ -3121,6 +3271,13 @@ this.bordeTooltipTile.setVisible(false);
     const placaInicio = this.hayPlacaEn(x1, y1);
     const placaFinal = this.hayPlacaEn(x2, y2);
 
+    if (placaInicio && this.hayEmisorEn(x2, y2)) {
+      return true;
+    }
+    if (placaFinal && this.hayEmisorEn(x1, y1)) {
+      return true;
+    }
+
     if (portalInicio && portalFinal) {
       const linkInicio = this.buscarLinkDePortal(x1, y1);
       const linkFinal = this.buscarLinkDePortal(x2, y2);
@@ -3131,26 +3288,21 @@ this.bordeTooltipTile.setVisible(false);
           cantidadPares++;
         }
       }
-
       if (linkInicio !== -1) {
         cantidadPares--;
       }
-
       if (linkFinal !== -1 && linkFinal !== linkInicio) {
         cantidadPares--;
       }
-
       return cantidadPares + 1 <= 5;
     }
 
     if (placaInicio && portalFinal) {
       return this.buscarLinkDePortal(x2, y2) !== -1;
     }
-
     if (portalInicio && placaFinal) {
       return this.buscarLinkDePortal(x1, y1) !== -1;
     }
-
     return false;
   }
 
@@ -3214,7 +3366,9 @@ this.bordeTooltipTile.setVisible(false);
 
       let color = this.colorLinkPortales;
 
-      if (this.esLinkDePlaca(link)) {
+      if (this.esLinkDeEmisor(link)) {
+        color = this.colorLinkEmisor;
+      } else if (this.esLinkDePlaca(link)) {
         color = this.colorLinkPlaca;
       }
 
@@ -3232,7 +3386,8 @@ this.bordeTooltipTile.setVisible(false);
   private iniciarLink(_mouse: Phaser.Input.Pointer): void {
     if (
       !this.hayPortalEn(this.mouseX, this.mouseY) &&
-      !this.hayPlacaEn(this.mouseX, this.mouseY)
+      !this.hayPlacaEn(this.mouseX, this.mouseY) &&
+      !this.hayEmisorEn(this.mouseX, this.mouseY)
     ) {
       return;
     }
@@ -3265,6 +3420,8 @@ this.bordeTooltipTile.setVisible(false);
 
       if (this.hayPlacaEn(this.mouseX, this.mouseY)) {
         color = this.colorLinkPlaca;
+      } else if (this.hayEmisorEn(this.mouseX, this.mouseY)) {
+        color = this.colorLinkEmisor;
       }
     } else {
       const inicio = this.centroCasilla(
@@ -3280,6 +3437,13 @@ this.bordeTooltipTile.setVisible(false);
         )
       ) {
         if (
+          (this.hayPlacaEn(this.linkInicioX, this.linkInicioY) &&
+            this.hayEmisorEn(this.mouseX, this.mouseY)) ||
+          (this.hayPlacaEn(this.mouseX, this.mouseY) &&
+            this.hayEmisorEn(this.linkInicioX, this.linkInicioY))
+        ) {
+          color = this.colorLinkEmisor;
+        } else if (
           this.hayPlacaEn(this.linkInicioX, this.linkInicioY) ||
           this.hayPlacaEn(this.mouseX, this.mouseY)
         ) {
@@ -3346,21 +3510,19 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     if (
-      this.mouseX !== -1 &&
-      this.mouseY !== -1 &&
+      this.mouseX !== -1 && this.mouseY !== -1 &&
       this.puedeCrearLink(inicioX, inicioY, this.mouseX, this.mouseY)
     ) {
-      if (
-        this.hayPortalEn(inicioX, inicioY) &&
-        this.hayPortalEn(this.mouseX, this.mouseY)
-      ) {
+      const placaInicio = this.hayPlacaEn(inicioX, inicioY);
+      const placaFinal = this.hayPlacaEn(this.mouseX, this.mouseY);
+
+      if (!placaInicio && !placaFinal &&
+          this.hayPortalEn(inicioX, inicioY) &&
+          this.hayPortalEn(this.mouseX, this.mouseY)) {
         const linkInicio = this.buscarLinkDePortal(inicioX, inicioY);
         const linkFinal = this.buscarLinkDePortal(this.mouseX, this.mouseY);
 
-        if (
-          linkInicio !== -1 && linkFinal !== -1 &&
-          linkInicio !== linkFinal
-        ) {
+        if (linkInicio !== -1 && linkFinal !== -1 && linkInicio !== linkFinal) {
           const mayor = Math.max(linkInicio, linkFinal);
           const menor = Math.min(linkInicio, linkFinal);
           this.links.splice(mayor, 1);
@@ -3370,32 +3532,33 @@ this.bordeTooltipTile.setVisible(false);
         } else if (linkFinal !== -1) {
           this.links.splice(linkFinal, 1);
         }
-
         this.links.push([inicioX, inicioY, this.mouseX, this.mouseY]);
       } else {
         let placaX = inicioX;
         let placaY = inicioY;
-        let portalX = this.mouseX;
-        let portalY = this.mouseY;
+        let destinoX = this.mouseX;
+        let destinoY = this.mouseY;
 
-        if (this.hayPortalEn(inicioX, inicioY)) {
+        if (!placaInicio && placaFinal) {
           placaX = this.mouseX;
           placaY = this.mouseY;
-          portalX = inicioX;
-          portalY = inicioY;
+          destinoX = inicioX;
+          destinoY = inicioY;
         }
 
         const anterior = this.buscarLinkDePlaca(placaX, placaY);
-
         if (anterior !== -1) {
           this.links.splice(anterior, 1);
         }
 
-        this.links.push([placaX, placaY, portalX, portalY]);
+        if (this.hayEmisorEn(destinoX, destinoY)) {
+          this.links.push([placaX, placaY, destinoX, destinoY, 2]);
+        } else {
+          this.links.push([placaX, placaY, destinoX, destinoY]);
+        }
       }
     } else {
       const anterior = this.buscarLinkDeCasilla(inicioX, inicioY);
-
       if (anterior !== -1) {
         this.links.splice(anterior, 1);
       }
@@ -3412,68 +3575,63 @@ this.bordeTooltipTile.setVisible(false);
 
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
-      if (this.esParDePortales(link)) {
+      if (this.esParDePortales(link) && pares.length < 5) {
         pares.push(link);
+        linksValidos.push(link);
       }
     }
 
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
-
-      if (this.esParDePortales(link)) {
-        linksValidos.push(link);
-        continue;
-      }
-
       if (!this.esLinkDePlaca(link)) {
         continue;
       }
 
       let placaX = link[0];
       let placaY = link[1];
-      let portalX = link[2];
-      let portalY = link[3];
+      let destinoX = link[2];
+      let destinoY = link[3];
 
-      if (this.hayPortalEn(link[0], link[1])) {
+      if (link.length === 4 && this.hayPortalEn(link[0], link[1])) {
         placaX = link[2];
         placaY = link[3];
-        portalX = link[0];
-        portalY = link[1];
+        destinoX = link[0];
+        destinoY = link[1];
       }
 
-      let parEncontrado = false;
-
-      for (let j = 0; j < pares.length; j++) {
-        const par = pares[j];
-
-        if (
-          (par[0] === portalX && par[1] === portalY) ||
-          (par[2] === portalX && par[3] === portalY)
-        ) {
-          parEncontrado = true;
-          break;
+      let valido = this.esLinkDeEmisor(link);
+      if (!valido) {
+        for (let j = 0; j < pares.length; j++) {
+          const par = pares[j];
+          if (
+            (par[0] === destinoX && par[1] === destinoY) ||
+            (par[2] === destinoX && par[3] === destinoY)
+          ) {
+            valido = true;
+            break;
+          }
         }
       }
-
-      if (!parEncontrado) {
+      if (!valido) {
         continue;
       }
 
       let repetida = false;
-
       for (let j = 0; j < placasUsadas.length; j++) {
-        if (
-          placasUsadas[j][0] === placaX &&
-          placasUsadas[j][1] === placaY
-        ) {
+        if (placasUsadas[j][0] === placaX && placasUsadas[j][1] === placaY) {
           repetida = true;
           break;
         }
       }
+      if (repetida) {
+        continue;
+      }
 
-      if (!repetida) {
-        placasUsadas.push([placaX, placaY]);
-        linksValidos.push([placaX, placaY, portalX, portalY]);
+      placasUsadas.push([placaX, placaY]);
+      if (this.esLinkDeEmisor(link)) {
+        linksValidos.push([placaX, placaY, destinoX, destinoY, 2]);
+      } else {
+        linksValidos.push([placaX, placaY, destinoX, destinoY]);
       }
     }
 
@@ -3508,12 +3666,7 @@ this.bordeTooltipTile.setVisible(false);
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
 
-      copia.push([
-        link[0],
-        link[1],
-        link[2],
-        link[3]
-      ]);
+      copia.push(link.slice());
     }
 
     return copia;
@@ -3674,7 +3827,9 @@ this.bordeTooltipTile.setVisible(false);
       const py = this.board_offset_y + (y + 0.5) * this.cellsize;
 
       if (y < this.rows) {
-        this.ocultarGrupo(x, y);
+        if (this.herramienta !== this.tilePlaca) {
+          this.ocultarGrupo(x, y);
+        }
 
         const imagen = this.add.image(
           px,
@@ -3685,7 +3840,11 @@ this.bordeTooltipTile.setVisible(false);
 
         imagen.setDisplaySize(this.cellsize, this.cellsize);
         imagen.setAlpha(0.6);
-        imagen.setDepth(this.profundidadFila(y, 8));
+        if (this.herramienta === this.tilePlaca) {
+          imagen.setDepth(this.profundidadFila(y, 0));
+        } else {
+          imagen.setDepth(this.profundidadFila(y, 8));
+        }
 
         if (entra === false) {
           imagen.setTint(0xff0000);
@@ -3745,18 +3904,30 @@ this.bordeTooltipTile.setVisible(false);
     }
   }
 
-  private borrarLinksEn(columna: number, fila: number): void {
+  private borrarLinksEn(
+    columna: number, fila: number, conservarPlaca: boolean = false
+  ): void {
     for (let i = this.links.length - 1; i >= 0; i--) {
       const link = this.links[i];
-
-      if (
-        (link[0] === columna && link[1] === fila) ||
-        (link[2] === columna && link[3] === fila)
-      ) {
-        this.links.splice(i, 1);
+      const esInicio = link[0] === columna && link[1] === fila;
+      const esFinal = link[2] === columna && link[3] === fila;
+      if (!esInicio && !esFinal) {
+        continue;
       }
-    }
 
+      if (conservarPlaca && this.hayPlacaEn(columna, fila) &&
+          this.esLinkDePlaca(link)) {
+        if (link.length === 5 && esInicio) {
+          continue;
+        }
+        if (link.length === 4 &&
+            ((esInicio && this.hayPlacaEn(link[0], link[1])) ||
+             (esFinal && this.hayPlacaEn(link[2], link[3])))) {
+          continue;
+        }
+      }
+      this.links.splice(i, 1);
+    }
     this.dibujarLinks();
   }
 
@@ -4126,6 +4297,7 @@ this.bordeTooltipTile.setVisible(false);
 
         this.vistaPegado.setVisible(false);
         this.capaVistaPegado.setVisible(false);
+        this.capaVistaPlacasPegado.setVisible(false);
         this.capaVistaPortalesPegado.setVisible(false);
         this.restaurarTilesVistaPegado();
 
@@ -4543,21 +4715,19 @@ this.bordeTooltipTile.setVisible(false);
     return [[x, y]];
   }
 
-  borrarGrupoEn(x = 0, y = 0) {
+  borrarGrupoEn(x = 0, y = 0, conservarPlaca: boolean = false) {
     const casillas = this.grupoEn(x, y);
 
     for (let i = 0; i < casillas.length; i++) {
       const columna = casillas[i][0];
       const fila = casillas[i][1];
+      const conservar = conservarPlaca && this.hayPlacaEn(columna, fila);
 
-      this.borrarLinksEn(columna, fila);
-
-      this.tablero.putTileAt(
-        this.tileInvisible,
-        columna,
-        fila
-      );
-
+      this.borrarLinksEn(columna, fila, conservar);
+      this.tablero.putTileAt(this.tileInvisible, columna, fila);
+      if (!conservar) {
+        this.capaPlacas.removeTileAt(columna, fila);
+      }
       this.borrarPortalEn(columna, fila);
       this.actualizarParedesConexas(columna, fila);
     }
@@ -4642,6 +4812,14 @@ this.bordeTooltipTile.setVisible(false);
       if (portal !== null) {
         portal.visible = false;
         ocultas.push(portal);
+      }
+
+      if (ocultas === this.tilesOcultasVistaPegado) {
+        const placa = this.capaPlacas.getTileAt(columna, fila);
+        if (placa !== null) {
+          placa.visible = false;
+          this.placasOcultasVistaPegado.push(placa);
+        }
       }
     }
   }
@@ -4911,47 +5089,29 @@ this.bordeTooltipTile.setVisible(false);
   }
 
   private actualizarProfundidad(): void {
-    this.actualizarCapaProfundidad(
-      this.tablero,
-      0,
-      1
-    );
-
-    this.actualizarCapaProfundidad(
-      this.capaRelieve,
-      1,
-      1
-    );
+    this.actualizarCapaProfundidad(this.capaPlacas, 0, 1);
+    this.actualizarCapaProfundidad(this.tablero, 1, 1);
+    this.actualizarCapaProfundidad(this.capaRelieve, 2, 1);
 
     this.actualizarCapaPortalesAnimados(
-      this.capaPortales,
-      this.tablero,
-      2,
-      1
+      this.capaPortales, this.tablero, 3, 1
     );
 
-    if (this.capaRelievePortales !== null) this.capaRelievePortales.setAlpha(0);
+    if (this.capaRelievePortales !== null) {
+      this.capaRelievePortales.setAlpha(0);
+    }
 
-    this.actualizarCapaProfundidad(
-      this.capaVistaPegado,
-      4,
-      0.6
-    );
-
-    this.actualizarCapaProfundidad(
-      this.capaRelievePegado,
-      5,
-      0.6
-    );
+    this.actualizarCapaProfundidad(this.capaVistaPlacasPegado, 4, 0.6);
+    this.actualizarCapaProfundidad(this.capaVistaPegado, 5, 0.6);
+    this.actualizarCapaProfundidad(this.capaRelievePegado, 6, 0.6);
 
     this.actualizarCapaPortalesAnimados(
-      this.capaVistaPortalesPegado,
-      this.capaVistaPegado,
-      6,
-      0.6
+      this.capaVistaPortalesPegado, this.capaVistaPegado, 7, 0.6
     );
 
-    if (this.capaRelievePortalesPegado !== null) this.capaRelievePortalesPegado.setAlpha(0);
+    if (this.capaRelievePortalesPegado !== null) {
+      this.capaRelievePortalesPegado.setAlpha(0);
+    }
   }
 
   private testearNivel(): void {
