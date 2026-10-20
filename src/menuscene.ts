@@ -11,8 +11,7 @@ import {
   leerNivelesOriginalesBackend,
   leerProgresoOriginalBackend
 } from "./api";
-let spanish: number = 0;
-export default spanish;
+import { spanish, cambiarIdioma } from "./idioma";
 
 export class MenuScene extends Phaser.Scene {
   abriendoPartida = false;
@@ -541,8 +540,8 @@ export class MenuScene extends Phaser.Scene {
         transition.changeScene("menu", "usuariosDemo");
         break;
       case 7: 
-        if (spanish === 1) {spanish = 0; transition.changeScene("menu", "menu");}
-        else {spanish = 1; transition.changeScene("menu", "menu");}
+        cambiarIdioma();
+        transition.changeScene("menu", "menu");
         break;
     }
   }

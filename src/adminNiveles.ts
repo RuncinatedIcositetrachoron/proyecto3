@@ -5,6 +5,24 @@ import type { LevelsScene } from "./levelsscene";
 import type { NivelBackend } from "./api";
 import { editorAApi } from "./parserApi";
 import type { NivelEditor } from "./parserApi";
+import { spanish } from "./idioma";
+
+const textoOpciones: string[][] = [
+  ["Previous", "Anterior"],
+  ["Next", "Siguiente"],
+  ["Close", "Cerrar"],
+  ["Create Level", "Crear Nivel"],
+  ["Save", "Guardar"],
+  ["Could not load your levels: ", "No se logró cargar tus niveles:"],
+  ["You have no levels yet.", "Todavía no tienes niveles."],
+  [" levels selected.", " niveles elegidos."],
+  ["This browser does not support exporting files.", "Este navegador no soporta exportar archivos."],
+  ["JSON exported", "JSON exportado"],
+  ["Export canceled.", "Exportación cancelada."],
+  ["Could not export: ", "No se logró exportar: "],
+  ["Could not create the level: ", "No se logró crear el nivel: "],
+  ["EXPORT LEVELS", "EXPORTAR NIVELES"]
+];
 
 export function prepararNivelesOficiales(elegidos: NivelEditor[], usuario: string): NivelBackend[] {
   const resultado: NivelBackend[] = [];
@@ -67,7 +85,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     }
   }
 
-  const titulo = texto(centroX, 0, "EXPORT LEVELS", 24, "#ffd166");
+  const titulo = texto(centroX, 0, textoOpciones[13][spanish], 24, "#ffd166");
   const altoLista = nivelesPorPagina * 32;
   const alto = margen + titulo.displayHeight + 20 + altoLista +
     20 + 44 + 20 + 32 + 20 + 44 + margen;
@@ -88,13 +106,13 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
   const izquierda = centroX - anchoTexto / 2;
   const derecha = centroX + anchoTexto / 2;
   const botonAnterior = boton(izquierda + anchoPagina / 2, yPagina, anchoPagina - 4,
-    "Previous", () => {
+    textoOpciones[0][spanish], () => {
       paginaActual--;
       mostrarNiveles();
     }, 0x95add6);
   const textoPagina = texto(centroX, yPagina, "", 16).setOrigin(0.5);
   const botonSiguiente = boton(derecha - anchoPagina / 2, yPagina, anchoPagina - 4,
-    "Next", () => {
+    textoOpciones[1][spanish], () => {
       paginaActual++;
       mostrarNiveles();
     }, 0x95add6);
@@ -105,11 +123,11 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
   const separacion = anchoBoton + 20;
   const y = arriba + alto - margen - 22;
   boton(centroX - separacion, y, anchoBoton - 4,
-    "Close", cerrar, 0xe57373);
+    textoOpciones[2][spanish], cerrar, 0xe57373);
   const botonCrear = boton(centroX, y, anchoBoton - 4,
-    "Create Level", crear, 0x9ccc65);
+    textoOpciones[3][spanish], crear, 0x9ccc65);
   const botonExportar = boton(centroX + separacion, y, anchoBoton - 4,
-    "Save", exportarJson, 0xffd166);
+    textoOpciones[4][spanish], exportarJson, 0xffd166);
 
   escena.events.once(Phaser.Scenes.Events.SHUTDOWN, cerrar);
   if (teclado) {
@@ -121,12 +139,12 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     cargarSeleccion();
   } catch (error) {
     mostrarNiveles();
-    estado.setText("Could not load your levels: " + String(error));
+    estado.setText(textoOpciones[5][spanish] + String(error));
     return;
   }
   if (niveles.length === 0) {
     objetos.push(texto(centroX, arribaLista + 64,
-      "You have no levels yet.", 18).setOrigin(0.5));
+      textoOpciones[6][spanish], 18).setOrigin(0.5));
   }
   mostrarNiveles();
 
@@ -205,7 +223,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
 
     const paginas = Math.max(1, Math.ceil(niveles.length / nivelesPorPagina));
     textoPagina.setText((paginaActual + 1) + " / " + paginas);
-    estado.setText(seleccion.length + " levels selected.");
+    estado.setText(seleccion.length + textoOpciones[7][spanish]);
     actualizarBotones();
   }
 
@@ -263,13 +281,13 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     }
     const navegador: any = window;
     if (typeof navegador.showSaveFilePicker !== "function") {
-      estado.setText("This browser does not support exporting files.");
+      estado.setText(textoOpciones[8][spanish]);
       return;
     }
 
     ocupado = true;
     actualizarBotones();
-    let mensaje = "JSON exported.";
+    let mensaje = textoOpciones[9][spanish];
     try {
       const contenido = generarJson();
       const archivo = await navegador.showSaveFilePicker({
@@ -288,9 +306,9 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
       localStorage.setItem("seleccionOficiales:" + usuario, JSON.stringify(seleccion));
     } catch (error: any) {
       if (error.name === "AbortError") {
-        mensaje = "Export canceled.";
+        mensaje = textoOpciones[10][spanish];
       } else {
-        mensaje = "Could not export: " + String(error);
+        mensaje = textoOpciones[11][spanish] + String(error);
       }
     }
     if (!abierto) {
@@ -310,7 +328,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
       cerrar();
       escena.scene.start("editor", { nivelId: nivel.id });
     } catch (error: any) {
-      estado.setText("Could not create the level: " + String(error));
+      estado.setText(textoOpciones[12][spanish] + String(error));
     }
   }
 

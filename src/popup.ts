@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import spanish from "./menuscene";
+import { spanish } from "./idioma";
 
 export function mostrarConfirmacion(
   escena: Phaser.Scene,
