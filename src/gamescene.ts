@@ -12,7 +12,7 @@ import {
     leerNivelOriginalBackend
 } from "./api";
 import { apiAEditor } from "./parserApi";
-import {TransitionScene} from "./transitionScene.ts"
+import { TransitionScene } from "./transitionScene.ts"
 
 
 interface Entity {
@@ -64,41 +64,6 @@ interface LaserVisual {
     visualOffsetY: number;
     startLength?: number;
 }
-
-const Tile = {
-    Empty: 0,
-    Flag0: 1,
-    Box: 2,
-    Reciever: 3,
-    LaserH: 4,
-    Flag1: 5,
-    Player: 6,
-    Door0: 7,
-    LaserV: 8,
-    Goal: 9,
-    Wall: 10,
-    Door1: 11,
-
-    MirrorLEmpty: 12,
-    MirrorLBack: 13,
-    MirrorLBackFront: 14,
-    MirrorLFront: 15,
-
-    MirrorRFront: 16,
-    MirrorRBackFront: 17,
-    MirrorRBack: 18,
-    MirrorREmpty: 19,
-
-    LaserEmissorW: 20,
-    LaserEmissorD: 21,
-    LaserEmissorA: 22,
-    LaserEmissorS: 23,
-
-    PortalW: 24,
-    PortalD: 25,
-    PortalA: 26,
-    PortalS: 27
-} as const;
 
 /////////////////////
 //CLASS STARTS HERE//
