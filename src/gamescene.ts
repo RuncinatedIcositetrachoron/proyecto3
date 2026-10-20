@@ -23,6 +23,7 @@ interface Entity {
     emitting?: number;
     portal?: number;
     group?: number;
+    controlGroup?: string;
     pushable: boolean;
     secret?: string;
     laserPhase?: number;
@@ -1325,6 +1326,32 @@ private crearBarraSuperior() {
         return hasPlate === false;
     }
 
+    private isPlatePressed(plate: Entity): boolean {
+        for (let i = 0; i < this.entities.length; i++) {
+            const entity = this.entities[i];
+            if ((entity.type === "player" || entity.pushable) &&
+                entity.x === plate.x && entity.y === plate.y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private isEmitterActive(emitter: Entity): boolean {
+        if (emitter.controlGroup === undefined) {
+            return true;
+        }
+        for (let i = 0; i < this.entities.length; i++) {
+            const plate = this.entities[i];
+            if (plate.type === "goal" &&
+                plate.controlGroup === emitter.controlGroup &&
+                this.isPlatePressed(plate)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private getPortalAt(x: number, y: number, dir?: number): Entity | undefined {
         if (dir !== undefined) {
             return this.entities.find(entity => entity.portal === dir && entity.x === x && entity.y === y && this.isPortalActive(entity));
@@ -1615,7 +1642,8 @@ private crearBarraSuperior() {
         const fired: Entity[] = [];
         for (let i = 0; i < this.entities.length; i++) {
             const entity = this.entities[i];
-            if (entity.type === "laserEmissor" && entity.dir !== undefined) {
+            if (entity.type === "laserEmissor" && entity.dir !== undefined &&
+                this.isEmitterActive(entity)) {
                 queue.push({ source: entity, dir: entity.dir, phase: 0 });
             }
         }
@@ -2133,17 +2161,31 @@ private crearBarraSuperior() {
             }
         }
         const emissors = this.entities.filter(entity => entity.type === "laserEmissor");
-        if (emissors) {
-            for (const emissor of emissors) {
+        
+    if (emissors) {
+        for (const emissor of emissors) {
+            emissor.emitting = undefined;
+            emissor.sprite.clearTint();
+
+            if (this.isEmitterActive(emissor)) {
                 this.setEmitting(emissor, emissor.dir, 0);
+
                 switch(emissor.dir) {
                     case 0: emissor.sprite.setTexture("tileset-fogo", 10); break;
                     case 1: emissor.sprite.setTexture("tileset-fogo", 13); break;
                     case 2: emissor.sprite.setTexture("tileset-fogo", 11); break;
                     case 3: emissor.sprite.setTexture("tileset-fogo", 12); break;
                 }
+            } else {
+                switch(emissor.dir) {
+                    case 0: emissor.sprite.setTexture("tileset-fogo", 30); break;
+                    case 1: emissor.sprite.setTexture("tileset-fogo", 25); break;
+                    case 2: emissor.sprite.setTexture("tileset-fogo", 31); break;
+                    case 3: emissor.sprite.setTexture("tileset-fogo", 24); break;
+                }
             }
         }
+    }
         const recievers = this.entities.filter(entity => entity.type === "laserReciever");
         if (recievers) {
             for (const emissor of recievers) {
@@ -3922,13 +3964,16 @@ async create() {
             }
         }
 
-        const [staticLayer, dynamicLayer, laserLayer, portalLayer, directionLayer, darkLayer] = level.split("^");
+        const [staticLayer, dynamicLayer, laserLayer, portalLayer, directionLayer, darkLayer,
+            plateControlLayer, emitterControlLayer] = level.split("^");
         this.staticRows = staticLayer.trim().split("\n");
         const dynamicRows = dynamicLayer.trim().split("\n");
         const laserRows = laserLayer.trim().split("\n");
         const portalRows = portalLayer.trim().split("\n");
         const directionRows = directionLayer.trim().split("\n");
         const darkRows = darkLayer.trim().split("\n");
+        const plateControlRows = plateControlLayer ? plateControlLayer.trim().split("\n") : [];
+        const emitterControlRows = emitterControlLayer ? emitterControlLayer.trim().split("\n") : [];
         
         //CALCULO DE MEDIDAS
 
@@ -4557,6 +4602,36 @@ async create() {
                 let entity = this.getAnythingAt(x, y);
                 if (entity && thistile !== "." && (entity.portal !== undefined || entity.type === "goal")){
                     entity.group = Number(thistile);
+                }
+            }
+        }
+
+        for (let y = 0; y < plateControlRows.length; y++) {
+            for (let x = 0; x < plateControlRows[y].length; x++) {
+                const code = plateControlRows[y][x];
+                if (code === ".") {
+                    continue;
+                }
+                for (let i = 0; i < this.entities.length; i++) {
+                    const entity = this.entities[i];
+                    if (entity.type === "goal" && entity.x === x && entity.y === y) {
+                        entity.controlGroup = code;
+                    }
+                }
+            }
+        }
+
+        for (let y = 0; y < emitterControlRows.length; y++) {
+            for (let x = 0; x < emitterControlRows[y].length; x++) {
+                const code = emitterControlRows[y][x];
+                if (code === ".") {
+                    continue;
+                }
+                for (let i = 0; i < this.entities.length; i++) {
+                    const entity = this.entities[i];
+                    if (entity.type === "laserEmissor" && entity.x === x && entity.y === y) {
+                        entity.controlGroup = code;
+                    }
                 }
             }
         }

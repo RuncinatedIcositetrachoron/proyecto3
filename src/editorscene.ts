@@ -778,7 +778,9 @@ export class EditorScene extends Phaser.Scene {
           for (let i = 0; i < nivel.links.length; i++) {
             const link = nivel.links[i];
 
-            this.links.push(link.slice());
+            if (link.length >= 4) {
+              this.links.push([link[0], link[1], link[2], link[3]]);
+            }
           }
         }
 
@@ -1203,11 +1205,11 @@ this.bordeTooltipTile.setVisible(false);
       tile.index === 17 || tile.index === 39 || tile.index === 64 ||
       tile.index === this.tileBandera;
 
-    const paredSuperior = arriba.index === 16 ||
-      arriba.index === 39 || arriba.index === 64 ||
-      arriba.index === this.tileSalidaArriba || arriba.index === this.tileBandera;
+    const espacioSuperior = arriba.index === this.tileInvisible ||
+      arriba.index === 16 || arriba.index === 39 || arriba.index === 64 ||
+      arriba.index === this.tileSalidaArriba;
 
-    return baseLibre && paredSuperior;
+    return baseLibre && espacioSuperior;
   }
 
   usarHerramienta() {
@@ -3072,7 +3074,9 @@ this.bordeTooltipTile.setVisible(false);
     for (let i = 0; i < state.links.length; i++) {
       const link = state.links[i];
 
-      this.links.push(link.slice());
+      if (link.length >= 4) {
+        this.links.push([link[0], link[1], link[2], link[3]]);
+      }
     }
 
     this.actualizarLinks();
@@ -3174,7 +3178,7 @@ this.bordeTooltipTile.setVisible(false);
   }
 
   private esLinkDeEmisor(link: number[]): boolean {
-    return link.length === 5 && link[4] === 2 &&
+    return link.length === 4 &&
       this.hayPlacaEn(link[0], link[1]) &&
       this.hayEmisorEn(link[2], link[3]);
   }
@@ -3221,8 +3225,10 @@ this.bordeTooltipTile.setVisible(false);
           this.hayPlacaEn(link[0], link[1])) {
         return i;
       }
-      if (link.length === 4 && link[2] === columna &&
-          link[3] === fila && this.hayPlacaEn(link[2], link[3])) {
+      if (!this.esLinkDeEmisor(link) &&
+          this.hayPortalEn(link[0], link[1]) &&
+          link[2] === columna && link[3] === fila &&
+          this.hayPlacaEn(link[2], link[3])) {
         return i;
       }
     }
@@ -3551,11 +3557,7 @@ this.bordeTooltipTile.setVisible(false);
           this.links.splice(anterior, 1);
         }
 
-        if (this.hayEmisorEn(destinoX, destinoY)) {
-          this.links.push([placaX, placaY, destinoX, destinoY, 2]);
-        } else {
-          this.links.push([placaX, placaY, destinoX, destinoY]);
-        }
+        this.links.push([placaX, placaY, destinoX, destinoY]);
       }
     } else {
       const anterior = this.buscarLinkDeCasilla(inicioX, inicioY);
@@ -3592,7 +3594,8 @@ this.bordeTooltipTile.setVisible(false);
       let destinoX = link[2];
       let destinoY = link[3];
 
-      if (link.length === 4 && this.hayPortalEn(link[0], link[1])) {
+      if (!this.esLinkDeEmisor(link) &&
+          this.hayPortalEn(link[0], link[1])) {
         placaX = link[2];
         placaY = link[3];
         destinoX = link[0];
@@ -3628,11 +3631,7 @@ this.bordeTooltipTile.setVisible(false);
       }
 
       placasUsadas.push([placaX, placaY]);
-      if (this.esLinkDeEmisor(link)) {
-        linksValidos.push([placaX, placaY, destinoX, destinoY, 2]);
-      } else {
-        linksValidos.push([placaX, placaY, destinoX, destinoY]);
-      }
+      linksValidos.push([placaX, placaY, destinoX, destinoY]);
     }
 
     this.links = linksValidos;
@@ -3665,8 +3664,9 @@ this.bordeTooltipTile.setVisible(false);
 
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
-
-      copia.push(link.slice());
+      if (link.length === 4) {
+        copia.push([link[0], link[1], link[2], link[3]]);
+      }
     }
 
     return copia;
@@ -3917,12 +3917,11 @@ this.bordeTooltipTile.setVisible(false);
 
       if (conservarPlaca && this.hayPlacaEn(columna, fila) &&
           this.esLinkDePlaca(link)) {
-        if (link.length === 5 && esInicio) {
-          continue;
-        }
-        if (link.length === 4 &&
-            ((esInicio && this.hayPlacaEn(link[0], link[1])) ||
-             (esFinal && this.hayPlacaEn(link[2], link[3])))) {
+        const placaInicio = esInicio && this.hayPlacaEn(link[0], link[1]);
+        const placaFinal = esFinal && !this.esLinkDeEmisor(link) &&
+          this.hayPortalEn(link[0], link[1]) &&
+          this.hayPlacaEn(link[2], link[3]);
+        if (placaInicio || placaFinal) {
           continue;
         }
       }
@@ -3959,27 +3958,45 @@ this.bordeTooltipTile.setVisible(false);
 
         if (tile !== null && tile.index === tileBuscada) {
           if (tileBuscada === this.tileBandera) {
-            const izquierda = this.tablero.getTileAt(columna - 1, 0);
-            const derecha = this.tablero.getTileAt(columna + 1, 0);
-            let paredSuperior = 39;
+            const izquierdaArriba = this.tablero.getTileAt(columna - 1, 0);
+            const derechaArriba = this.tablero.getTileAt(columna + 1, 0);
+            const izquierdaAbajo = this.tablero.getTileAt(columna - 1, 1);
+            const derechaAbajo = this.tablero.getTileAt(columna + 1, 1);
+
+            let fondoArriba = this.tileInvisible;
+            let fondoAbajo = this.tileInvisible;
 
             if (
-              (izquierda !== null && izquierda.index === 16) ||
-              (derecha !== null && derecha.index === 16)
+              (izquierdaArriba !== null && izquierdaArriba.index === 16) ||
+              (derechaArriba !== null && derechaArriba.index === 16)
             ) {
-              paredSuperior = 16;
+              fondoArriba = 16;
+            } else if (
+              (izquierdaArriba !== null && (izquierdaArriba.index === 39 || izquierdaArriba.index === 64)) ||
+              (derechaArriba !== null && (derechaArriba.index === 39 || derechaArriba.index === 64))
+            ) {
+              fondoArriba = 39;
+            }
+
+            if (
+              (izquierdaAbajo !== null && izquierdaAbajo.index === 17) ||
+              (derechaAbajo !== null && derechaAbajo.index === 17)
+            ) {
+              fondoAbajo = 17;
+            } else if (
+              (izquierdaAbajo !== null && (izquierdaAbajo.index === 39 || izquierdaAbajo.index === 64)) ||
+              (derechaAbajo !== null && (derechaAbajo.index === 39 || derechaAbajo.index === 64))
+            ) {
+              fondoAbajo = 39;
             }
 
             this.borrarGrupoEn(columna, fila);
 
-            if (fila === 0 || fila === 1) {
-              this.tablero.putTileAt(paredSuperior, columna, 0);
-
-              if (fila === 1 && paredSuperior === 16) {
-                this.tablero.putTileAt(17, columna, fila);
-              }
-
+            if (fila === 1) {
+              this.tablero.putTileAt(fondoArriba, columna, 0);
+              this.tablero.putTileAt(fondoAbajo, columna, 1);
               this.actualizarParedesConexas(columna, 0);
+              this.actualizarParedesConexas(columna, 1);
             }
 
             continue;

@@ -2,7 +2,7 @@ interface NivelParseable {
   tablero: number[][];
   portales?: number[][];
   links?: number[][];
-  darkLayer?: number[][]; // Frames de assets/dark.spr.png; -1 significa vacio
+  darkLayer?: number[][];
 }
 
 interface ConversionTile {
@@ -38,15 +38,15 @@ const tablaTiles: ConversionTile[] = [
 
   { capa: -1, caracter: "" }, // 15 Piso visual
 
-  { capa: 0, caracter: "0" },  // 16 Borde - frame 15
-  { capa: 0, caracter: "1" },  // 17 Borde - frame 16
-  { capa: 0, caracter: "2" },  // 18 Borde - frame 17
-  { capa: 0, caracter: "3" },  // 19 Borde - frame 18
-  { capa: 0, caracter: "4" },  // 20 Borde - frame 19
-  { capa: 0, caracter: "5" },  // 21 Borde - frame 20
-  { capa: 0, caracter: "6" },  // 22 Borde - frame 21
-  { capa: 0, caracter: "7" },  // 23 Borde - frame 22
-  { capa: 0, caracter: "8" },  // 24 Borde - frame 23
+  { capa: 0, caracter: "0" }, // 16 Borde - frame 15
+  { capa: 0, caracter: "1" }, // 17 Borde - frame 16
+  { capa: 0, caracter: "2" }, // 18 Borde - frame 17
+  { capa: 0, caracter: "3" }, // 19 Borde - frame 18
+  { capa: 0, caracter: "4" }, // 20 Borde - frame 19
+  { capa: 0, caracter: "5" }, // 21 Borde - frame 20
+  { capa: 0, caracter: "6" }, // 22 Borde - frame 21
+  { capa: 0, caracter: "7" }, // 23 Borde - frame 22
+  { capa: 0, caracter: "8" }, // 24 Borde - frame 23
 
   { capa: 0, caracter: "f" }, // 25 Salida
   { capa: -1, caracter: "" }, // 26
@@ -69,7 +69,7 @@ const tablaTiles: ConversionTile[] = [
   { capa: 0, caracter: "#" }, // 39 Pared
   { capa: -1, caracter: "" }, // 40 Relieve de pared
 
-  { capa: 1, caracter: "z" }, // 41 Maquinaria simple (pendiente)
+  { capa: 1, caracter: "z" }, // 41 Maquinaria simple
   { capa: -1, caracter: "" }, // 42 Relieve de maquinaria simple
 
   { capa: 1, caracter: "x" }, // 43 Parte de maquinaria 201
@@ -100,7 +100,7 @@ const tablaTiles: ConversionTile[] = [
   { capa: -1, caracter: "" }, // 65 Relieve de pared conectada
 
   { capa: 1, caracter: "p" }, // 66 Jugador
-  { capa: -1, caracter: "" }  // 67 Relieve del jugador
+  { capa: -1, caracter: "" } // 67 Relieve del jugador
 ];
 
 const tablaDark: string[] = [];
@@ -110,18 +110,14 @@ const framesDark: number[] = [];
 for (let frame = 0; frame <= 36; frame++) {
   framesDark.push(frame);
 }
-
 framesDark.push(42);
 framesDark.push(48);
-
 for (let frame = 54; frame <= 65; frame++) {
   framesDark.push(frame);
 }
-
 for (let frame = 72; frame <= 83; frame++) {
   framesDark.push(frame);
 }
-
 framesDark.push(90);
 framesDark.push(96);
 
@@ -130,7 +126,6 @@ for (let i = 0; i < framesDark.length; i++) {
 }
 
 const tablaPortales: string[] = [];
-
 tablaPortales[50] = "w";
 tablaPortales[51] = "s";
 tablaPortales[53] = "a";
@@ -138,41 +133,83 @@ tablaPortales[55] = "d";
 
 function crearCapa(filas: number, columnas: number): string[][] {
   const capa: string[][] = [];
-
   for (let y = 0; y < filas; y++) {
     const fila: string[] = [];
-
     for (let x = 0; x < columnas; x++) {
       fila.push(".");
     }
-
     capa.push(fila);
   }
-
   return capa;
 }
 
 function capaATexto(capa: string[][]): string {
   let texto = "";
-
   for (let y = 0; y < capa.length; y++) {
     texto += capa[y].join("");
-
     if (y < capa.length - 1) {
       texto += "\n";
     }
   }
-
   return texto;
+}
+
+function tienePlaca(tile: number): boolean {
+  return tile === 2 || (tile >= 1000 && tile < 2000);
+}
+
+function objetoDeTile(tile: number): number {
+  if (tile === 2) {
+    return 1;
+  }
+  if (tile >= 1000 && tile < 2000) {
+    return tile - 1000;
+  }
+  return tile;
+}
+
+function esEmisor(tile: number): boolean {
+  return tile >= 11 && tile <= 14;
+}
+
+function esLinkDeEmisor(nivel: NivelParseable, link: number[]): boolean {
+  if (link.length !== 4) {
+    return false;
+  }
+
+  const x1 = link[0];
+  const y1 = link[1];
+  const x2 = link[2];
+  const y2 = link[3];
+
+  const filas = nivel.tablero.length;
+  const columnas = nivel.tablero[0].length;
+
+  if (
+    x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0 ||
+    x1 >= columnas || x2 >= columnas ||
+    y1 >= filas || y2 >= filas
+  ) {
+    return false;
+  }
+
+  return tienePlaca(nivel.tablero[y1][x1]) &&
+    esEmisor(objetoDeTile(nivel.tablero[y2][x2]));
+}
+
+function codigoControl(indice: number): string {
+  const letras = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  if (indice < letras.length) {
+    return letras[indice];
+  }
+  return String.fromCharCode(256 + indice - letras.length);
 }
 
 export function convertirNivel(nivel: NivelParseable): string {
   const filas = nivel.tablero.length;
-
   if (filas === 0) {
     return "";
   }
-
   const columnas = nivel.tablero[0].length;
 
   const estatica = crearCapa(filas, columnas);
@@ -181,24 +218,26 @@ export function convertirNivel(nivel: NivelParseable): string {
   const portales = crearCapa(filas, columnas);
   const grupos = crearCapa(filas, columnas);
   const oscuridad = crearCapa(filas, columnas);
+  const placasControl = crearCapa(filas, columnas);
+  const emisoresControl = crearCapa(filas, columnas);
 
   for (let y = 0; y < filas; y++) {
     for (let x = 0; x < columnas; x++) {
       const tile = nivel.tablero[y][x];
-      const conversion = tablaTiles[tile];
-
-      if (conversion !== undefined && conversion.caracter !== "") {
-        if (conversion.capa === 0) {
-          estatica[y][x] = conversion.caracter;
-        }
-
-        if (conversion.capa === 1) {
-          dinamica[y][x] = conversion.caracter;
-        }
-
-        if (conversion.capa === 2) {
-          laser[y][x] = conversion.caracter;
-        }
+      if (tienePlaca(tile)) {
+        estatica[y][x] = "X";
+      }
+      const objeto = objetoDeTile(tile);
+      const conversion = tablaTiles[objeto];
+      if (conversion === undefined || conversion.caracter === "") {
+        continue;
+      }
+      if (conversion.capa === 0) {
+        estatica[y][x] = conversion.caracter;
+      } else if (conversion.capa === 1) {
+        dinamica[y][x] = conversion.caracter;
+      } else if (conversion.capa === 2) {
+        laser[y][x] = conversion.caracter;
       }
     }
   }
@@ -207,7 +246,6 @@ export function convertirNivel(nivel: NivelParseable): string {
     for (let y = 0; y < filas; y++) {
       for (let x = 0; x < columnas; x++) {
         const portal = nivel.portales[y][x];
-
         if (tablaPortales[portal] !== undefined) {
           portales[y][x] = tablaPortales[portal];
         }
@@ -220,16 +258,13 @@ export function convertirNivel(nivel: NivelParseable): string {
 
     for (let i = 0; i < nivel.links.length; i++) {
       const link: number[] = nivel.links[i];
-
-      if (link.length !== 4) {
+      if (link.length !== 4 || esLinkDeEmisor(nivel, link)) {
         continue;
       }
-
       const x1 = link[0];
       const y1 = link[1];
       const x2 = link[2];
       const y2 = link[3];
-
       if (
         x1 < 0 || x2 < 0 || y1 < 0 || y2 < 0 ||
         x1 >= columnas || x2 >= columnas ||
@@ -237,13 +272,9 @@ export function convertirNivel(nivel: NivelParseable): string {
       ) {
         continue;
       }
-
-      const portal1 = nivel.portales[y1][x1];
-      const portal2 = nivel.portales[y2][x2];
-
       if (
-        tablaPortales[portal1] !== undefined &&
-        tablaPortales[portal2] !== undefined
+        tablaPortales[nivel.portales[y1][x1]] !== undefined &&
+        tablaPortales[nivel.portales[y2][x2]] !== undefined
       ) {
         numeroGrupo++;
         const numero = String(numeroGrupo);
@@ -254,16 +285,13 @@ export function convertirNivel(nivel: NivelParseable): string {
 
     for (let i = 0; i < nivel.links.length; i++) {
       const link: number[] = nivel.links[i];
-
-      if (link.length !== 4) {
+      if (link.length !== 4 || esLinkDeEmisor(nivel, link)) {
         continue;
       }
-
       const x1 = link[0];
       const y1 = link[1];
       const x2 = link[2];
       const y2 = link[3];
-
       if (
         x1 < 0 || x2 < 0 || y1 < 0 || y2 < 0 ||
         x1 >= columnas || x2 >= columnas ||
@@ -271,17 +299,15 @@ export function convertirNivel(nivel: NivelParseable): string {
       ) {
         continue;
       }
-
       if (
-        nivel.tablero[y1][x1] === 2 &&
+        tienePlaca(nivel.tablero[y1][x1]) &&
         tablaPortales[nivel.portales[y2][x2]] !== undefined &&
         grupos[y2][x2] !== "."
       ) {
         grupos[y1][x1] = grupos[y2][x2];
       }
-
       if (
-        nivel.tablero[y2][x2] === 2 &&
+        tienePlaca(nivel.tablero[y2][x2]) &&
         tablaPortales[nivel.portales[y1][x1]] !== undefined &&
         grupos[y1][x1] !== "."
       ) {
@@ -290,15 +316,53 @@ export function convertirNivel(nivel: NivelParseable): string {
     }
   }
 
+  if (nivel.links !== undefined) {
+    const destinos: number[][] = [];
+    const codigos: string[] = [];
+
+    for (let i = 0; i < nivel.links.length; i++) {
+      const link: number[] = nivel.links[i];
+      if (!esLinkDeEmisor(nivel, link)) {
+        continue;
+      }
+      const placaX = link[0];
+      const placaY = link[1];
+      const emisorX = link[2];
+      const emisorY = link[3];
+      if (
+        placaX < 0 || emisorX < 0 || placaY < 0 || emisorY < 0 ||
+        placaX >= columnas || emisorX >= columnas ||
+        placaY >= filas || emisorY >= filas ||
+        !tienePlaca(nivel.tablero[placaY][placaX]) ||
+        !esEmisor(objetoDeTile(nivel.tablero[emisorY][emisorX]))
+      ) {
+        continue;
+      }
+
+      let codigo = "";
+      for (let j = 0; j < destinos.length; j++) {
+        if (destinos[j][0] === emisorX && destinos[j][1] === emisorY) {
+          codigo = codigos[j];
+          break;
+        }
+      }
+      if (codigo === "") {
+        codigo = codigoControl(destinos.length);
+        destinos.push([emisorX, emisorY]);
+        codigos.push(codigo);
+      }
+      placasControl[placaY][placaX] = codigo;
+      emisoresControl[emisorY][emisorX] = codigo;
+    }
+  }
+
   if (nivel.darkLayer !== undefined) {
     for (let y = 0; y < filas; y++) {
       if (nivel.darkLayer[y] === undefined) {
         continue;
       }
-
       for (let x = 0; x < columnas; x++) {
         const frame = nivel.darkLayer[y][x];
-
         if (tablaDark[frame] !== undefined) {
           oscuridad[y][x] = tablaDark[frame];
         }
@@ -307,14 +371,11 @@ export function convertirNivel(nivel: NivelParseable): string {
   }
 
   return capaATexto(estatica) +
-      "\n^\n" +
-      capaATexto(dinamica) +
-      "\n^\n" +
-      capaATexto(laser) +
-      "\n^\n" +
-      capaATexto(portales) +
-      "\n^\n" +
-      capaATexto(grupos) +
-      "\n^\n" +
-      capaATexto(oscuridad);
+    "\n^\n" + capaATexto(dinamica) +
+    "\n^\n" + capaATexto(laser) +
+    "\n^\n" + capaATexto(portales) +
+    "\n^\n" + capaATexto(grupos) +
+    "\n^\n" + capaATexto(oscuridad) +
+    "\n^\n" + capaATexto(placasControl) +
+    "\n^\n" + capaATexto(emisoresControl);
 }
