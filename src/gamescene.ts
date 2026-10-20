@@ -899,7 +899,7 @@ private crearBarraSuperior() {
             this.actualizarAlphaPortal(entity, 1);
             if (entity.type === "player") {
                 entity.sprite.stop();
-                entity.sprite.setTexture("lindseyi", entity.dir).setScale(this.pixelmultiplier).setDepth(10);
+                entity.sprite.setTexture("lindseyi", entity.dir).setScale(this.pixelmultiplier).setDepth(10).setOrigin(1,1.04);
                 entity.sprite.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier);
             }
             entity.sprite.setDepth(2*entity.y);
@@ -3064,7 +3064,7 @@ private crearBarraSuperior() {
                 this.updateEntityDepth(player);
                 player.sprite.stop();
                 if (this.dead === true) {
-                    player.sprite.play("lindseydie"+String(facing));
+                    player.sprite.setOrigin(0.96, 1).play("lindseydie"+String(facing));
                     player.sprite.once(
                         Phaser.Animations.Events.ANIMATION_COMPLETE,
                         () => {

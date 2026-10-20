@@ -106,8 +106,8 @@ export class EditorScene extends Phaser.Scene {
   private linkTool: number = 103;
   private tilesSinPortal: number[] = [2, 5, 6, 7, 8];
   private tileJugador: number = 66;
-  private tileBandera: number = 25;
-  private tileSalidaArriba: number = 26;
+  private tileBandera: number = 68;
+  private tileSalidaArriba: number = 69;
   private formaSalida: number[][] = [
     [0, 0, this.tileBandera],
     [0, -1, this.tileSalidaArriba]
@@ -209,7 +209,7 @@ export class EditorScene extends Phaser.Scene {
     [11, 14, 12, 13],
     [27, 30, 28, 29],
     [41, 200, 201],
-    [66, 25],
+    [66, 68],
     [17, 18, 20, 19, 16, 39],
     [21, 22, 23, 24]
   ];
