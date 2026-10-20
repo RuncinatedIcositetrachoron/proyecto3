@@ -48,7 +48,7 @@ const tablaTiles: ConversionTile[] = [
   { capa: 0, caracter: "7" }, // 23 Borde - frame 22
   { capa: 0, caracter: "8" }, // 24 Borde - frame 23
 
-  { capa: 0, caracter: "f" }, // 25 Salida
+  { capa: -1, caracter: "" }, // 25
   { capa: -1, caracter: "" }, // 26
 
   { capa: 2, caracter: "i" }, // 27 Receptor arriba
@@ -100,7 +100,9 @@ const tablaTiles: ConversionTile[] = [
   { capa: -1, caracter: "" }, // 65 Relieve de pared conectada
 
   { capa: 1, caracter: "p" }, // 66 Jugador
-  { capa: -1, caracter: "" } // 67 Relieve del jugador
+  { capa: -1, caracter: "" },  // 67 Relieve del jugador
+  { capa: 0, caracter: "f" }, // 66 Salida
+  { capa: -1, caracter: "" }  // 67 Relieve de la salida
 ];
 
 const tablaDark: string[] = [];

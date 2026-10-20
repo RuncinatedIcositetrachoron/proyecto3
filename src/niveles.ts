@@ -118,8 +118,8 @@ export async function crearNivel(filas: number, columnas: number): Promise<Nivel
   tablero[filas-2][columnas-2] = 23;
   tablero[2][2] = 66; // TILE JUGADOR
   const columnaSalida = Math.floor(columnas / 2);
-  tablero[0][columnaSalida] = 26; // PARTE SUPERIOR DE LA PUERTA
-  tablero[1][columnaSalida] = 25; // BASE DE LA PUERTA (SEGUNDA FILA)
+  tablero[0][columnaSalida] = 69; // PARTE SUPERIOR DE LA PUERTA
+  tablero[1][columnaSalida] = 68; // BASE DE LA PUERTA (SEGUNDA FILA)
   for (let y = 1; y < filas; y++) {
     for (let x = 0; x < columnas; x++) {
       if (

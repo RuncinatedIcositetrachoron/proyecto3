@@ -12,6 +12,7 @@ import {
   leerNivelesOriginalesBackend,
   leerProgresoOriginalBackend
 } from "./api";
+import { spanish, cambiarIdioma } from "./idioma";
 
 export class MenuScene extends Phaser.Scene {
   abriendoPartida = false;
@@ -25,6 +26,25 @@ export class MenuScene extends Phaser.Scene {
   idsNiveles: number[] = [];
   progreso: boolean[] = [];
   opcionesMenu: Phaser.GameObjects.Container | null = null;
+  textoOpciones: string[][] = [
+    ["Log Out", "Cerrar Sesión"],
+    ["Resume", "Continuar"],
+    ["New Game", "Nueva Partida"],
+    ["Level Selector", "Selector De Niveles"],
+    ["Community Levels", "Niveles De Comunidad"],
+    ["Level Editor", "Editor De Niveles"],
+    ["Credits", "Créditos"],
+    ["Exit", "Salir"],
+    ["Change Language", "Cambiar Idioma"],
+    ["Retry", "Reintentar"],
+    ["Could not load progress", "No se logró cargar el progreso"],
+    ["Loading progress...", "Cargango el progreso..."],
+    ["Start Again?", "Reiniciar?"],
+    ["You will return to the first level. Your completed levels will stay saved.", "Volverás al primer nivel. Tus niveles completados se mantendrán guardados."],
+    ["Start Again", "Reiniciar"],
+    ["Log In", "Iniciar Sesión"]
+  ];
+
 
   constructor() {
     super("menu");
@@ -189,7 +209,7 @@ export class MenuScene extends Phaser.Scene {
         this.scene.isActive("menu") &&
         demo.usuarioActual === usuario
       ) {
-        this.mensajeProgreso = "Could not load progress.";
+        this.mensajeProgreso = this.textoOpciones[10][spanish];
       }
     } finally {
       if (
@@ -247,15 +267,17 @@ export class MenuScene extends Phaser.Scene {
     acciones.push(4);
     acciones.push(5);
     acciones.push(6);
+    acciones.push(7);
 
     const nombres = [
-      "Resume",
-      "Start New Game",
-      "Level Selector",
-      "Community Levels",
-      "Level Editor",
-      "Credits",
-      "Exit"
+      this.textoOpciones[1][spanish],
+      this.textoOpciones[2][spanish],
+      this.textoOpciones[3][spanish],
+      this.textoOpciones[4][spanish],
+      this.textoOpciones[5][spanish],
+      this.textoOpciones[6][spanish],
+      this.textoOpciones[7][spanish],
+      this.textoOpciones[8][spanish]
     ];
 
     const iconos = [
@@ -265,10 +287,11 @@ export class MenuScene extends Phaser.Scene {
       "Community Levels",
       "Level Editor",
       "Credits",
-      "Exit"
+      "Exit",
+      "Credits"
     ];
 
-    const medida = this.add.text(0, 0, "Community Levels", {
+    const medida = this.add.text(0, 0, this.textoOpciones[4][spanish], {
       fontFamily: "Fuente",
       fontSize: 42 * escalaTexto + "px",
       resolution: 4
@@ -389,7 +412,7 @@ export class MenuScene extends Phaser.Scene {
       const reintentar = this.add.text(
         centroMenu,
         this.scale.height - 37 * escalaY,
-        "Retry",
+        this.textoOpciones[9][spanish],
         {
           fontFamily: "Fuente",
           fontSize: 24 * escalaTexto + "px",
@@ -439,10 +462,10 @@ export class MenuScene extends Phaser.Scene {
       textoUsuario.setText(nombreVisible + "...");
     }
 
-    let accionCuenta = "Sign Out";
+    let accionCuenta = this.textoOpciones[0][spanish];
 
     if (invitado) {
-      accionCuenta = "Sign In";
+      accionCuenta = this.textoOpciones[15][spanish];
     }
 
     const enlaceCuenta = this.add.text(derechaUsuario, 66, accionCuenta, {
@@ -499,9 +522,9 @@ export class MenuScene extends Phaser.Scene {
         if (this.hayProgreso) {
           mostrarConfirmacion(
             this,
-            "Start Again?",
-            "You will return to the first level. Your completed levels will stay saved.",
-            "Start Again",
+            this.textoOpciones[12][spanish],
+            this.textoOpciones[13][spanish],
+            this.textoOpciones[14][spanish],
             0xffd166,
             () => {
               this.abrirPartida(true);
@@ -526,6 +549,10 @@ export class MenuScene extends Phaser.Scene {
       case 6:
         cerrarSesion();
         transition.changeScene("menu", "usuariosDemo");
+        break;
+      case 7: 
+        cambiarIdioma();
+        transition.changeScene("menu", "menu");
         break;
     }
   }

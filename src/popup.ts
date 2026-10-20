@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { spanish } from "./idioma";
 
 export function mostrarConfirmacion(
   escena: Phaser.Scene,
@@ -12,6 +13,10 @@ export function mostrarConfirmacion(
   const activos: Phaser.GameObjects.GameObject[] = [];
   const campos: Phaser.GameObjects.GameObject[] = [];
   const objetos: Phaser.GameObjects.GameObject[] = [];
+  const textoOpciones: string[][] = [
+    ["Cancel", "Cancelar"],
+  ];
+  
 
   for (let i = 0; i < escena.children.list.length; i++) {
     const objeto = escena.children.list[i];
@@ -256,7 +261,7 @@ export function mostrarConfirmacion(
   if (mostrarCancelar) {
     crearBotonPopup(
       centroX - separacionCentros,
-      "Cancel",
+      textoOpciones[0][spanish],
       0x95add6,
       () => {}
     );
