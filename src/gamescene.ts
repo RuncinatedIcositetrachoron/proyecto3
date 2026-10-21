@@ -30,6 +30,7 @@ interface Entity {
     laserPhase?: number;
     sprite: Phaser.GameObjects.Sprite;
     sprite2?: Phaser.GameObjects.Sprite;
+    shadow?: Phaser.GameObjects.Sprite;
 }
 
 interface TutorialNivel {
@@ -184,7 +185,7 @@ export class GameScene extends Phaser.Scene {
         {
             nombre: "click",
             archivo: "lindsey_sfx/09b_ui_click.ogg",
-            volumen: 0.35,
+            volumen: 0.12,
             espera: 70,
             ultimo: -1000
         }
@@ -299,6 +300,7 @@ export class GameScene extends Phaser.Scene {
     private tempstorage: Entity | undefined;
     private tempstorage2a: Phaser.GameObjects.Sprite | undefined;
     private tempstorage2b: Phaser.GameObjects.Sprite | undefined;
+    private tempstorage2c: Phaser.GameObjects.Sprite | undefined;
     private tempstorage3: Entity | undefined;
     private movenumber: Boolean = false;
     private pushing: Boolean = false;
@@ -309,9 +311,11 @@ export class GameScene extends Phaser.Scene {
     private pushTweens: Phaser.Tweens.Tween[] = [];
     private playerVertical: Boolean = true;
     private portalTweens: Phaser.Tweens.Tween[] = [];
+    private shadowTweens: Phaser.Tweens.Tween[] = [];
     private playerPortalMask: any;
     private maskFilter: any;
     private maskFilter2: any;
+    private maskFilter3: any;
     private dead: boolean = false;
     private qKey!: Phaser.Input.Keyboard.Key;
     private rKey!: Phaser.Input.Keyboard.Key;
@@ -788,83 +792,83 @@ private crearBarraSuperior() {
             transition.changeScene(this.sys.settings.key, this.escenaAnterior);
         }
 
-        private async ganarNivel() {
-            if (this.saliendoDelNivel) {
-                return;
-            }
-            if (this.idGlobalDescargado !== null) {
-                this.saliendoDelNivel = true;
-                this.registrarVictoriaDescargada();
-                return;
-            }
-            if (this.modoTest || this.testeando || this.nivelId !== "") {
-                this.volver();
-                return;
-            }
-
+    private async ganarNivel() {
+        if (this.saliendoDelNivel) {
+            return;
+        }
+        if (this.idGlobalDescargado !== null) {
             this.saliendoDelNivel = true;
-            const cargaActual = this.numeroCarga;
-            let progresoGuardado = false;
+            this.registrarVictoriaDescargada();
+            return;
+        }
+        if (this.modoTest || this.testeando || this.nivelId !== "") {
+            this.volver();
+            return;
+        }
 
-            try {
-                const usuario = demo.usuarioActual;
-                if (usuario === null || usuario === undefined) {
-                    throw new Error(this.textoOpciones[3][spanish]);
-                }
-                if (usuario.id === 0) {
-                    completarNivelInvitado(this.levelNumber, 1);
-                } else {
-                    await completarNivelOriginalBackend(
-                        usuario.nombre,
-                        this.levelNumber,
-                        1
-                    );
-                }
-                progresoGuardado = true;
-            } catch (error) {
-                if (cargaActual !== this.numeroCarga) {
-                    return;
-                }
-                window.alert(
-                    this.textoOpciones[4][spanish] +
-                    String(error)
+        this.saliendoDelNivel = true;
+        const cargaActual = this.numeroCarga;
+        let progresoGuardado = false;
+
+        try {
+            const usuario = demo.usuarioActual;
+            if (usuario === null || usuario === undefined) {
+                throw new Error("No active session.");
+            }
+            if (usuario.id === 0) {
+                completarNivelInvitado(this.levelNumber, 1);
+            } else {
+                await completarNivelOriginalBackend(
+                    usuario.nombre,
+                    this.levelNumber,
+                    1
                 );
             }
-
+            progresoGuardado = true;
+        } catch (error) {
             if (cargaActual !== this.numeroCarga) {
                 return;
             }
-
-            if (progresoGuardado && this.escenaAnterior === "selectscene") {
-                const selector: any = this.scene.get("selectscene");
-                if (typeof selector.marcarNivelCompletado === "function") {
-                    selector.marcarNivelCompletado(this.levelNumber);
-                }
-            }
-
-            let siguienteNivel = 0;
-
-            for (let i = 0; i < this.idsNivelesOficiales.length; i++) {
-                const id = this.idsNivelesOficiales[i];
-                if (id > this.levelNumber && (siguienteNivel === 0 || id < siguienteNivel)) {
-                    siguienteNivel = id;
-                }
-            }
-            if (siguienteNivel === 0) {
-                this.saliendoDelNivel = false;
-                this.volver();
-                return;
-            }
-
-            const transition = this.scene.get("transition") as TransitionScene;
-            transition.changeScene(this.sys.settings.key, "game",
-                {
-                level: siguienteNivel,
-                escenaAnterior: this.escenaAnterior,
-                idsNivelesOficiales: this.idsNivelesOficiales
-                }
+            window.alert(
+                "Level completed, but your progress could not be saved:\n\n" +
+                String(error)
             );
         }
+
+        if (cargaActual !== this.numeroCarga) {
+            return;
+        }
+
+        if (progresoGuardado && this.escenaAnterior === "selectscene") {
+            const selector: any = this.scene.get("selectscene");
+            if (typeof selector.marcarNivelCompletado === "function") {
+                selector.marcarNivelCompletado(this.levelNumber);
+            }
+        }
+
+        let siguienteNivel = 0;
+
+        for (let i = 0; i < this.idsNivelesOficiales.length; i++) {
+            const id = this.idsNivelesOficiales[i];
+            if (id > this.levelNumber && (siguienteNivel === 0 || id < siguienteNivel)) {
+                siguienteNivel = id;
+            }
+        }
+        if (siguienteNivel === 0) {
+            this.saliendoDelNivel = false;
+            this.volver();
+            return;
+        }
+
+        const transition = this.scene.get("transition") as TransitionScene;
+        transition.changeScene(this.sys.settings.key, "game",
+            {
+            level: siguienteNivel,
+            escenaAnterior: this.escenaAnterior,
+            idsNivelesOficiales: this.idsNivelesOficiales
+            }
+        );
+    }
 
     private undoMove() {
         if (this.playerMoving) {
@@ -885,6 +889,7 @@ private crearBarraSuperior() {
             entity.dir = oldEntity.dir;
             entity.portal = oldEntity.portal;
             entity.sprite.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier, this.offsetY + entity.y * 16 * this.pixelmultiplier).setDepth(2*entity.y);
+            if (entity.shadow) entity.shadow.setPosition(this.offsetX + entity.x * 16 * this.pixelmultiplier - this.tilesize, this.offsetY + entity.y * 16 * this.pixelmultiplier - this.tilesize);
             this.actualizarPortal(entity);
             this.actualizarAlphaPortal(entity, 1);
             if (entity.type === "player") {
@@ -2440,15 +2445,19 @@ private crearBarraSuperior() {
                     entry.x = 1000; entry.y = 0;
                     entry.sprite.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier);
                     if (entry.sprite2) entry.sprite2.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier);
+                    if (entry.shadow) entry.shadow.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + entry.y * 16*this.pixelmultiplier - this.tilesize);                    
                     entity.x = 1000; entity.y = 0;
                     entity.sprite.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier);
                     if (entity.sprite2) entity.sprite2.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier);
+                    if (entity.shadow) entity.shadow.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + entity.y * 16*this.pixelmultiplier - this.tilesize);
                 } 
                 else {
                 const savedX = entity.x, savedY = entity.y, savedDir = entity.dir, savedPortal = entity.portal;
                 this.tempstorage2a = this.duplicateSprite(entity.sprite);
                 this.tempstorage2b = undefined;
                 if (entity.sprite2) this.tempstorage2b = this.duplicateSprite(entity.sprite2);
+                this.tempstorage2c = undefined;
+                if (entity.shadow) this.tempstorage2c = this.duplicateSprite(entity.shadow);
                 this.tempstorage = entity;
 
                 entity.x = exit.x;
@@ -2477,6 +2486,7 @@ private crearBarraSuperior() {
                 }
                 
                 entity.sprite.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier);
+                entity.shadow.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + entity.y * 16*this.pixelmultiplier - this.tilesize);
                 this.actualizarPortal(entity, true, false);
 
                 let done = false;
@@ -2493,6 +2503,7 @@ private crearBarraSuperior() {
                     entity.dir = savedDir;
                     entity.portal = savedPortal;
                     entity.sprite.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y);
+                    entity.shadow.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + entity.y * 16*this.pixelmultiplier - this.tilesize);
                     this.actualizarPortal(entity);
 
                     if (this.tempstorage2a) {
@@ -2500,6 +2511,9 @@ private crearBarraSuperior() {
                     }
                     if (this.tempstorage2b) {
                         this.tempstorage2b.destroy();
+                    }
+                    if (this.tempstorage2c) {
+                        this.tempstorage2c.destroy();
                     }
                     return false;
                 }
@@ -2523,12 +2537,18 @@ private crearBarraSuperior() {
                         if (entry.sprite2) {
                             entry.sprite2.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier);
                         }
+                        if (entry.shadow) {
+                            entry.shadow.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + entry.y * 16*this.pixelmultiplier - this.tilesize);
+                        }
 
                         otherEntity.x = 1000;
                         otherEntity.y = 0;
                         otherEntity.sprite.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier);
                         if (otherEntity.sprite2) {
                             otherEntity.sprite2.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier);
+                        }
+                        if (otherEntity.shadow) {
+                            otherEntity.shadow.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + otherEntity.y * 16*this.pixelmultiplier - this.tilesize);
                         }
                     } else {
                         const savedX = otherEntity.x;
@@ -2538,6 +2558,8 @@ private crearBarraSuperior() {
                         this.tempstorage2a = this.duplicateSprite(otherEntity.sprite);
                         this.tempstorage2b = undefined;
                         if (otherEntity.sprite2) this.tempstorage2b = this.duplicateSprite(otherEntity.sprite2);
+                        this.tempstorage2c = undefined;
+                        if (otherEntity.shadow) this.tempstorage2c = this.duplicateSprite(otherEntity.shadow);
 
                         let exitX = exit.x;
                         let exitY = exit.y;
@@ -2556,6 +2578,9 @@ private crearBarraSuperior() {
 
                             if (otherEntity.sprite2) {
                                 otherEntity.sprite2.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier);
+                            }
+                            if (otherEntity.shadow) {
+                                otherEntity.shadow.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + otherEntity.y * 16*this.pixelmultiplier - this.tilesize);
                             }
                         } else {
                             this.tempstorage = otherEntity;
@@ -2579,6 +2604,7 @@ private crearBarraSuperior() {
                             }
 
                             otherEntity.sprite.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y);
+                            otherEntity.shadow.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + otherEntity.y * 16*this.pixelmultiplier - this.tilesize);
 
                             this.actualizarPortal(otherEntity);
 
@@ -2597,7 +2623,8 @@ private crearBarraSuperior() {
                                 otherEntity.dir = savedDir;
                                 otherEntity.portal = savedPortal;
                                 this.tempstorage2a.destroy();
-                                if(this.tempstorage2b) this.tempstorage2b.destroy();
+                                if (this.tempstorage2b) this.tempstorage2b.destroy();
+                                if (this.tempstorage2c) this.tempstorage2c.destroy();
 
                                 otherEntity.sprite.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y);
 
@@ -2680,6 +2707,7 @@ private crearBarraSuperior() {
             this.tempstorage.y = exit.y;
             this.tempstorage.dir = exit.portal;
             this.tempstorage.sprite.setPosition(this.offsetX + this.tempstorage.x * 16*this.pixelmultiplier, this.offsetY + this.tempstorage.y * 16*this.pixelmultiplier);
+            this.tempstorage.shadow.setPosition(this.offsetX + this.tempstorage.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + this.tempstorage.y * 16*this.pixelmultiplier - this.tilesize);
             this.tempstorage.sprite.setDepth(2*this.tempstorage.y)
             switch(exit.portal) {
                 case 0: return this.updatePosition2(0, -1, 2, entry);
@@ -2733,6 +2761,9 @@ private crearBarraSuperior() {
             if (!this.isPortalActive(entity)) alphaPortal *= 0.25;
             entity.sprite2.setAlpha(alphaPortal);
         }
+        if (entity.shadow) {
+            entity.shadow.setAlpha(alpha);
+        }
     }
 
     private animatePushable(entity: Entity, saliendoPortal: boolean = false) {
@@ -2769,6 +2800,30 @@ private crearBarraSuperior() {
         });
 
         this.pushTweens.push(tween);
+        
+        if (entity.shadow) {
+            const tween2 = this.tweens.add({
+                targets: entity.shadow,
+                x: this.offsetX + entity.x * this.tilesize - this.tilesize,
+                y: this.offsetY + entity.y * this.tilesize - this.tilesize,
+                duration: speed,
+                ease: "Linear",
+                onUpdate: () => {
+                    this.updateEntityDepth(entity);
+                    this.updateLaserPositions();
+                    if (saliendoPortal) {
+                        const distancia = Math.abs(entity.sprite.x - inicioX) + Math.abs(entity.sprite.y - inicioY);
+                        const avance = Math.min(1, distancia / this.tilesize);
+                        this.actualizarAlphaPortal(entity, Math.min(1, avance / 0.5));
+                    }
+                },
+                onComplete: () => {
+                    if (saliendoPortal) this.actualizarAlphaPortal(entity, 1);
+                }
+            });
+
+            this.pushTweens.push(tween2);
+        }
     }
     
     private ajustarMascaraPortalPared(region: Phaser.Geom.Rectangle, portalX: number, portalY: number, portalDir: number | undefined): void {
@@ -2813,6 +2868,14 @@ private crearBarraSuperior() {
         });
         this.maskFilter2 = masks2[0];
         }
+        this.maskFilter3 = undefined;
+        if (box.shadow && box.shadow.scene) {
+            const masks3 = Phaser.Actions.AddMaskShape(box.shadow, {
+                shape: "rectangle",
+                region: region
+            });
+            this.maskFilter3 = masks3[0];
+        }
         this.maskFilter = masks[0];
     }
 
@@ -2843,14 +2906,24 @@ private crearBarraSuperior() {
         });
         const maskFilter2 = masks2[0];
         }
+        if (this.tempstorage2c) {
+        const masks3 = Phaser.Actions.AddMaskShape(this.tempstorage2c, {
+            shape: "rectangle",
+            region: region
+        });
+        const maskFilter3 = masks3[0];
+        }
         const maskFilter = masks[0];
         if (!this.tempstorage2a) {console.log ("fuck you"); return;}
         const copia = this.tempstorage2a;
         const copiaPortal = this.tempstorage2b;
+        const copiaSombra = this.tempstorage2c;
         const inicioX = copia.x;
         const inicioY = copia.y;
         const alphaInicial = copia.alpha;
         let alphaPortalInicial = 1;
+        let alphaSombraInicial = 1;
+        if (copiaSombra) alphaSombraInicial = copiaSombra.alpha;
         if (copiaPortal) alphaPortalInicial = copiaPortal.alpha;
         const tween = this.tweens.add({
             targets: copia, 
@@ -2864,6 +2937,7 @@ private crearBarraSuperior() {
                 const alpha = 1 - Math.max(0, (avance - 0.5) / 0.5);
                 copia.setAlpha(alphaInicial * alpha);
                 if (copiaPortal) copiaPortal.setAlpha(alphaPortalInicial * alpha);
+                if (copiaSombra) copiaSombra.setAlpha(alphaSombraInicial * alpha);
             },
 
             onComplete: () => {
@@ -2884,6 +2958,20 @@ private crearBarraSuperior() {
                 }
             });
             this.portalTweens.push(tween2);
+        }
+        if (copiaSombra) {
+            const tween3 = this.tweens.add({
+                targets: copiaSombra, 
+                x: this.offsetX + portalX * 16*this.pixelmultiplier - this.tilesize,
+                y: this.offsetY + portalY * 16*this.pixelmultiplier - this.tilesize,
+                duration: this.lindseyspeed,
+                ease: "Linear",
+
+                onComplete: () => {
+                    if (copiaSombra) copiaSombra.destroy();
+                }
+            });
+            this.shadowTweens.push(tween3);
         }
     }
 
@@ -2915,6 +3003,7 @@ private crearBarraSuperior() {
 
         const copia = this.tempstorage2a;
         const copiaPortal = this.tempstorage2b;
+        const copiaSombra = this.tempstorage2c;
         const inicioX = maskShape.x;
         const inicioY = maskShape.y;
         const alphaInicial = copia.alpha;
@@ -2964,6 +3053,29 @@ private crearBarraSuperior() {
                 }
             });
             this.portalTweens.push(tween2);
+        }
+        if (copiaSombra) {
+            const masks3 = Phaser.Actions.AddMaskShape(copiaPortal, {
+                shape: "rectangle",
+                region: region
+            });
+            const maskFilter3 = masks3[0];
+            const maskShape3 = maskFilter3.maskGameObject as Phaser.GameObjects.Rectangle;
+            maskFilter3.autoUpdate = true;
+            const tween3 = this.tweens.add({
+                targets: maskShape3, 
+                x: maskShape3.x + dx*this.tilesize,
+                y: maskShape3.y + dy*this.tilesize,
+                duration: this.lindseyspeed,
+                ease: "Linear",
+
+                onComplete: () => {
+                    if(copiaPortal.filters) copiaPortal.filters.external.remove(maskFilter3);
+                    maskShape3.destroy();
+                    copiaPortal.destroy();
+                }
+            });
+            this.shadowTweens.push(tween3);
         }
     }
 
@@ -3141,6 +3253,20 @@ private crearBarraSuperior() {
                     this.maskFilter2 = undefined;
                 }
 
+                if (this.maskFilter3) {
+                    if (this.tempstorage3) {
+                        if (this.tempstorage3.shadow) {
+                            if (this.tempstorage3.shadow.filters) {
+                                this.tempstorage3.shadow.filters.external.remove(
+                                    this.maskFilter3
+                                );
+                            }
+                        }
+                    }
+                    this.maskFilter3 = undefined;
+                }
+
+
                 this.tempstorage3 = undefined;
                 this.playerMoving = false;
                 this.holdBufferOpen = false;
@@ -3297,6 +3423,18 @@ private crearBarraSuperior() {
             frameWidth: 16,
             frameHeight: 28,
         });
+        this.load.spritesheet("printershadow", "assets/printershadow.png", {
+            frameWidth: 36,
+            frameHeight: 56,
+        });
+        this.load.spritesheet("boxshadow", "assets/crateshadow.png", {
+            frameWidth: 36,
+            frameHeight: 56,
+        });
+        this.load.spritesheet("sewingshadow", "assets/sewingshadow.png", {
+            frameWidth: 36,
+            frameHeight: 56,
+        });
         cargarPortales(this);
         this.load.spritesheet("laserBody", "assets/laser.body.spritesheet.png", {
             frameWidth: 16,
@@ -3324,7 +3462,7 @@ private crearBarraSuperior() {
         });
         this.load.spritesheet("door", "assets/door.anim1.png", {
             frameWidth: 16,
-            frameHeight: 43,
+            frameHeight: 32,
         });
         if (this.modoTest === false && this.nivelId === "") {
             this.load.text(
@@ -3365,6 +3503,7 @@ async create() {
         this.playerTween = undefined;
         this.pushTweens = [];
         this.portalTweens = [];
+        this.shadowTweens = [];
         this.playerPortalMask = undefined;
         this.maskFilter = undefined;
         this.maskFilter2 = undefined;
@@ -4000,7 +4139,8 @@ async create() {
                             x: x,
                             y: y,
                             pushable: false,
-                            sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 3).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
+                            sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 3).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
+                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "boxshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                             });
                             break;
                         }
@@ -4010,7 +4150,8 @@ async create() {
                             x: x,
                             y: y,
                             pushable: false,
-                            sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 1).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
+                            sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 1).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
+                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "boxshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                             });
                             break;
                         }
@@ -4020,7 +4161,8 @@ async create() {
                             x: x,
                             y: y,
                             pushable: false,
-                            sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 1).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
+                            sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 1).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
+                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "boxshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                             });
                             break;
                         }
@@ -4030,7 +4172,7 @@ async create() {
                         x: x,
                         y: y,
                         pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 16).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 16).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(1.1)
                         });
                         break;
                     case "2":
@@ -4039,7 +4181,7 @@ async create() {
                         x: x,
                         y: y,
                         pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 17).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 17).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(1.1)
                         });
                         break;
                     case "3":
@@ -4048,7 +4190,7 @@ async create() {
                         x: x,
                         y: y,
                         pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 18).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 18).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(1.1)
                         });
                         break;
                     case "4":
@@ -4057,7 +4199,7 @@ async create() {
                         x: x,
                         y: y,
                         pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 19).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 19).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(1.1)
                         });
                         break;
                     case "5":
@@ -4097,7 +4239,13 @@ async create() {
                         });
                         break;
                     case "0": 
-                        this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 15).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-1);
+                        this.entities.push ({
+                        type: "wall",
+                        x: x,
+                        y: y,
+                        pushable: false,
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 15).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        });
                         break;
                     case "X":
                         this.entities.push ({
@@ -4142,7 +4290,8 @@ async create() {
                         y: y,
                         dir: 0,
                         pushable: true,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 0).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
+                        shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "boxshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                         });
                         break;
                     case "q":
@@ -4152,7 +4301,8 @@ async create() {
                         y: y,
                         dir: 0,
                         pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 9).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 9).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
+                        shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "printershadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                         });
                         break;
                     case "w":
@@ -4202,7 +4352,8 @@ async create() {
                         y: y,
                         dir: 0,
                         pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 2).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 2).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
+                        shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "boxshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                         });
                         break;
                     case "c":
@@ -4212,7 +4363,8 @@ async create() {
                         y: y,
                         dir: 0,
                         pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 4).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 4).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
+                        shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "sewingshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                         });
                         break;
                     case "v":
@@ -4596,7 +4748,7 @@ async create() {
             for (let x = 0; x<directionRows[y].length; x++){
                 const thistile = directionRows[y][x];
                 let entity = this.getAnythingAt(x, y);
-                if (entity && thistile !== "." && (entity.portal !== undefined || entity.type === "goal")){
+                if (entity && thistile !== "." && (entity.portal !== undefined || entity.type === "goal" || entity.type === "laserEmissor")){
                     entity.group = Number(thistile);
                 }
             }
@@ -4655,6 +4807,7 @@ async create() {
         this.movimientoConPortal = false;
         this.pushTweens = [];
         this.portalTweens = [];
+        this.shadowTweens = [];
         const player = this.entities.find(entity => entity.type === "player");
         let movimientoRealizado = false;
         if (direction === "left") {
