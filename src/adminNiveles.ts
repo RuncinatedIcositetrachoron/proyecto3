@@ -324,7 +324,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
       return;
     }
     try {
-      const nivel = await crearNivel(9, 15);
+      const nivel = await crearNivel(11, 17);
       cerrar();
       escena.scene.start("editor", { nivelId: nivel.id });
     } catch (error: any) {

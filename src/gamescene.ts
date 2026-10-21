@@ -2313,17 +2313,6 @@ private crearBarraSuperior() {
     //FUNCIONES GATE & MOVIMIENTO//
     ///////////////////////////////
 
-    private winConditionsMet(): boolean {
-        const goals = this.entities.filter(entity => entity.type === "goal");
-        for (const goal of goals) {
-            const box = this.entities.find(entity => entity.pushable ===true && entity.x === goal.x && entity.y === goal.y);
-            if (!box) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private flagCheck() {
         const flag = this.entities.find(entity => entity.secret === "flag");
         if (!flag) {
@@ -2433,6 +2422,7 @@ private crearBarraSuperior() {
             }
             this.movimientoEmpujo = true;
             let portalHandled = false;
+            let paradox: boolean = false;
             if (this.getPortalAt(newEntityX, newEntityY, dir)) {
                 const entry = this.getPortalAt(newEntityX, newEntityY);
                 if (!entry){
@@ -2446,6 +2436,8 @@ private crearBarraSuperior() {
                 }
                 this.movimientoConPortal = true;
                 if (exit === entity) {
+                    this.flashbang();
+                    paradox = true;
                     entry.x = 1000; entry.y = 0;
                     entry.sprite.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier);
                     if (entry.sprite2) entry.sprite2.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier);
@@ -2525,7 +2517,7 @@ private crearBarraSuperior() {
                 }
                 }
             }
-            if (!portalHandled) {
+            if (!portalHandled && !paradox) {
                 const otherEntity = this.getEntityAt(newEntityX, newEntityY);
 
                 if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity && this.isPortalActive(entity)) {
@@ -2538,6 +2530,8 @@ private crearBarraSuperior() {
 
                     this.movimientoConPortal = true;
                     if (exit === otherEntity) {
+                        paradox = true;
+                        this.flashbang();
                         entry.x = 1000;
                         entry.y = 0;
                         entry.sprite.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier);
@@ -2640,15 +2634,17 @@ private crearBarraSuperior() {
                                 return false;
                             }
                         }
-                        const portalStartX = entry.x;
-                        const portalStartY = entry.y;
+                        if (!paradox) {
+                            const portalStartX = entry.x;
+                            const portalStartY = entry.y;
 
-                        entry.x = newEntityX;
-                        entry.y = newEntityY;
+                            entry.x = newEntityX;
+                            entry.y = newEntityY;
 
-                        this.animatePushable(entry);
+                            this.animatePushable(entry);
 
-                        this.animateEat(portalStartX, portalStartY, entry.portal, dx, dy);
+                            this.animateEat(portalStartX, portalStartY, entry.portal, dx, dy);
+                        }
                     }
                 } else {
                     if (this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) {
@@ -3393,6 +3389,20 @@ private crearBarraSuperior() {
         });
     }
 
+    private flashbang() {
+        const flash = this.add.image(this.scale.width/2, this.scale.height/2, "dario");
+        flash.setDepth(80000000).setScale(this.scale.height/flash.height).setOrigin(0.5,0.5);
+        this.tweens.add({
+            targets: flash,
+            alpha: 0,
+            duration: this.lindseyspeed * 5,
+            ease: "Linear",
+            onComplete: () => {
+                flash.destroy();
+            }
+        });
+    }
+
     constructor() {
         super("game");
     }
@@ -3442,6 +3452,7 @@ private crearBarraSuperior() {
             frameWidth: 36,
             frameHeight: 56,
         });
+        this.load.image("dario", "assets/dariojumpscare.jpg");
         cargarPortales(this);
         this.load.spritesheet("laserBody", "assets/laser.body.spritesheet.png", {
             frameWidth: 16,
