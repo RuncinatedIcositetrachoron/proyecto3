@@ -104,7 +104,7 @@ export class GameScene extends Phaser.Scene {
         // 1. WALKING:
         {
             nombre: "paso",
-            archivo: "lindsey_sfx/01_caminar.ogg",
+            archivo: "lindsey_sfx/step01.wav",
             volumen: 0.4,
             espera: 70,
             ultimo: -1000
@@ -1407,16 +1407,16 @@ private crearBarraSuperior() {
     }
 
     private addLaserCap(laser: LaserVisual) {
-        const body = laser.sprite;       
+        const body = laser.sprite;
         let frame = 0;
         let origina = 0;
         let originb = 0;
 
         switch (laser.outgoingDir) {
-            case 0: frame = 1.5*Math.PI; originb = 0.751; break;
-            case 1: frame = 0; origina = 0.8; originb = 0.8; break;
-            case 2: frame = 0.5*Math.PI; origina = 0.8; originb = 0.178; break;
-            case 3: frame = Math.PI; originb = 0.178; break;
+            case 0: frame = 1.5*Math.PI; originb = 1; break;
+            case 1: frame = 0; origina = 1; originb = 1; break;
+            case 2: frame = 0.5*Math.PI; origina = 1; break;
+            case 3: frame = Math.PI; break;
         }
         const cap = this.add.sprite(body.x, body.y, "laserheads", 1).setRotation(frame);
 
@@ -1456,18 +1456,21 @@ private crearBarraSuperior() {
 
     private addLaserTail(laser: LaserVisual) {
         const body = laser.sprite;
-        let frame = 4;
+        let frame = 0;
+        let origina = 0;
+        let originb = 0;
         switch (laser.incomingDir) {
-            case 0: frame = 3; break;
-            case 1: frame = 0; break;
-            case 2: frame = 2; break;
-            case 3: frame = 1; break;
+            case 0: frame = 1.5*Math.PI; originb = 1; break;
+            case 1: frame = 0; origina = 1; originb = 1; break;
+            case 2: frame = 0.5*Math.PI; origina = 1; break;
+            case 3: frame = Math.PI; break;
         }
-        const tail = this.add.sprite(body.x, body.y, "lasertails", frame);
+        const tail = this.add.sprite(body.x, body.y, "lasertails", 1).setRotation(frame);
 
-        tail.setOrigin(1, 1);
+        tail.setOrigin(origina, originb);
         tail.setScale(this.pixelmultiplier);
         tail.setDepth(body.depth);
+        this.playLaserAnimation(tail, "lasertails", laser.outgoingPhase);
 
         const cut = 4 * this.pixelmultiplier;
 
@@ -2486,7 +2489,7 @@ private crearBarraSuperior() {
                 }
                 
                 entity.sprite.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier);
-                entity.shadow.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + entity.y * 16*this.pixelmultiplier - this.tilesize);
+                if (entity.shadow) entity.shadow.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + entity.y * 16*this.pixelmultiplier - this.tilesize);
                 this.actualizarPortal(entity, true, false);
 
                 let done = false;
@@ -2503,7 +2506,7 @@ private crearBarraSuperior() {
                     entity.dir = savedDir;
                     entity.portal = savedPortal;
                     entity.sprite.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier, this.offsetY + entity.y * 16*this.pixelmultiplier).setDepth(2*entity.y);
-                    entity.shadow.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + entity.y * 16*this.pixelmultiplier - this.tilesize);
+                    if (entity.shadow) entity.shadow.setPosition(this.offsetX + entity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + entity.y * 16*this.pixelmultiplier - this.tilesize);
                     this.actualizarPortal(entity);
 
                     if (this.tempstorage2a) {
@@ -2604,7 +2607,7 @@ private crearBarraSuperior() {
                             }
 
                             otherEntity.sprite.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y);
-                            otherEntity.shadow.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + otherEntity.y * 16*this.pixelmultiplier - this.tilesize);
+                            if (otherEntity.shadow) otherEntity.shadow.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + otherEntity.y * 16*this.pixelmultiplier - this.tilesize);
 
                             this.actualizarPortal(otherEntity);
 
@@ -2707,7 +2710,7 @@ private crearBarraSuperior() {
             this.tempstorage.y = exit.y;
             this.tempstorage.dir = exit.portal;
             this.tempstorage.sprite.setPosition(this.offsetX + this.tempstorage.x * 16*this.pixelmultiplier, this.offsetY + this.tempstorage.y * 16*this.pixelmultiplier);
-            this.tempstorage.shadow.setPosition(this.offsetX + this.tempstorage.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + this.tempstorage.y * 16*this.pixelmultiplier - this.tilesize);
+            if (this.tempstorage.shadow) this.tempstorage.shadow.setPosition(this.offsetX + this.tempstorage.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + this.tempstorage.y * 16*this.pixelmultiplier - this.tilesize);
             this.tempstorage.sprite.setDepth(2*this.tempstorage.y)
             switch(exit.portal) {
                 case 0: return this.updatePosition2(0, -1, 2, entry);
@@ -2769,7 +2772,6 @@ private crearBarraSuperior() {
     private animatePushable(entity: Entity, saliendoPortal: boolean = false) {
         const sprites: Phaser.GameObjects.Sprite[] = [];
         let speed = this.lindseyspeed;
-        if (this.pushing === true) speed = this.lindseyspeed * 1.3;
 
         sprites.push(entity.sprite);
         if (entity.sprite2) {
@@ -2885,7 +2887,6 @@ private crearBarraSuperior() {
         let maskX = this.offsetX;
         let maskY = this.offsetY;
         let speed = this.lindseyspeed;
-        if (this.pushing === true) speed = this.lindseyspeed * 1.3;
         switch(portalDir) {
             case 0: maskH = portalY*this.tilesize - 23*this.pixelmultiplier; break;
             case 1: maskX = portalX*this.tilesize + this.offsetX; break;
@@ -2981,7 +2982,6 @@ private crearBarraSuperior() {
         let maskX = this.offsetX;
         let maskY = this.offsetY;
         let speed = this.lindseyspeed;
-        if (this.pushing === true) speed = this.lindseyspeed * 1.3;
         
         switch(portalDir) {
             case 0: maskH = portalY*this.tilesize - 23*this.pixelmultiplier; break;
@@ -3112,7 +3112,6 @@ private crearBarraSuperior() {
     private animatePortalEntry(startX: number, startY: number, portalX: number, portalY: number, portalDir: number | undefined, facing: number | undefined) {
         const animation = this.getLindseyAnimation(facing);
         let speed = this.lindseyspeed;
-        if (this.pushing === true) speed = this.lindseyspeed * 1.3;
 
         const copy = this.add.sprite(this.offsetX + startX * 16*this.pixelmultiplier, this.offsetY + startY * 16*this.pixelmultiplier, "lindsey", 0).setOrigin(1, 1.04).setScale(this.pixelmultiplier).setDepth(2 * startY + 1.1);
         copy.play(animation);
@@ -3181,7 +3180,6 @@ private crearBarraSuperior() {
     private animatePlayer(player: Entity, facing: number | undefined) {
         const animation = this.getLindseyAnimation(facing);
         let speed = this.lindseyspeed;
-        if (this.pushing === true) speed = this.lindseyspeed * 1.3;
 
         this.playerMoving = true;
         this.holdBufferOpen = false;
@@ -3431,6 +3429,10 @@ private crearBarraSuperior() {
             frameWidth: 36,
             frameHeight: 56,
         });
+        this.load.spritesheet("wallshadow", "assets/wallshadow.png", {
+            frameWidth: 20,
+            frameHeight: 24,
+        });
         this.load.spritesheet("sewingshadow", "assets/sewingshadow.png", {
             frameWidth: 36,
             frameHeight: 56,
@@ -3440,13 +3442,13 @@ private crearBarraSuperior() {
             frameWidth: 16,
             frameHeight: 16,
         });
-        this.load.spritesheet("lasertails", "assets/laser.tail.spritesheet.png", {
+        this.load.spritesheet("lasertails", "assets/laser.tail.sprsheet.png", {
             frameWidth: 16,
             frameHeight: 16,
         });
-        this.load.spritesheet("laserheads", "assets/laser.head.spritesheet.png", {
-            frameWidth: 20,
-            frameHeight: 28,
+        this.load.spritesheet("laserheads", "assets/laser.head.anim.png", {
+            frameWidth: 16,
+            frameHeight: 16,
         });
         this.load.spritesheet("laserTurn", "assets/laser.turn.spritesheet.png", {
             frameWidth: 16,
@@ -3989,14 +3991,29 @@ async create() {
                 frames: [
                     { key: "laserheads", frame: 0 },
                     { key: "laserheads", frame: 1 },
-                    { key: "laserheads", frame: 0 },
-                    { key: "laserheads", frame: 1 },
-                    { key: "laserheads", frame: 0 },
-                    { key: "laserheads", frame: 1 },
-                    { key: "laserheads", frame: 0 },
-                    { key: "laserheads", frame: 1 }
+                    { key: "laserheads", frame: 2 },
+                    { key: "laserheads", frame: 3 },
+                    { key: "laserheads", frame: 4 },
+                    { key: "laserheads", frame: 5 },
+                    { key: "laserheads", frame: 6 },
+                    { key: "laserheads", frame: 7 }
                 ],
-                frameRate: this.animationspeed*1.2,
+                frameRate: this.animationspeed*1.5,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lasertail",
+                frames: [
+                    { key: "lasertails", frame: 0 },
+                    { key: "lasertails", frame: 1 },
+                    { key: "lasertails", frame: 2 },
+                    { key: "lasertails", frame: 3 },
+                    { key: "lasertails", frame: 4 },
+                    { key: "lasertails", frame: 5 },
+                    { key: "lasertails", frame: 6 },
+                    { key: "lasertails", frame: 7 }
+                ],
+                frameRate: this.animationspeed*1.5,
                 repeat: -1
             });
             this.anims.create({
@@ -4140,7 +4157,7 @@ async create() {
                             y: y,
                             pushable: false,
                             sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 3).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
-                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "boxshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
+                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "wallshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                             });
                             break;
                         }
@@ -4151,7 +4168,7 @@ async create() {
                             y: y,
                             pushable: false,
                             sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 1).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
-                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "boxshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
+                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "wallshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                             });
                             break;
                         }
@@ -4162,7 +4179,7 @@ async create() {
                             y: y,
                             pushable: false,
                             sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 1).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
-                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "boxshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
+                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "wallshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                             });
                             break;
                         }
@@ -4244,7 +4261,7 @@ async create() {
                         x: x,
                         y: y,
                         pushable: false,
-                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 15).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(-0.5)
+                        sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "tileset-fogo", 15).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(1.1)
                         });
                         break;
                     case "X":
