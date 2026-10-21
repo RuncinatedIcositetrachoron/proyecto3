@@ -1,4 +1,6 @@
+
 import Phaser from "phaser";
+import { spanish } from "./idioma";
 import { crearBoton } from "./niveles";
 import { leerNivelesOriginalesBackend, leerProgresoOriginalBackend } from "./api";
 import type { NivelBackend } from "./api";
@@ -6,6 +8,17 @@ import { TransitionScene } from "./transitionScene";
 import { demo, leerProgresoInvitado } from "./datosDemo";
 
 export class LevelselectScene extends Phaser.Scene {
+  textoOpciones: string[][] = [
+    ["Loading levels...", "Cargando niveles..."],
+    ["Could not load official levels.", "No se pudieron cargar los niveles oficiales."],
+    ["Could not load progress.", "No se pudo cargar el progreso."],
+    ["LEVEL SELECT", "SELECCIÓN DE NIVELES"],
+    ["Back", "Volver"],
+    ["No official levels available yet.", "Todavía no hay niveles oficiales disponibles."],
+    ["Previous", "Anterior"],
+    ["Next", "Siguiente"],
+    [" levels completed", " niveles completados"]
+  ];
   totalNiveles = 0;
   nivelesOficiales: NivelBackend[] = [];
   numeroCarga = 0;
@@ -47,7 +60,7 @@ export class LevelselectScene extends Phaser.Scene {
 
     this.nivelesOficiales = [];
     this.totalNiveles = 0;
-    this.mensajeNiveles = "Loading levels...";
+    this.mensajeNiveles = this.textoOpciones[0][spanish];
     this.dibujar();
 
     let oficiales: NivelBackend[];
@@ -64,7 +77,7 @@ export class LevelselectScene extends Phaser.Scene {
       }
 
       console.error("Could not load official levels:", error);
-      this.mensajeNiveles = "Could not load official levels.";
+      this.mensajeNiveles = this.textoOpciones[1][spanish];
       this.dibujar();
       return;
     }
@@ -106,7 +119,7 @@ export class LevelselectScene extends Phaser.Scene {
         }
 
         console.error("Could not load official progress:", error);
-        this.mensajeNiveles = "Could not load progress.";
+        this.mensajeNiveles = this.textoOpciones[2][spanish];
       }
     }
 
@@ -146,7 +159,8 @@ export class LevelselectScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor("#222034");
 
-    const titulo = this.add.text(400, 25, "LEVEL SELECT", {
+    const titulo = this.add.text(400, 25, this.textoOpciones[3][spanish], {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "26px",
       color: "#cbdbfc"
@@ -160,7 +174,7 @@ export class LevelselectScene extends Phaser.Scene {
       100,
       centroTitulo,
       120,
-      "Back",
+      this.textoOpciones[4][spanish],
       () => {
         const transition = this.scene.get("transition") as TransitionScene;
 
@@ -176,10 +190,11 @@ export class LevelselectScene extends Phaser.Scene {
       let mensaje = this.mensajeNiveles;
 
       if (mensaje === "") {
-        mensaje = "No official levels available yet.";
+        mensaje = this.textoOpciones[5][spanish];
       }
 
       this.add.text(400, 300, mensaje, {
+        padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "20px",
         color: "#cbdbfc",
@@ -192,6 +207,7 @@ export class LevelselectScene extends Phaser.Scene {
 
     if (this.mensajeNiveles !== "") {
       this.add.text(400, 72, this.mensajeNiveles, {
+        padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "14px",
         color: "#ffd166",
@@ -225,6 +241,7 @@ export class LevelselectScene extends Phaser.Scene {
       (filasUsadas - 1) * this.separacion;
 
     const progreso = this.add.text(400, 0, this.textoProgreso(), {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "14px",
       color: "#a5b4ce"
@@ -380,6 +397,7 @@ export class LevelselectScene extends Phaser.Scene {
     fondo.setStrokeStyle(4, colorBorde);
 
     this.add.text(x, y, numeroNivel.toString(), {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "22px",
       color: colorTexto
@@ -409,7 +427,7 @@ export class LevelselectScene extends Phaser.Scene {
       280,
       y,
       150,
-      "Previous",
+      this.textoOpciones[6][spanish],
       () => {
         if (this.paginaActual <= 0) {
           return;
@@ -427,6 +445,7 @@ export class LevelselectScene extends Phaser.Scene {
       y,
       (this.paginaActual + 1) + " / " + paginas,
       {
+        padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "16px",
         color: "#b39ddb"
@@ -437,7 +456,7 @@ export class LevelselectScene extends Phaser.Scene {
       520,
       y,
       150,
-      "Next",
+      this.textoOpciones[7][spanish],
       () => {
         if (this.paginaActual >= paginas - 1) {
           return;
@@ -477,7 +496,7 @@ export class LevelselectScene extends Phaser.Scene {
       this.nivelesCompletados +
       " / " +
       this.totalNiveles +
-      " levels completed"
+      this.textoOpciones[8][spanish]
     );
   }
 
@@ -500,7 +519,19 @@ export class LevelselectScene extends Phaser.Scene {
       return false;
     }
 
-    return this.progresoOficial[nivel.id] === true;
+    let indice = nivel.id;
+    const usuario = demo.usuarioActual;
+
+    if (
+      usuario !== null &&
+      usuario !== undefined &&
+      usuario.id !== 0 &&
+      this.progresoOficial.length === this.totalNiveles
+    ) {
+      indice = numeroNivel - 1;
+    }
+
+    return this.progresoOficial[indice] === true;
   }
 
   cantidadCompletados() {
@@ -568,7 +599,19 @@ export class LevelselectScene extends Phaser.Scene {
   marcarNivelCompletado(id: number) {
     for (let i = 0; i < this.nivelesOficiales.length; i++) {
       if (this.nivelesOficiales[i].id === id) {
-        this.progresoOficial[id] = true;
+        let indice = id;
+        const usuario = demo.usuarioActual;
+
+        if (
+          usuario !== null &&
+          usuario !== undefined &&
+          usuario.id !== 0 &&
+          this.progresoOficial.length === this.totalNiveles
+        ) {
+          indice = i;
+        }
+
+        this.progresoOficial[indice] = true;
         this.nivelesCompletados = this.cantidadCompletados();
         return;
       }

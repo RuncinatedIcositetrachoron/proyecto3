@@ -1,5 +1,6 @@
 
 import Phaser from "phaser";
+import { spanish } from "./idioma";
 import { InterfazDemo, VERDE, ROJO, NORMAL } from "./interfazDemo";
 import { demo } from "./datosDemo";
 import { obtenerNiveles, crearBoton, cargarNivelesServidor } from "./niveles";
@@ -15,6 +16,56 @@ import { apiAEditor } from "./parserApi";
 import { TransitionScene } from "./transitionScene";
 
 export class CommunityDemoScene extends InterfazDemo {
+  textoOpciones: string[][] = [
+    ["Could not load levels", "No se pudieron cargar los niveles"],
+    ["Name Unavailable", "Nombre no disponible"],
+    ["Another published level already has that name.\n\nChoose a different name for your level and try again.", "Ya existe otro nivel publicado con ese nombre.\n\nElegí otro nombre para tu nivel e intentá de nuevo."],
+    ["Could not publish the level", "No se pudo publicar el nivel"],
+    ["The published level ID has changed.", "Cambió el ID del nivel publicado."],
+    ["Could not update the published level", "No se pudo actualizar el nivel publicado"],
+    ["Could not hide the level", "No se pudo ocultar el nivel"],
+    ["Downloads: unavailable", "Descargas: no disponibles"],
+    [" downloads", " descargas"],
+    ["Could not download the level", "No se pudo descargar el nivel"],
+    ["Could not refresh levels", "No se pudieron actualizar los niveles"],
+    ["COMMUNITY LEVELS", "NIVELES DE LA COMUNIDAD"],
+    ["Back", "Volver"],
+    ["Community", "Comunidad"],
+    ["Created", "Creados"],
+    ["Published", "Publicados"],
+    ["Downloaded", "Descargados"],
+    ["Search by ID, author or name", "Buscar por ID, autor o nombre"],
+    ["Open Editor", "Abrir editor"],
+    ["No created levels.", "No hay niveles creados."],
+    ["Test", "Probar"],
+    ["Publish", "Publicar"],
+    ["Publish Level", "Publicar nivel"],
+    ["\"\n\nIt will appear in Community and your published levels.", "\"\n\nAparecerá en Comunidad y en tus niveles publicados."],
+    ["Update", "Actualizar"],
+    ["Update Published Level", "Actualizar nivel publicado"],
+    ["\"\n\nThe new version of the level will be published.", "\"\n\nSe publicará la nueva versión del nivel."],
+    ["Published", "Publicado"],
+    ["No published levels.", "No hay niveles publicados."],
+    ["Download", "Descargar"],
+    ["Downloaded", "Descargado"],
+    ["You have no published levels.", "No tenés niveles publicados."],
+    ["Version ", "Versión "],
+    ["Hide", "Ocultar"],
+    ["Hide Level", "Ocultar nivel"],
+    ["\"\n\nIt will no longer appear in Community. Downloaded copies will be kept.", "\"\n\nDejará de aparecer en Comunidad. Las copias descargadas se conservan."],
+    ["You have no downloaded levels.", "No tenés niveles descargados."],
+    ["Not completed", "Sin completar"],
+    ["Completed", "Completado"],
+    ["Play", "Jugar"],
+    ["Could not update the download", "No se pudo actualizar la descarga"],
+    ["Uninstall", "Desinstalar"],
+    ["Uninstall Level", "Desinstalar nivel"],
+    ["\"\n\nIt will be removed from Downloaded. You can download it again.", "\"\n\nSe quitará de Descargados. Podés volver a descargarlo."],
+    ["Could not uninstall the download", "No se pudo desinstalar la descarga"],
+    ["Previous", "Anterior"],
+    ["Page ", "Página "],
+    ["Next", "Siguiente"]
+  ];
   pestana = "Community";
   busqueda = "";
   pagina = 0;
@@ -107,7 +158,7 @@ export class CommunityDemoScene extends InterfazDemo {
 
   async operar(
     accion: () => Promise<void>,
-    titulo = "Could not load levels"
+    titulo = this.textoOpciones[0][spanish]
   ): Promise<boolean> {
     if (this.accionEnCurso) return false;
     this.accionEnCurso = true;
@@ -121,8 +172,8 @@ export class CommunityDemoScene extends InterfazDemo {
             mensaje.indexOf("Another published level already has that name.") !== -1) {
           mostrarAviso(
             this,
-            "Name Unavailable",
-            "Another published level already has that name.\n\nChoose a different name for your level and try again."
+            this.textoOpciones[1][spanish],
+            this.textoOpciones[2][spanish]
           );
         } else {
           window.alert(titulo + "\n\n" + mensaje);
@@ -142,7 +193,7 @@ export class CommunityDemoScene extends InterfazDemo {
       if (demo.usuarioActual !== usuario) return;
       await this.cargarPublicaciones();
       if (this.scene.isActive()) this.cambiarPestana("Publicados");
-    }, "Could not publish the level");
+    }, this.textoOpciones[3][spanish]);
   }
 
   async actualizarPublicacion(nivel: any, publicacion: any) {
@@ -150,10 +201,10 @@ export class CommunityDemoScene extends InterfazDemo {
     if (!usuario || usuario.id === 0 || !publicacion || publicacion.autor !== usuario.nombre) return;
     await this.operar(async () => {
       const actual = await leerNivelPublicadoBackend(publicacion.nombre);
-      if (actual.id !== publicacion.id) throw new Error("The published level ID has changed.");
+      if (actual.id !== publicacion.id) throw new Error(this.textoOpciones[4][spanish]);
       await actualizarPublicacionBackend(usuario.nombre, nivel, actual);
       if (demo.usuarioActual === usuario) await this.cargarPublicaciones();
-    }, "Could not update the published level");
+    }, this.textoOpciones[5][spanish]);
   }
 
   async despublicarNivel(nivel: any) {
@@ -164,12 +215,12 @@ export class CommunityDemoScene extends InterfazDemo {
       if (demo.usuarioActual !== usuario) return;
       await this.cargarPublicaciones();
       if (this.scene.isActive()) this.cambiarPestana("Creados");
-    }, "Could not hide the level");
+    }, this.textoOpciones[6][spanish]);
   }
 
   textoDescargas(cantidad: number): string {
-    if (cantidad < 0) return "Downloads: unavailable";
-    return cantidad + " downloads";
+    if (cantidad < 0) return this.textoOpciones[7][spanish];
+    return cantidad + this.textoOpciones[8][spanish];
   }
 
   estaDescargado(id: number): boolean {
@@ -225,7 +276,7 @@ export class CommunityDemoScene extends InterfazDemo {
       this.busqueda = "";
       this.pagina = 0;
       this.dibujar();
-    }, "Could not download the level");
+    }, this.textoOpciones[9][spanish]);
   }
 
   boton(x: number, y: number, ancho: number, titulo: string, accion: () => void,
@@ -259,7 +310,7 @@ export class CommunityDemoScene extends InterfazDemo {
     }
     const alDespertar = () => {
       this.dibujarFilas();
-      this.operar(async () => { await this.cargarPublicaciones(); }, "Could not refresh levels");
+      this.operar(async () => { await this.cargarPublicaciones(); }, this.textoOpciones[10][spanish]);
     };
     this.events.on(Phaser.Scenes.Events.WAKE, alDespertar);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -269,7 +320,7 @@ export class CommunityDemoScene extends InterfazDemo {
     this.operar(async () => {
       await Promise.all([cargarNivelesServidor(), this.cargarPublicaciones()]);
       if (this.scene.isActive()) this.dibujarFilas();
-    }, "Could not load levels");
+    }, this.textoOpciones[0][spanish]);
   }
 
   crearTab(x: number, y: number, ancho: number, alto: number, texto: string,
@@ -293,7 +344,7 @@ export class CommunityDemoScene extends InterfazDemo {
     };
     dibujar(color);
     const zona = this.add.zone(x, y, ancho, alto).setInteractive({ useHandCursor: true });
-    this.add.text(x, y, texto, { fontFamily: "Fuente", fontSize: "16px", color: "#222034" }).setOrigin(0.5);
+    this.add.text(x, y, texto, { padding: { top: 6, bottom: 6 }, fontFamily: "Fuente", fontSize: "16px", color: "#222034" }).setOrigin(0.5);
     zona.on("pointerover", () => { if (!activa) dibujar(colorHover); });
     zona.on("pointerout", () => { if (!activa) dibujar(color); });
     zona.on("pointerdown", () => { if (!activa) accion(); });
@@ -307,9 +358,9 @@ export class CommunityDemoScene extends InterfazDemo {
     this.limpiar();
     this.filas = [];
     if (!demo.usuarioActual) return;
-    const titulo = this.texto(400, 25, "COMMUNITY LEVELS", 26).setOrigin(0.5, 0);
+    const titulo = this.texto(400, 25, this.textoOpciones[11][spanish], 26).setOrigin(0.5, 0);
     const centroTitulo = titulo.y + titulo.displayHeight / 2;
-    this.boton(100, centroTitulo, 120, "Back", () => {
+    this.boton(100, centroTitulo, 120, this.textoOpciones[12][spanish], () => {
       const transition = this.scene.get("transition") as TransitionScene;
       transition.changeScene(
         this.sys.settings.key,
@@ -318,10 +369,10 @@ export class CommunityDemoScene extends InterfazDemo {
     }, 0xb39ddb);
 
     const pestanas = [
-      { nombre: "Community", texto: "Community", color: 0x95add6, colorHover: 0xaec1e1, colorInactivo: 0x6f87b0 },
-      { nombre: "Creados", texto: "Created", color: 0x9ccc65, colorHover: 0xb0d782, colorInactivo: 0x73994b },
-      { nombre: "Publicados", texto: "Published", color: 0xe6c56a, colorHover: 0xf0d58b, colorInactivo: 0xad934d },
-      { nombre: "Descargados", texto: "Downloaded", color: 0xb39ddb, colorHover: 0xc7b5e7, colorInactivo: 0x8573a6 }
+      { nombre: "Community", texto: this.textoOpciones[13][spanish], color: 0x95add6, colorHover: 0xaec1e1, colorInactivo: 0x6f87b0 },
+      { nombre: "Creados", texto: this.textoOpciones[14][spanish], color: 0x9ccc65, colorHover: 0xb0d782, colorInactivo: 0x73994b },
+      { nombre: "Publicados", texto: this.textoOpciones[15][spanish], color: 0xe6c56a, colorHover: 0xf0d58b, colorInactivo: 0xad934d },
+      { nombre: "Descargados", texto: this.textoOpciones[16][spanish], color: 0xb39ddb, colorHover: 0xc7b5e7, colorInactivo: 0x8573a6 }
     ];
     let colorActual = 0x95add6;
     for (let i = 0; i < pestanas.length; i++) {
@@ -335,7 +386,7 @@ export class CommunityDemoScene extends InterfazDemo {
         activa, () => this.cambiarPestana(p.nombre));
     }
     this.add.rectangle(400, 345, 720, 430, 0x171a2e).setStrokeStyle(4, colorActual);
-    const campo = crearCampoTexto(this, 60, 170, 680, "Search by ID, author or name", MAX_BUSQUEDA, (valor) => {
+    const campo = crearCampoTexto(this, 60, 170, 680, this.textoOpciones[17][spanish], MAX_BUSQUEDA, (valor) => {
       this.busqueda = valor;
       this.pagina = 0;
       this.dibujarFilas();
@@ -375,7 +426,7 @@ export class CommunityDemoScene extends InterfazDemo {
     const fondo = this.add.rectangle(400, 249, this.anchoFilaCreada - 2,
       this.altoFilaCreada - 2, 0x171a2e, 0);
     fondo.setStrokeStyle(2, 0x6f87b0).setInteractive({ useHandCursor: true });
-    const texto = this.texto(400, 249, "Open Editor", 20).setOrigin(0.5);
+    const texto = this.texto(400, 249, this.textoOpciones[18][spanish], 20).setOrigin(0.5);
     texto.setColor("#cbdbfc");
     fondo.on("pointerover", () => {
       fondo.setFillStyle(0x95add6, 0.15).setStrokeStyle(2, 0x95add6);
@@ -415,7 +466,7 @@ export class CommunityDemoScene extends InterfazDemo {
       primeraY = 313;
     }
     const visibles = niveles.slice(inicio, inicio + cantidad);
-    if (visibles.length === 0) this.texto(400, 377, "No created levels.").setOrigin(0.5);
+    if (visibles.length === 0) this.texto(400, 377, this.textoOpciones[19][spanish]).setOrigin(0.5);
     for (let i = 0; i < visibles.length; i++) {
       const nivel = visibles[i];
       const y = primeraY + i * 64;
@@ -426,7 +477,7 @@ export class CommunityDemoScene extends InterfazDemo {
         visible = visible.substring(0, visible.length - 1);
         nombre.setText(visible + "...");
       }
-      this.boton(475, y, 150, "Test", () => {
+      this.boton(475, y, 150, this.textoOpciones[20][spanish], () => {
         const transition = this.scene.get("transition") as TransitionScene;
         transition.changeScene(
           this.sys.settings.key,
@@ -439,19 +490,19 @@ export class CommunityDemoScene extends InterfazDemo {
       }, 0xb39ddb);
       const publicacion = this.buscarPublicacionDeNivel(nivel);
       if (publicacion === null || publicacion.publicado === false) {
-        this.boton(640, y, 160, "Publish", () => {
-          mostrarConfirmacion(this, "Publish Level",
-            '"' + nivel.nombre + '"\n\nIt will appear in Community and your published levels.',
-            "Publish", VERDE, () => { this.publicarNivel(nivel); });
+        this.boton(640, y, 160, this.textoOpciones[21][spanish], () => {
+          mostrarConfirmacion(this, this.textoOpciones[22][spanish],
+            '"' + nivel.nombre + this.textoOpciones[23][spanish],
+            this.textoOpciones[21][spanish], VERDE, () => { this.publicarNivel(nivel); });
         }, VERDE);
       } else if (this.publicacionDesactualizada(nivel, publicacion)) {
-        this.boton(640, y, 160, "Update", () => {
-          mostrarConfirmacion(this, "Update Published Level",
-            '"' + nivel.nombre + '"\n\nThe new version of the level will be published.',
-            "Update", 0xe6c56a, () => { this.actualizarPublicacion(nivel, publicacion); });
+        this.boton(640, y, 160, this.textoOpciones[24][spanish], () => {
+          mostrarConfirmacion(this, this.textoOpciones[25][spanish],
+            '"' + nivel.nombre + this.textoOpciones[26][spanish],
+            this.textoOpciones[24][spanish], 0xe6c56a, () => { this.actualizarPublicacion(nivel, publicacion); });
         }, 0xe6c56a);
       } else {
-        this.boton(640, y, 160, "Published", () => {}, NORMAL, false);
+        this.boton(640, y, 160, this.textoOpciones[27][spanish], () => {}, NORMAL, false);
       }
     }
     this.paginacion(paginas);
@@ -479,7 +530,7 @@ export class CommunityDemoScene extends InterfazDemo {
     const paginas = this.calcularPaginas(filtrados.length);
     this.corregirPagina(paginas);
     const visibles = filtrados.slice(this.pagina * 3, this.pagina * 3 + 3);
-    if (visibles.length === 0) this.texto(400, 345, "No published levels.").setOrigin(0.5);
+    if (visibles.length === 0) this.texto(400, 345, this.textoOpciones[28][spanish]).setOrigin(0.5);
     for (let i = 0; i < visibles.length; i++) {
       const nivel = visibles[i];
       const y = 238 + i * 100;
@@ -488,8 +539,8 @@ export class CommunityDemoScene extends InterfazDemo {
       this.texto(80, y, "ID " + nivel.id + " - " + nivel.autor, 14).setColor("#a5b4ce");
       this.texto(80, y + 23, this.textoDescargas(nivel.descargas), 14).setColor("#a5b4ce");
       const descargado = this.estaDescargado(nivel.id);
-      let textoBoton = "Download";
-      if (descargado) textoBoton = "Downloaded";
+      let textoBoton = this.textoOpciones[29][spanish];
+      if (descargado) textoBoton = this.textoOpciones[30][spanish];
       this.boton(630, y + 7, 180, textoBoton, () => { this.descargarNivel(nivel); }, VERDE, !descargado);
     }
     this.paginacion(paginas);
@@ -507,7 +558,7 @@ export class CommunityDemoScene extends InterfazDemo {
     const paginas = this.calcularPaginas(filtrados.length);
     this.corregirPagina(paginas);
     const visibles = filtrados.slice(this.pagina * 3, this.pagina * 3 + 3);
-    if (visibles.length === 0) this.texto(400, 345, "You have no published levels.").setOrigin(0.5);
+    if (visibles.length === 0) this.texto(400, 345, this.textoOpciones[31][spanish]).setOrigin(0.5);
     for (let i = 0; i < visibles.length; i++) {
       const nivel = visibles[i];
       const y = 238 + i * 100;
@@ -519,16 +570,16 @@ export class CommunityDemoScene extends InterfazDemo {
         nombre.setText(visible + "...");
       }
       this.texto(80, y, "ID " + nivel.id, 14).setColor("#a5b4ce");
-      this.texto(80, y + 23, "Version " + nivel.version + " - " + this.textoDescargas(nivel.descargas), 14)
+      this.texto(80, y + 23, this.textoOpciones[32][spanish] + nivel.version + " - " + this.textoDescargas(nivel.descargas), 14)
         .setColor("#a5b4ce");
       const descargado = this.estaDescargado(nivel.id);
-      let textoBoton = "Download";
-      if (descargado) textoBoton = "Downloaded";
+      let textoBoton = this.textoOpciones[29][spanish];
+      if (descargado) textoBoton = this.textoOpciones[30][spanish];
       this.boton(475, y + 7, 150, textoBoton, () => { this.descargarNivel(nivel); }, VERDE, !descargado);
-      this.boton(640, y + 7, 160, "Hide", () => {
-        mostrarConfirmacion(this, "Hide Level",
-          '"' + nivel.nombre + '"\n\nIt will no longer appear in Community. Downloaded copies will be kept.',
-          "Hide", ROJO, () => { this.despublicarNivel(nivel); });
+      this.boton(640, y + 7, 160, this.textoOpciones[33][spanish], () => {
+        mostrarConfirmacion(this, this.textoOpciones[34][spanish],
+          '"' + nivel.nombre + this.textoOpciones[35][spanish],
+          this.textoOpciones[33][spanish], ROJO, () => { this.despublicarNivel(nivel); });
       }, ROJO);
     }
     this.paginacion(paginas);
@@ -551,15 +602,15 @@ export class CommunityDemoScene extends InterfazDemo {
     const paginas = this.calcularPaginas(niveles.length);
     this.corregirPagina(paginas);
     const visibles = niveles.slice(this.pagina * 3, this.pagina * 3 + 3);
-    if (visibles.length === 0) this.texto(400, 345, "You have no downloaded levels.").setOrigin(0.5);
+    if (visibles.length === 0) this.texto(400, 345, this.textoOpciones[36][spanish]).setOrigin(0.5);
     for (let i = 0; i < visibles.length; i++) {
       const nivel = visibles[i];
       const y = 238 + i * 100;
       this.add.rectangle(400, y + 7, 680, 80, 0x171a2e);
       this.texto(80, y - 26, nivel.nombre, 19);
       this.texto(80, y, "ID " + nivel.nivelId + " - " + nivel.autor, 14).setColor("#a5b4ce");
-      let estado = "Not completed";
-      if (nivel.completado) estado = "Completed";
+      let estado = this.textoOpciones[37][spanish];
+      if (nivel.completado) estado = this.textoOpciones[38][spanish];
       this.texto(80, y + 23, estado, 14).setColor("#a5b4ce");
       let original: any = null;
       for (let j = 0; j < demo.niveles.length; j++) {
@@ -570,15 +621,15 @@ export class CommunityDemoScene extends InterfazDemo {
       if (original !== null && (original.version > nivel.version || original.nombre !== nivel.nombre)) {
         hayActualizacion = true;
       }
-      let textoBoton = "Play";
+      let textoBoton = this.textoOpciones[39][spanish];
       let colorBoton = VERDE;
-      if (hayActualizacion) { textoBoton = "Update"; colorBoton = 0xe6c56a; }
+      if (hayActualizacion) { textoBoton = this.textoOpciones[24][spanish]; colorBoton = 0xe6c56a; }
       this.boton(475, y + 7, 150, textoBoton, () => {
         if (hayActualizacion && original !== null) {
           this.operar(async () => {
             await descargarNivelBackend(usuario.nombre, original.nombre);
             if (demo.usuarioActual === usuario) await this.cargarPublicaciones();
-          }, "Could not update the download");
+          }, this.textoOpciones[40][spanish]);
           return;
         }
         const transition = this.scene.get("transition") as TransitionScene;
@@ -592,14 +643,14 @@ export class CommunityDemoScene extends InterfazDemo {
           );
         this.scene.sleep();
       }, colorBoton);
-      this.boton(640, y + 7, 160, "Uninstall", () => {
-        mostrarConfirmacion(this, "Uninstall Level",
-          '"' + nivel.nombre + '"\n\nIt will be removed from Downloaded. You can download it again.',
-          "Uninstall", ROJO, () => {
+      this.boton(640, y + 7, 160, this.textoOpciones[41][spanish], () => {
+        mostrarConfirmacion(this, this.textoOpciones[42][spanish],
+          '"' + nivel.nombre + this.textoOpciones[43][spanish],
+          this.textoOpciones[41][spanish], ROJO, () => {
             this.operar(async () => {
               await eliminarNivelGuardadoBackend(usuario.nombre, nivel.nivelId);
               if (demo.usuarioActual === usuario) await this.cargarPublicaciones();
-            }, "Could not uninstall the download");
+            }, this.textoOpciones[44][spanish]);
           });
       }, ROJO);
     }
@@ -615,9 +666,9 @@ export class CommunityDemoScene extends InterfazDemo {
   }
 
   paginacion(paginas: number) {
-    this.boton(150, 520, 180, "Previous", () => { this.pagina--; this.dibujarFilas(); }, NORMAL, this.pagina > 0);
-    this.texto(400, 520, "Page " + (this.pagina + 1) + " / " + paginas, 16).setOrigin(0.5);
-    this.boton(650, 520, 180, "Next", () => { this.pagina++; this.dibujarFilas(); }, NORMAL,
+    this.boton(150, 520, 180, this.textoOpciones[45][spanish], () => { this.pagina--; this.dibujarFilas(); }, NORMAL, this.pagina > 0);
+    this.texto(400, 520, this.textoOpciones[46][spanish] + (this.pagina + 1) + " / " + paginas, 16).setOrigin(0.5);
+    this.boton(650, 520, 180, this.textoOpciones[47][spanish], () => { this.pagina++; this.dibujarFilas(); }, NORMAL,
       this.pagina < paginas - 1);
   }
 

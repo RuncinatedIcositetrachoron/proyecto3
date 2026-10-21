@@ -1,4 +1,5 @@
 import type Phaser from "phaser";
+import { spanish } from "./idioma";
 import { InterfazDemo } from "./interfazDemo";
 import { demo, guardarSesion, continuarComoInvitado } from "./datosDemo";
 import { crearCampoTexto } from "./camposTexto";
@@ -6,6 +7,36 @@ import { autenticarPerfil, registrarPerfil } from "./api";
 import { TransitionScene } from "./transitionScene";
 
 export class UsuariosDemoScene extends InterfazDemo {
+  textoOpciones: string[][] = [
+    ["Show ", "Mostrar "],
+    ["Hide ", "Ocultar "],
+    ["USERS", "USUARIOS"],
+    ["SIGN IN", "INICIAR SESIÓN"],
+    ["CREATE ACCOUNT", "CREAR CUENTA"],
+    ["CREATE AN ACCOUNT", "CREAR UNA CUENTA"],
+    ["Username", "Usuario"],
+    ["Password", "Contraseña"],
+    ["password", "contraseña"],
+    ["Confirm password", "Confirmar contraseña"],
+    ["Repeat your password", "Repetí tu contraseña"],
+    ["password confirmation", "confirmación de contraseña"],
+    ["Enter your username.", "Ingresá tu usuario."],
+    ["Enter your password.", "Ingresá tu contraseña."],
+    ["Please confirm your password.", "Confirmá tu contraseña."],
+    ["Passwords do not match.", "Las contraseñas no coinciden."],
+    ["Creating account...", "Creando cuenta..."],
+    ["Signing in...", "Iniciando sesión..."],
+    ["Could not sign in. Please try again.", "No se pudo iniciar sesión. Intentá de nuevo."],
+    ["Could not create the account. Please try again.", "No se pudo crear la cuenta. Intentá de nuevo."],
+    ["Could not connect to the server.", "No se pudo conectar con el servidor."],
+    ["That username is already taken. Choose another one.", "Ese usuario ya está en uso. Elegí otro."],
+    ["That username does not exist. Create an account first.", "Ese usuario no existe. Creá una cuenta primero."],
+    ["Incorrect password. Please try again.", "Contraseña incorrecta. Intentá de nuevo."],
+    ["Incorrect username or password.", "Usuario o contraseña incorrectos."],
+    ["Account created. ", "Cuenta creada. "],
+    [" Use the Sign In tab.", " Usá la pestaña Iniciar sesión."],
+    ["Continue as guest", "Continuar como invitado"]
+  ];
 
   registro = false;
   entrando = false;
@@ -67,6 +98,7 @@ export class UsuariosDemoScene extends InterfazDemo {
     zona.setInteractive({ useHandCursor: true });
 
     const textoTab = this.add.text(x, y, texto, {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "16px",
       color: "#222034"
@@ -109,7 +141,7 @@ export class UsuariosDemoScene extends InterfazDemo {
     boton.type = "button";
     boton.style.width = "40px";
     boton.style.height = "40px";
-    boton.style.padding = "6px";
+    boton.style.padding = "2px";
     boton.style.boxSizing = "border-box";
     boton.style.display = "flex";
     boton.style.alignItems = "center";
@@ -119,16 +151,35 @@ export class UsuariosDemoScene extends InterfazDemo {
     boton.style.border = "2px solid #6f87b0";
     boton.style.cursor = "pointer";
 
+    const icono = document.createElement("span");
+    icono.style.display = "block";
+    icono.style.width = "32px";
+    icono.style.height = "32px";
+    icono.style.backgroundImage = 'url("assets/icons.png")';
+    icono.style.backgroundSize = "96px 160px";
+    icono.style.backgroundPosition = "-64px -96px";
+    icono.style.imageRendering = "pixelated";
+    icono.style.pointerEvents = "none";
+    icono.setAttribute("aria-hidden", "true");
+    boton.appendChild(icono);
+
     const actualizarBoton = () => {
-      let accion = "Show " + etiqueta;
+      let accion = this.textoOpciones[0][spanish] + etiqueta;
 
       if (visible) {
-        accion = "Hide " + etiqueta;
+        accion = this.textoOpciones[1][spanish] + etiqueta;
       }
 
       boton.title = accion;
       boton.setAttribute("aria-label", accion);
       boton.setAttribute("aria-pressed", String(visible));
+      icono.style.opacity = "0.7";
+      icono.style.backgroundPosition = "0px -128px";
+
+      if (visible) {
+        icono.style.opacity = "1";
+        icono.style.backgroundPosition = "-64px -96px";
+      }
 
     };
 
@@ -213,11 +264,11 @@ export class UsuariosDemoScene extends InterfazDemo {
     const anchoCampo = 400;
     const anchoClave = anchoCampo - 40 - 8;
     const xIconoClave = xCampo + anchoCampo - 20;
-    const yNombre = 272;
+    const yNombre = 280;
     const yClave = yNombre + 76;
     const yConfirmacion = yClave + 76;
 
-    const titulo = this.texto(400, 70, "USERS", 30);
+    const titulo = this.texto(400, 70, this.textoOpciones[2][spanish], 30);
     titulo.setOrigin(0.5);
 
     let yLogin = 141;
@@ -235,7 +286,7 @@ export class UsuariosDemoScene extends InterfazDemo {
       yLogin,
       250,
       altoLogin,
-      "SIGN IN",
+      this.textoOpciones[3][spanish],
       colorLogin,
       AZUL_HOVER,
       !this.registro,
@@ -260,7 +311,7 @@ export class UsuariosDemoScene extends InterfazDemo {
       yRegistro,
       250,
       altoRegistro,
-      "CREATE ACCOUNT",
+      this.textoOpciones[4][spanish],
       colorRegistro,
       VERDE_HOVER,
       this.registro,
@@ -290,10 +341,10 @@ export class UsuariosDemoScene extends InterfazDemo {
       0x171a2e
     ).setStrokeStyle(4, colorActual);
 
-    let tituloFormulario = "SIGN IN";
+    let tituloFormulario = this.textoOpciones[3][spanish];
 
     if (this.registro) {
-      tituloFormulario = "CREATE AN ACCOUNT";
+      tituloFormulario = this.textoOpciones[5][spanish];
     }
 
     const textoTitulo = this.texto(400, arribaPanel + 38, tituloFormulario, 20);
@@ -305,14 +356,14 @@ export class UsuariosDemoScene extends InterfazDemo {
       textoTitulo.setColor("#95add6");
     }
 
-    this.texto(xCampo, yNombre - 40, "Username", 16);
+    const etiquetaNombre = this.texto(xCampo, yNombre - 40, this.textoOpciones[6][spanish], 16);
 
     const campoNombre = crearCampoTexto(
       this,
       xCampo,
       yNombre,
       anchoCampo,
-      "Username",
+      this.textoOpciones[6][spanish],
       40,
       () => {}
     );
@@ -322,16 +373,16 @@ export class UsuariosDemoScene extends InterfazDemo {
     nombre.autocomplete = "username";
     nombre.spellcheck = false;
     nombre.setAttribute("autocapitalize", "none");
-    nombre.setAttribute("aria-label", "Username");
+    nombre.setAttribute("aria-label", this.textoOpciones[6][spanish]);
 
-    this.texto(xCampo, yClave - 40, "Password", 16);
+    const etiquetaClave = this.texto(xCampo, yClave - 40, this.textoOpciones[7][spanish], 16);
 
     const campoClave = crearCampoTexto(
       this,
       xCampo,
       yClave,
       anchoClave,
-      "Password",
+      this.textoOpciones[7][spanish],
       40,
       () => {}
     );
@@ -342,25 +393,26 @@ export class UsuariosDemoScene extends InterfazDemo {
     clave.autocomplete = "current-password";
     clave.spellcheck = false;
     clave.setAttribute("autocapitalize", "none");
-    clave.setAttribute("aria-label", "Password");
+    clave.setAttribute("aria-label", this.textoOpciones[7][spanish]);
 
     const campos: HTMLInputElement[] = [nombre, clave];
+    const etiquetas: Phaser.GameObjects.Text[] = [etiquetaNombre, etiquetaClave];
     const botonesClave: HTMLButtonElement[] = [];
 
-    botonesClave.push(this.crearBotonClave(clave, xIconoClave, yClave, "password"));
+    botonesClave.push(this.crearBotonClave(clave, xIconoClave, yClave, this.textoOpciones[8][spanish]));
 
     let confirmacion: HTMLInputElement | undefined;
 
     if (this.registro) {
       clave.autocomplete = "new-password";
-      this.texto(xCampo, yConfirmacion - 40, "Confirm password", 16);
+      const etiquetaConfirmacion = this.texto(xCampo, yConfirmacion - 40, this.textoOpciones[9][spanish], 16);
 
       const campoConfirmacion = crearCampoTexto(
         this,
         xCampo,
         yConfirmacion,
         anchoClave,
-        "Repeat your password",
+        this.textoOpciones[10][spanish],
         40,
         () => {}
       );
@@ -371,20 +423,40 @@ export class UsuariosDemoScene extends InterfazDemo {
       confirmacion.autocomplete = "new-password";
       confirmacion.spellcheck = false;
       confirmacion.setAttribute("autocapitalize", "none");
-      confirmacion.setAttribute("aria-label", "Confirm password");
+      confirmacion.setAttribute("aria-label", this.textoOpciones[9][spanish]);
 
       campos.push(confirmacion);
+      etiquetas.push(etiquetaConfirmacion);
       botonesClave.push(this.crearBotonClave(
         confirmacion,
         xIconoClave,
         yConfirmacion,
-        "password confirmation"
+        this.textoOpciones[11][spanish]
       ));
     }
 
     for (let i = 0; i < campos.length; i++) {
       campos[i].style.height = "40px";
       campos[i].style.boxSizing = "border-box";
+
+      for (let j = 0; j < this.children.list.length; j++) {
+        const objeto = this.children.list[j];
+
+        if (objeto.type === "DOMElement") {
+          const campo = objeto as Phaser.GameObjects.DOMElement;
+
+          if (campo.node === campos[i]) {
+            campo.updateSize();
+            etiquetas[i].setPadding(0, 6, 0, 0);
+            etiquetas[i].setOrigin(0, 1);
+            etiquetas[i].setPosition(
+              campo.x - campo.originX * campo.width,
+              campo.y - campo.originY * campo.height - 6
+            );
+            break;
+          }
+        }
+      }
     }
 
     const aviso = this.texto(400, yAviso, "", 14);
@@ -403,26 +475,26 @@ export class UsuariosDemoScene extends InterfazDemo {
       aviso.setColor("#e57373");
 
       if (nombreEscrito === "") {
-        aviso.setText("Enter your username.");
+        aviso.setText(this.textoOpciones[12][spanish]);
         nombre.focus();
         return;
       }
 
       if (claveEscrita === "") {
-        aviso.setText("Enter your password.");
+        aviso.setText(this.textoOpciones[13][spanish]);
         clave.focus();
         return;
       }
 
       if (this.registro && confirmacion) {
         if (confirmacion.value === "") {
-          aviso.setText("Please confirm your password.");
+          aviso.setText(this.textoOpciones[14][spanish]);
           confirmacion.focus();
           return;
         }
 
         if (claveEscrita !== confirmacion.value) {
-          aviso.setText("Passwords do not match.");
+          aviso.setText(this.textoOpciones[15][spanish]);
           confirmacion.focus();
           return;
         }
@@ -443,12 +515,12 @@ export class UsuariosDemoScene extends InterfazDemo {
 
       try {
         if (this.registro) {
-          aviso.setText("Creating account...");
+          aviso.setText(this.textoOpciones[16][spanish]);
           await registrarPerfil(nombreEscrito, claveEscrita);
           cuentaCreada = true;
         }
 
-        aviso.setText("Signing in...");
+        aviso.setText(this.textoOpciones[17][spanish]);
 
         const perfil = await autenticarPerfil(
           nombreEscrito,
@@ -481,14 +553,14 @@ export class UsuariosDemoScene extends InterfazDemo {
           botonesClave[i].disabled = false;
         }
 
-        let mensaje = "Could not sign in. Please try again.";
+        let mensaje = this.textoOpciones[18][spanish];
 
         if (this.registro && !cuentaCreada) {
-          mensaje = "Could not create the account. Please try again.";
+          mensaje = this.textoOpciones[19][spanish];
         }
 
         if (error instanceof TypeError) {
-          mensaje = "Could not connect to the server.";
+          mensaje = this.textoOpciones[20][spanish];
         }
 
         let codigo = "";
@@ -500,7 +572,7 @@ export class UsuariosDemoScene extends InterfazDemo {
         }
 
         if (codigo.indexOf("Perfil-ya-existe") !== -1) {
-          mensaje = "That username is already taken. Choose another one.";
+          mensaje = this.textoOpciones[21][spanish];
           nombre.focus();
         }
 
@@ -511,22 +583,22 @@ export class UsuariosDemoScene extends InterfazDemo {
           codigo.indexOf("Usuario-no-encontrado") !== -1 ||
           codigo.indexOf("No-se-ha-encontrado-el-usuario-marcado") !== -1
         ) {
-          mensaje = "That username does not exist. Create an account first.";
+          mensaje = this.textoOpciones[22][spanish];
           nombre.focus();
         }
 
         if (codigo.indexOf("Contraseña-incorrecta") !== -1) {
-          mensaje = "Incorrect password. Please try again.";
+          mensaje = this.textoOpciones[23][spanish];
           clave.focus();
         }
 
         if (codigo.indexOf("Usuario-y/o-contraseña-incorrecta") !== -1) {
-          mensaje = "Incorrect username or password.";
+          mensaje = this.textoOpciones[24][spanish];
           clave.focus();
         }
 
         if (cuentaCreada) {
-          mensaje = "Account created. " + mensaje + " Use the Sign In tab.";
+          mensaje = this.textoOpciones[25][spanish] + mensaje + this.textoOpciones[26][spanish];
         }
 
         aviso.setColor("#e57373");
@@ -534,11 +606,11 @@ export class UsuariosDemoScene extends InterfazDemo {
       }
     };
 
-    let textoBoton = "SIGN IN";
+    let textoBoton = this.textoOpciones[3][spanish];
     let colorBoton = AZUL;
 
     if (this.registro) {
-      textoBoton = "CREATE ACCOUNT";
+      textoBoton = this.textoOpciones[4][spanish];
       colorBoton = VERDE;
     }
 
@@ -548,7 +620,7 @@ export class UsuariosDemoScene extends InterfazDemo {
       const accesoInvitado = this.texto(
         400,
         abajoPanel + 36,
-        "Continue as guest",
+        this.textoOpciones[27][spanish],
         16
       ).setOrigin(0.5).setInteractive({ useHandCursor: true });
 

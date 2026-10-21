@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { spanish } from "./idioma";
 import {
   obtenerNiveles,
   obtenerNivel,
@@ -21,6 +22,28 @@ import { abrirExportacionOficiales } from "./adminNiveles";
 import { TransitionScene } from "./transitionScene";
 
 export class LevelsScene extends Phaser.Scene {
+  textoOpciones: string[][] = [
+    ["MY LEVELS", "MIS NIVELES"],
+    ["Back", "Volver"],
+    ["Export JSON", "Exportar JSON"],
+    ["My Levels", "Mis niveles"],
+    ["Create Level", "Crear nivel"],
+    ["Could not create the level: ", "No se pudo crear el nivel: "],
+    ["Search levels...", "Buscar niveles..."],
+    ["Previous", "Anterior"],
+    ["Next", "Siguiente"],
+    ["Edit", "Editar"],
+    ["Test", "Probar"],
+    ["Duplicate", "Duplicar"],
+    ["Could not duplicate the level: ", "No se pudo duplicar el nivel: "],
+    ["Delete", "Borrar"],
+    ["Delete Level", "Borrar nivel"],
+    ["\"\n\nIt will be removed from your levels. This cannot be undone.", "\"\n\nSe quitará de tus niveles. Esta acción no se puede deshacer."],
+    ["Could not delete the level: ", "No se pudo borrar el nivel: "],
+    ["No levels to display.", "No hay niveles para mostrar."],
+    ["Page ", "Página "],
+    ["Could not rename the level: ", "No se pudo cambiar el nombre del nivel: "]
+  ];
   escenaAnterior = "menu";
   busquedaCommunity = "";
   busqueda = "";
@@ -144,6 +167,7 @@ export class LevelsScene extends Phaser.Scene {
       useHandCursor: true
     });
     const textoTab = this.add.text(x, y, texto, {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "16px",
       color: "#222034"
@@ -177,8 +201,9 @@ export class LevelsScene extends Phaser.Scene {
     const titulo = this.add.text(
       400,
       25,
-      "MY LEVELS",
+      this.textoOpciones[0][spanish],
       {
+        padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "26px",
         color: "#cbdbfc"
@@ -189,13 +214,13 @@ export class LevelsScene extends Phaser.Scene {
       100,
       centroTitulo,
       120,
-      "Back",
+      this.textoOpciones[1][spanish],
       () => {
         this.volver();
       },
       0xb39ddb
     );
-    this.boton(680, centroTitulo, 160, "Export JSON", async () => {
+    this.boton(680, centroTitulo, 160, this.textoOpciones[2][spanish], async () => {
       await this.cerrarNombre(true);
       abrirExportacionOficiales(this);
     }, 0xffd166);
@@ -204,7 +229,7 @@ export class LevelsScene extends Phaser.Scene {
       103,
       340,
       54,
-      "My Levels",
+      this.textoOpciones[3][spanish],
       0x9ccc65,
       0xb0d782,
       true,
@@ -215,7 +240,7 @@ export class LevelsScene extends Phaser.Scene {
       108,
       340,
       44,
-      "Create Level",
+      this.textoOpciones[4][spanish],
       0x73994b,
       0xb0d782,
       false,
@@ -235,7 +260,7 @@ export class LevelsScene extends Phaser.Scene {
             }
           );
         } catch (error) {
-          window.alert("Could not create the level: " + String(error));
+          window.alert(this.textoOpciones[5][spanish] + String(error));
         }
       }
     );
@@ -251,7 +276,7 @@ export class LevelsScene extends Phaser.Scene {
       60,
       170,
       680,
-      "Search levels...",
+      this.textoOpciones[6][spanish],
       MAX_BUSQUEDA,
       async (valor) => {
         this.busqueda = valor;
@@ -289,7 +314,7 @@ export class LevelsScene extends Phaser.Scene {
       150,
       520,
       180,
-      "Previous",
+      this.textoOpciones[7][spanish],
       async () => {
         await this.cerrarNombre(true);
         if (this.paginaActual > 0) {
@@ -300,6 +325,7 @@ export class LevelsScene extends Phaser.Scene {
       NORMAL
     );
     this.textoPagina = this.add.text(400, 520, "", {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "16px",
       color: "#cbdbfc"
@@ -309,7 +335,7 @@ export class LevelsScene extends Phaser.Scene {
       650,
       520,
       180,
-      "Next",
+      this.textoOpciones[8][spanish],
       async () => {
         await this.cerrarNombre(true);
         this.paginaActual++;
@@ -426,6 +452,7 @@ export class LevelsScene extends Phaser.Scene {
     for (let i = inicio; i < fin; i++) {
       const nivel = niveles[i];
       const nombre = this.add.text(80, y, nivel.nombre, {
+        padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "18px",
         color: "#ffffff"
@@ -457,7 +484,7 @@ export class LevelsScene extends Phaser.Scene {
         390,
         y,
         90,
-        "Edit",
+        this.textoOpciones[9][spanish],
         async () => {
           await this.cerrarNombre(true);
           const transition = this.scene.get("transition") as TransitionScene;
@@ -475,7 +502,7 @@ export class LevelsScene extends Phaser.Scene {
         490,
         y,
         90,
-        "Test",
+        this.textoOpciones[10][spanish],
         async () => {
           await this.cerrarNombre(true);
           const transition = this.scene.get("transition") as TransitionScene;
@@ -495,14 +522,14 @@ export class LevelsScene extends Phaser.Scene {
         590,
         y,
         90,
-        "Duplicate",
+        this.textoOpciones[11][spanish],
         async () => {
           await this.cerrarNombre(true);
           try {
             await duplicarNivel(nivel.id);
             this.mostrarNiveles();
           } catch (error) {
-            window.alert("Could not duplicate the level: " + String(error));
+            window.alert(this.textoOpciones[12][spanish] + String(error));
           }
         },
         0xb39ddb
@@ -511,22 +538,22 @@ export class LevelsScene extends Phaser.Scene {
         690,
         y,
         90,
-        "Delete",
+        this.textoOpciones[13][spanish],
         async () => {
           await this.cerrarNombre(true);
           mostrarConfirmacion(
             this,
-            "Delete Level",
+            this.textoOpciones[14][spanish],
             '"' + nivel.nombre +
-              '"\n\nIt will be removed from your levels. This cannot be undone.',
-            "Delete",
+              this.textoOpciones[15][spanish],
+            this.textoOpciones[13][spanish],
             ROJO,
             async () => {
               try {
                 await eliminarNivel(nivel.id);
                 this.mostrarNiveles();
               } catch (error) {
-                window.alert("Could not delete the level: " + String(error));
+                window.alert(this.textoOpciones[16][spanish] + String(error));
               }
             }
           );
@@ -549,8 +576,9 @@ export class LevelsScene extends Phaser.Scene {
       const mensaje = this.add.text(
         400,
         345,
-        "No levels to display.",
+        this.textoOpciones[17][spanish],
         {
+          padding: { top: 6, bottom: 6 },
           fontFamily: "Fuente",
           fontSize: "16px",
           color: "#cbdbfc"
@@ -561,7 +589,7 @@ export class LevelsScene extends Phaser.Scene {
     }
     if (this.textoPagina !== null) {
       this.textoPagina.setText(
-        "Page " +
+        this.textoOpciones[18][spanish] +
         (this.paginaActual + 1) +
         " / " +
         totalPaginas
@@ -604,7 +632,7 @@ export class LevelsScene extends Phaser.Scene {
         this.mostrarNiveles();
       }
     } catch (error) {
-      window.alert("Could not rename the level: " + String(error));
+      window.alert(this.textoOpciones[19][spanish] + String(error));
     }
   }
 
