@@ -2432,6 +2432,7 @@ private crearBarraSuperior() {
                 return false;
             }
             this.movimientoEmpujo = true;
+            let portalHandled = false;
             if (this.getPortalAt(newEntityX, newEntityY, dir)) {
                 const entry = this.getPortalAt(newEntityX, newEntityY);
                 if (!entry){
@@ -2518,10 +2519,13 @@ private crearBarraSuperior() {
                     if (this.tempstorage2c) {
                         this.tempstorage2c.destroy();
                     }
-                    return false;
+                }
+                if (done) {
+                    portalHandled = true;
                 }
                 }
-            } else {
+            }
+            if (!portalHandled) {
                 const otherEntity = this.getEntityAt(newEntityX, newEntityY);
 
                 if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity && this.isPortalActive(entity)) {
@@ -2655,6 +2659,7 @@ private crearBarraSuperior() {
                     this.animatePushable(entity);
                 }
             }
+            
         }
         
         player.x = newX;
@@ -2666,7 +2671,7 @@ private crearBarraSuperior() {
         this.updateEntityDepth(player);
         this.laserFunction();
         const flag = this.entities.find(entity => entity.type === "flag");
-        if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet() && this.winConditionsMet2()) {
+        if (flag && player.x === flag.x && player.y === flag.y && this.winConditionsMet2()) {
             this.animateLindseyExit(player, flag);
             return true;
         }
