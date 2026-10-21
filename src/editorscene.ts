@@ -1161,23 +1161,6 @@ this.bordeTooltipTile.setVisible(false);
     if (fila !== 1 || columna <= 0 || columna >= this.columns - 1) {
       return false;
     }
-
-    const tile = this.tablero.getTileAt(columna, fila);
-    const arriba = this.tablero.getTileAt(columna, fila - 1);
-
-    if (tile === null || arriba === null) {
-      return false;
-    }
-
-    const baseLibre = tile.index === this.tileInvisible ||
-      tile.index === 17 || tile.index === 39 || tile.index === 64 ||
-      tile.index === this.tileBandera;
-
-    const paredSuperior = arriba.index === 16 ||
-      arriba.index === 39 || arriba.index === 64 ||
-      arriba.index === this.tileSalidaArriba || arriba.index === this.tileBandera;
-
-    return baseLibre && paredSuperior;
   }
 
   usarHerramienta() {
