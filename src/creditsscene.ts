@@ -1,9 +1,18 @@
-
 import Phaser from "phaser";
 import { InterfazDemo } from "./interfazDemo";
 import { crearBoton } from "./niveles";
+import { spanish } from "./idioma";
 
 export class CreditsScene extends InterfazDemo {
+  textoOpciones: string[][] = [
+    ["CREDITS", "CRÉDITOS"],
+    ["Back", "Volver"],
+    ["Backend", "Backend"],
+    ["Frontend", "Frontend"],
+    ["Programming", "Programación"],
+    ["Art and Design", "Arte y diseño"]
+  ];
+
   constructor() {
     super("credits");
   }
@@ -25,7 +34,7 @@ export class CreditsScene extends InterfazDemo {
     const titulo = this.texto(
       centroX,
       25,
-      "CREDITS",
+      this.textoOpciones[0][spanish],
       26
     ).setOrigin(0.5, 0);
 
@@ -36,7 +45,7 @@ export class CreditsScene extends InterfazDemo {
       100,
       centroTitulo,
       120,
-      "Back",
+      this.textoOpciones[1][spanish],
       () => {
         this.volver();
       }
@@ -92,10 +101,10 @@ export class CreditsScene extends InterfazDemo {
     );
 
     const creditos = [
-      { nombre: "Name 1", rol: "Programming" },
-      { nombre: "Name 2", rol: "Design" },
-      { nombre: "Name 3", rol: "Backend" },
-      { nombre: "Name 4", rol: "Frontend" }
+      { nombre: "Name 1", rol: this.textoOpciones[2][spanish] },
+      { nombre: "Name 2", rol: this.textoOpciones[3][spanish] },
+      { nombre: "Name 3", rol: this.textoOpciones[4][spanish] },
+      { nombre: "Name 4", rol: this.textoOpciones[5][spanish] }
     ];
 
     const anchoTarjeta = 316;
