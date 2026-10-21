@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { spanish } from "./idioma";
 import { MAX_NOMBRE_NIVEL } from "./camposTexto";
 import { demo } from "./datosDemo";
 import {
@@ -10,6 +11,15 @@ import {
 } from "./api";
 import type { NivelBackend } from "./api";
 import { apiAEditor } from "./parserApi";
+
+const textoOpciones: string[][] = [
+  ["You must sign in to manage levels.", "Tenés que iniciar sesión para administrar niveles."],
+  ["Levels loaded from the server.", "Niveles cargados del servidor."],
+  ["You can have a maximum of 60 levels.", "Podés tener como máximo 60 niveles."],
+  ["Untitled Level ", "Nivel sin título "],
+  ["The server ID is missing. Reload My Levels.", "Falta el ID del servidor. Volvé a cargar Mis niveles."],
+  ["The level was not found in My Levels.", "No se encontró el nivel en Mis niveles."]
+];
 
 export type Nivel = {
     id: string;
@@ -24,7 +34,7 @@ export type Nivel = {
 
 function nombreUsuarioActual(): string {
   if (demo.usuarioActual === null || demo.usuarioActual === undefined) {
-    throw new Error("Tenes que iniciar sesion para administrar niveles.");
+    throw new Error(textoOpciones[0][spanish]);
   }
   return demo.usuarioActual.nombre;
 }
@@ -64,7 +74,7 @@ export async function cargarNivelesServidor(): Promise<string> {
     niveles.push(nivel);
   }
   guardarCopia(niveles, usuario);
-  return "Niveles cargados del servidor.";
+  return textoOpciones[1][spanish];
 }
 
 function crearIdLocal(niveles: Nivel[]): string {
@@ -87,7 +97,7 @@ function crearIdLocal(niveles: Nivel[]): string {
 export async function crearNivel(filas: number, columnas: number): Promise<Nivel> {
   const usuario = nombreUsuarioActual();
   const niveles = leerCopia(usuario);
-  if (niveles.length >= 60) throw new Error("Podes tener como maximo 60 niveles.");
+  if (niveles.length >= 60) throw new Error(textoOpciones[2][spanish]);
   const tablero: number[][] = [];
 
   for (let fila = 0; fila < filas; fila++) {
@@ -136,14 +146,14 @@ export async function crearNivel(filas: number, columnas: number): Promise<Nivel
   let numeroNombre = 0;
 
   while (niveles.some((nivel) => {
-    return nivel.nombre === "Untitled Level " + numeroNombre.toString();
+    return nivel.nombre === textoOpciones[3][spanish] + numeroNombre.toString();
   })) {
     numeroNombre++;
   }
 
   const nivel: Nivel = {
     id: nuevaId.toString(),
-    nombre: "Untitled Level " + numeroNombre.toString(),
+    nombre: textoOpciones[3][spanish] + numeroNombre.toString(),
     tablero: tablero,
     ultimaModificacion: Date.now(),
     portales: crearPortalesVacios(filas, columnas),
@@ -166,7 +176,7 @@ export async function eliminarNivel(id: string): Promise<void> {
     const nivel = niveles[i];
     if (nivel.id === id) {
       if (nivel.idServidor === undefined) {
-        throw new Error("Falta el ID del servidor. Recarga mis niveles.");
+        throw new Error(textoOpciones[4][spanish]);
       }
       await eliminarNivelCreadoBackend(usuario, nivel.idServidor, nivel.id);
     } else {
@@ -202,7 +212,7 @@ export async function actualizarNivel(nivel: Nivel): Promise<void> {
   for (let i = 0; i < niveles.length; i++) {
     if (niveles[i].id === nivel.id) indice = i;
   }
-  if (indice === -1) throw new Error("No se encontro el nivel en mis niveles.");
+  if (indice === -1) throw new Error(textoOpciones[5][spanish]);
   nivel.ultimaModificacion = Date.now();
   const guardado = await guardarNivelCreadoBackend(usuario, nivel.nombre, nivel);
   nivel.idServidor = guardado.id;
@@ -218,6 +228,7 @@ export async function actualizarNivel(nivel: Nivel): Promise<void> {
   escena.add.text(x, y, texto, {
     fontSize: "16px",
     color: "#222034",
+    padding: { top: 6, bottom: 6 },
     fontFamily: "Fuente",
     resolution: 1
   }).setOrigin(0.5);
@@ -339,7 +350,7 @@ export async function actualizarNivel(nivel: Nivel): Promise<void> {
       }
 
       if (nivel.idServidor === undefined) {
-        throw new Error("Falta el ID del servidor. Recarga Mis niveles.");
+        throw new Error(textoOpciones[4][spanish]);
       }
       await renombrarNivelCreadoBackend(usuario, nivel.idServidor, nombre, nivel.id);
       nivel.nombre = nombre;
@@ -369,7 +380,7 @@ function copiarMatriz(matriz: number[][]): number[][] {
 export async function duplicarNivel(id: string): Promise<Nivel | undefined> {
   const usuario = nombreUsuarioActual();
   const niveles = leerCopia(usuario);
-  if (niveles.length >= 60) throw new Error("Podes tener como maximo 60 niveles.");
+  if (niveles.length >= 60) throw new Error(textoOpciones[2][spanish]);
 
   let original: Nivel | undefined = undefined;
   const nuevaId = crearIdLocal(niveles);

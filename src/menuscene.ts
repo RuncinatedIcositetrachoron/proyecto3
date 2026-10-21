@@ -38,7 +38,7 @@ export class MenuScene extends Phaser.Scene {
     ["Change Language", "Cambiar Idioma"],
     ["Retry", "Reintentar"],
     ["Could not load progress", "No se logró cargar el progreso"],
-    ["Loading progress...", "Cargango el progreso..."],
+    ["Loading progress...", "Cargando el progreso..."],
     ["Start Again?", "Reiniciar?"],
     ["You will return to the first level. Your completed levels will stay saved.", "Volverás al primer nivel. Tus niveles completados se mantendrán guardados."],
     ["Start Again", "Reiniciar"],
@@ -243,8 +243,9 @@ export class MenuScene extends Phaser.Scene {
       const textoCarga = this.add.text(
         centroMenu,
         this.abajoLogo + (this.scale.height - this.abajoLogo) / 2,
-        "Loading progress...",
+        this.textoOpciones[11][spanish],
         {
+          padding: { top: 6, bottom: 6 },
           fontFamily: "Fuente",
           fontSize: 28 * escalaTexto + "px",
           color: "#a9a3bc",
@@ -266,8 +267,8 @@ export class MenuScene extends Phaser.Scene {
     acciones.push(3);
     acciones.push(4);
     acciones.push(5);
-    acciones.push(6);
     acciones.push(7);
+    acciones.push(6);
 
     const nombres = [
       this.textoOpciones[1][spanish],
@@ -288,10 +289,11 @@ export class MenuScene extends Phaser.Scene {
       "Level Editor",
       "Credits",
       "Exit",
-      "Credits"
+      "Language"
     ];
 
     const medida = this.add.text(0, 0, this.textoOpciones[4][spanish], {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: 42 * escalaTexto + "px",
       resolution: 4
@@ -357,6 +359,7 @@ export class MenuScene extends Phaser.Scene {
         y,
         nombres[accion],
         {
+          padding: { top: 6, bottom: 6 },
           fontFamily: "Fuente",
           fontSize: 42 * escalaTexto + "px",
           color: colorTexto,
@@ -401,6 +404,7 @@ export class MenuScene extends Phaser.Scene {
         this.scale.height - 76 * escalaY,
         this.mensajeProgreso,
         {
+          padding: { top: 6, bottom: 6 },
           fontFamily: "Fuente",
           fontSize: 22 * escalaTexto + "px",
           color: "#e6a39f",
@@ -414,6 +418,7 @@ export class MenuScene extends Phaser.Scene {
         this.scale.height - 37 * escalaY,
         this.textoOpciones[9][spanish],
         {
+          padding: { top: 6, bottom: 6 },
           fontFamily: "Fuente",
           fontSize: 24 * escalaTexto + "px",
           color: "#ffd166",
@@ -432,6 +437,10 @@ export class MenuScene extends Phaser.Scene {
   crearIconos() {
     const textura = this.textures.get("iconosMenu");
 
+    if (textura.has("Language") === false) {
+      textura.add("Language", 0, 16, 64, 16, 16);
+    }
+
     if (textura.has("Start New Game")) {
       return;
     }
@@ -446,9 +455,20 @@ export class MenuScene extends Phaser.Scene {
   }
 
   crearUsuario(nombre: string, invitado: boolean) {
-    const derechaUsuario = this.scale.width - 32;
+    const margenUsuario = 18;
+    const grosorBordeUsuario = 2;
+    const derechaUsuario = this.scale.width - margenUsuario - grosorBordeUsuario / 2 - 14;
+    const recuadroUsuario = this.add.rectangle(
+      derechaUsuario + 14,
+      51,
+      1,
+      1,
+      0x0f102e,
+      0.72
+    ).setOrigin(1, 0.5).setStrokeStyle(grosorBordeUsuario, 0xb39ddb, 0.35);
 
     const textoUsuario = this.add.text(derechaUsuario, 36, nombre, {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "16px",
       color: "#cbdbfc",
@@ -476,6 +496,20 @@ export class MenuScene extends Phaser.Scene {
       resolution: 4
     }).setOrigin(1, 0.5)
       .setInteractive({ useHandCursor: true });
+
+    const arribaUsuario = textoUsuario.y - textoUsuario.displayHeight / 2 - 10;
+    const abajoUsuario = enlaceCuenta.y + enlaceCuenta.displayHeight / 2 + 10;
+    const anchoUsuario = Math.max(textoUsuario.displayWidth, enlaceCuenta.displayWidth) + 28;
+
+    const desplazamientoUsuario = margenUsuario + grosorBordeUsuario / 2 - arribaUsuario;
+    textoUsuario.setY(textoUsuario.y + desplazamientoUsuario);
+    enlaceCuenta.setY(enlaceCuenta.y + desplazamientoUsuario);
+
+    recuadroUsuario.setPosition(
+      derechaUsuario + 14,
+      (arribaUsuario + abajoUsuario) / 2 + desplazamientoUsuario
+    );
+    recuadroUsuario.setSize(anchoUsuario, abajoUsuario - arribaUsuario);
 
     enlaceCuenta.on("pointerover", () => {
       enlaceCuenta.setColor("#ffd166");

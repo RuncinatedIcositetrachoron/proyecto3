@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { spanish } from "./idioma";
 import { cargarPortales, crearAnimacionesPortales, configurarPortal, esParedExteriorPortal } from "./portales";
 
 import { obtenerNivel, crearBoton } from "./niveles";
@@ -33,7 +34,7 @@ interface Entity {
 
 interface TutorialNivel {
     nivel: number;
-    partes: string[];
+    partes: string[][];
     movimientos: number;
 }
 
@@ -71,6 +72,27 @@ interface LaserVisual {
 /////////////////////
 
 export class GameScene extends Phaser.Scene {    
+  textoOpciones: string[][] = [
+    ["Untitled Level", "Nivel sin título"],
+    ["Level ", "Nivel "],
+    ["Test Mode", "Modo de prueba"],
+    ["No active session.", "No hay una sesión activa."],
+    ["Level completed, but your progress could not be saved:\n\n", "Nivel completado, pero no se pudo guardar tu progreso:\n\n"],
+    ["Undo", "Deshacer"],
+    ["Reset", "Reiniciar"],
+    ["Pause", "Pausa"],
+    ["Continue", "Continuar"],
+    ["YOU DIED", "MORISTE"],
+    ["Press", "Presioná"],
+    ["to undo", "para deshacer"],
+    ["or", "o"],
+    ["to restart", "para reiniciar"],
+    ["PAUSED", "PAUSA"],
+    ["COMMUNITY LEVEL", "NIVEL DE LA COMUNIDAD"],
+    ["Exit", "Salir"],
+    ["Loading level...", "Cargando nivel..."],
+    ["Could not load the official level:\n\n", "No se pudo cargar el nivel oficial:\n\n"]
+  ];
 
     private volumenEfectos = 0.7; 
     private sonidosPreparados = false;
@@ -176,12 +198,12 @@ export class GameScene extends Phaser.Scene {
     private tutoriales: TutorialNivel[] = [
         {
             nivel: 1,
-            partes: ["Use", "arrows", "or", "WASD", "to move"],
+            partes: [["Use", "arrows", "or", "WASD", "to move"], ["Usá", "arrows", "o", "WASD", "para moverte"]],
             movimientos: 3
         },
         {
             nivel: 2,
-            partes: ["Push boxes to block lasers."],
+            partes: [["Push boxes to block lasers."], ["Empujá cajas para bloquear los láseres."]],
             movimientos: 6
         }
     ];
@@ -402,12 +424,12 @@ export class GameScene extends Phaser.Scene {
             }
         }
         if (this.modoTest) {
-            return "Untitled Level";
+            return this.textoOpciones[0][spanish];
         }
         if (this.nombreNivelOficial !== "") {
             return this.nombreNivelOficial;
         }
-        return "Level " + this.levelNumber;
+        return this.textoOpciones[1][spanish] + this.levelNumber;
     }
 
     private obtenerEtiquetaNivel() {
@@ -415,10 +437,10 @@ export class GameScene extends Phaser.Scene {
         let color = "#9ccc65";
 
         if (this.modoTest || this.testeando || (this.nivelId !== "" && this.nivelDescargado === null)) {
-            texto = "Test Mode";
+            texto = this.textoOpciones[2][spanish];
             color = "#ffd166";
         } else if (this.community === false) {
-            texto = "Level " + this.levelNumber;
+            texto = this.textoOpciones[1][spanish] + this.levelNumber;
         }
 
         return { texto: texto, color: color };
@@ -433,7 +455,7 @@ export class GameScene extends Phaser.Scene {
         const usuario = demo.usuarioActual;
 
         if (usuario === null || usuario === undefined) {
-            throw new Error("No active session.");
+            throw new Error(this.textoOpciones[3][spanish]);
         }
 
         await completarNivelDescargadoBackend(
@@ -454,7 +476,7 @@ export class GameScene extends Phaser.Scene {
         }
     } catch (error: any) {
         window.alert(
-            "Level completed, but your progress could not be saved:\n\n" +
+            this.textoOpciones[4][spanish] +
             String(error)
         );
     }
@@ -486,15 +508,15 @@ export class GameScene extends Phaser.Scene {
 
         fondo.setFillStyle(color);
 
-        if (texto === "Undo") {
+        if (texto === this.textoOpciones[5][spanish]) {
             fondo.setData("atajo", "Z");
         }
 
-        if (texto === "Reset") {
+        if (texto === this.textoOpciones[6][spanish]) {
             fondo.setData("atajo", "R");
         }
 
-        if (texto === "Pause" || texto === "Continue") {
+        if (texto === this.textoOpciones[7][spanish] || texto === this.textoOpciones[8][spanish]) {
             fondo.setData("atajo", "Esc");
         }
 
@@ -591,6 +613,7 @@ private crearBarraSuperior() {
     alto / 2,
     nombreCompleto,
     {
+        padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "18px",
         color: "#ffffff",
@@ -602,6 +625,7 @@ private crearBarraSuperior() {
 
     const datosEtiqueta = this.obtenerEtiquetaNivel();
     const etiqueta = this.add.text(nombre.x, nombre.y, datosEtiqueta.texto, {
+        padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "18px",
         color: datosEtiqueta.color
@@ -634,7 +658,7 @@ private crearBarraSuperior() {
         xDeshacer,
         y,
         anchoBoton,
-        "Undo",
+        this.textoOpciones[5][spanish],
         0x9ccc65,
         903,
         () => {
@@ -650,7 +674,7 @@ private crearBarraSuperior() {
         xReset,
         y,
         anchoBoton,
-        "Reset",
+        this.textoOpciones[6][spanish],
         0xe6c56a,
         903,
         () => {
@@ -666,7 +690,7 @@ private crearBarraSuperior() {
         xPausa,
         y,
         anchoBoton,
-        "Pause",
+        this.textoOpciones[7][spanish],
         0xb39ddb,
         903,
         () => {
@@ -785,7 +809,7 @@ private crearBarraSuperior() {
             try {
                 const usuario = demo.usuarioActual;
                 if (usuario === null || usuario === undefined) {
-                    throw new Error("No active session.");
+                    throw new Error(this.textoOpciones[3][spanish]);
                 }
                 if (usuario.id === 0) {
                     completarNivelInvitado(this.levelNumber, 1);
@@ -802,7 +826,7 @@ private crearBarraSuperior() {
                     return;
                 }
                 window.alert(
-                    "Level completed, but your progress could not be saved:\n\n" +
+                    this.textoOpciones[4][spanish] +
                     String(error)
                 );
             }
@@ -924,6 +948,7 @@ private crearBarraSuperior() {
         }
 
         const etiqueta = this.add.text(x, y, texto, {
+            padding: { top: 6, bottom: 6 },
             fontFamily: "Fuente, Arial",
             fontSize: "18px",
             color: "#eef3ff"
@@ -952,8 +977,9 @@ private crearBarraSuperior() {
         const titulo = this.add.text(
             0,
             -22,
-            "YOU DIED",
+            this.textoOpciones[9][spanish],
             {
+                padding: { top: 6, bottom: 6 },
                 fontFamily: "Fuente",
                 fontSize: "21px",
                 color: "#e57373"
@@ -964,7 +990,7 @@ private crearBarraSuperior() {
         const instrucciones = this.add.container(0, 15);
         this.pantallaMuerte.add(instrucciones);
         let x = 0;
-        const partes = ["Press", "Z", "to undo", "or", "R", "to restart"];
+        const partes = [this.textoOpciones[10][spanish], "Z", this.textoOpciones[11][spanish], this.textoOpciones[12][spanish], "R", this.textoOpciones[13][spanish]];
 
         for (let i = 0; i < partes.length; i++) {
             if (partes[i] === "Z" || partes[i] === "R") {
@@ -972,6 +998,7 @@ private crearBarraSuperior() {
                 x += 28;
             } else {
                 const texto = this.add.text(x, 0, partes[i], {
+                    padding: { top: 6, bottom: 6 },
                     fontFamily: "Fuente",
                     fontSize: "16px",
                     color: "#cbdbfc"
@@ -1020,7 +1047,7 @@ private crearBarraSuperior() {
 
         const instrucciones = this.add.container(0, 0);
         this.ayudaMovimiento.add(instrucciones);
-        const partes = tutorial.partes;
+        const partes = tutorial.partes[spanish];
         let x = 0;
 
         for (let i = 0; i < partes.length; i++) {
@@ -1036,6 +1063,7 @@ private crearBarraSuperior() {
                 x += 92;
             } else {
                 const texto = this.add.text(x, 0, partes[i], {
+                    padding: { top: 6, bottom: 6 },
                     fontFamily: "Fuente",
                     fontSize: "16px",
                     color: "#cbdbfc",
@@ -1107,8 +1135,9 @@ private crearBarraSuperior() {
         const titulo = this.add.text(
             centroX,
             centroY - 135,
-            "PAUSED",
+            this.textoOpciones[14][spanish],
             {
+                padding: { top: 6, bottom: 6 },
                 fontFamily: "Fuente",
                 fontSize: "26px",
                 color: "#ffffff",
@@ -1123,7 +1152,7 @@ private crearBarraSuperior() {
         const datosEtiqueta = this.obtenerEtiquetaNivel();
         let detalleNivel = datosEtiqueta.texto;
         if (detalleNivel === "") {
-            detalleNivel = "COMMUNITY LEVEL";
+            detalleNivel = this.textoOpciones[15][spanish];
         }
 
         const etiquetaNivel = this.add.text(
@@ -1131,6 +1160,7 @@ private crearBarraSuperior() {
             centroY - 95,
             detalleNivel,
             {
+                padding: { top: 6, bottom: 6 },
                 fontFamily: "Fuente",
                 fontSize: "17px",
                 color: datosEtiqueta.color
@@ -1144,6 +1174,7 @@ private crearBarraSuperior() {
             centroY - 65,
             nombreVisible,
             {
+                padding: { top: 6, bottom: 6 },
                 fontFamily: "Fuente",
                 fontSize: "18px",
                 color: "#cbdbfc"
@@ -1160,7 +1191,7 @@ private crearBarraSuperior() {
             centroX,
             centroY - 10,
             260,
-            "Continue",
+            this.textoOpciones[8][spanish],
             0xcbdbfc,
             1004,
             () => {
@@ -1176,7 +1207,7 @@ private crearBarraSuperior() {
             centroX,
             centroY + 50,
             260,
-            "Reset",
+            this.textoOpciones[6][spanish],
             0xe6c56a,
             1004,
             () => {
@@ -1193,7 +1224,7 @@ private crearBarraSuperior() {
             centroX,
             centroY + 110,
             260,
-            "Exit",
+            this.textoOpciones[16][spanish],
             0xe57373,
             1004,
             () => {
@@ -3899,8 +3930,8 @@ async create() {
             const textoCarga = this.add.text(
                 this.scale.width / 2,
                 this.scale.height / 2,
-                "Loading level...",
-                { fontFamily: "Fuente", fontSize: "20px", color: "#cbdbfc" }
+                this.textoOpciones[17][spanish],
+                { padding: { top: 6, bottom: 6 }, fontFamily: "Fuente", fontSize: "20px", color: "#cbdbfc" }
             ).setOrigin(0.5);
             try {
                 if (this.idsNivelesOficiales.length === 0) {
@@ -3923,7 +3954,7 @@ async create() {
                 if (cargaActual !== this.numeroCarga) {
                     return;
                 }
-                window.alert("Could not load the official level:\n\n" + String(error));
+                window.alert(this.textoOpciones[18][spanish] + String(error));
                 this.volver();
                 return;
             }

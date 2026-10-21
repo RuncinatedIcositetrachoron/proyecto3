@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { spanish } from "./idioma";
 import { crearBoton } from './niveles';
 
 export const VERDE = 0x9ccc65;
@@ -24,6 +25,7 @@ export class InterfazDemo extends Phaser.Scene {
     tamano = 18
   ) {
     const texto = this.add.text(x, y, valor, {
+      padding: { top: 6, bottom: 6 },
       fontFamily: 'Fuente',
       fontSize: tamano + 'px',
       color: '#cbdbfc',
@@ -62,6 +64,10 @@ export class InterfazDemo extends Phaser.Scene {
     aceptar: () => void,
     cancelar: () => void
   ) {
+    const textoOpciones: string[][] = [
+      ["Cancel", "Cancelar"],
+      ["Confirm", "Confirmar"]
+    ];
     for (const objeto of this.children.list) {
       objeto.emit('ocultarTooltip');
       if (objeto.input) {
@@ -103,14 +109,14 @@ export class InterfazDemo extends Phaser.Scene {
       250,
       365,
       220,
-      'Cancel',
+      textoOpciones[0][spanish],
       cancelar
     );
     this.boton(
       550,
       365,
       220,
-      'Confirm',
+      textoOpciones[1][spanish],
       aceptar,
       VERDE
     );

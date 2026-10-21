@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { spanish } from "./idioma";
 import { cargarPortales, crearAnimacionesPortales, configurarPortal, direccionPortalEditor, esParedExteriorPortal } from "./portales";
 import { obtenerNivel, actualizarNivel, crearBoton } from "./niveles";
 import { convertirNivel } from "./parser";
@@ -12,6 +13,54 @@ interface EstadoEditor {
 }
 
 export class EditorScene extends Phaser.Scene {
+  textoOpciones: string[][] = [
+    ["Level Editor", "Editor de niveles"],
+    ["Untitled Level", "Nivel sin título"],
+    ["Save", "Guardar"],
+    ["Back", "Volver"],
+    ["Test", "Probar"],
+    ["You have unsaved changes.\nLeave without saving?", "Tenés cambios sin guardar.\n¿Salir sin guardar?"],
+    ["The door must occupy the first and second rows.\nLeaving will discard your unsaved changes.", "La puerta debe ocupar la primera y la segunda fila.\nSi salís, se perderán los cambios sin guardar."],
+    ["The player or exit is missing.\nLeaving will discard your unsaved changes.", "Falta el jugador o la salida.\nSi salís, se perderán los cambios sin guardar."],
+    ["Unsaved Changes", "Cambios sin guardar"],
+    ["Leave Without Saving", "Salir sin guardar"],
+    ["Could not save the level.\n\n", "No se pudo guardar el nivel.\n\n"],
+    ["The door must occupy rows 1 and 2", "La puerta debe ocupar las filas 1 y 2"],
+    ["Player or exit missing", "Falta el jugador o la salida"],
+    ["Unsaved changes", "Cambios sin guardar"],
+    ["Level saved", "Nivel guardado"],
+    ["Select", "Seleccionar"],
+    ["Deselect", "Deseleccionar"],
+    ["Copy", "Copiar"],
+    ["Paste", "Pegar"],
+    ["Delete", "Borrar"],
+    ["Portal", "Portal"],
+    ["Link", "Vincular"],
+    ["Undo", "Deshacer"],
+    ["Redo", "Rehacer"],
+    ["Mirror", "Espejo"],
+    ["Emitter", "Emisor"],
+    ["Receiver", "Receptor"],
+    ["Crate", "Caja"],
+    ["Pressure plate", "Placa de presión"],
+    ["Interior wall", "Pared interior"],
+    ["Top wall", "Pared superior"],
+    ["Bottom wall", "Pared inferior"],
+    ["Right wall", "Pared derecha"],
+    ["Left wall", "Pared izquierda"],
+    ["Ceiling", "Techo"],
+    ["Top left corner", "Esquina superior izquierda"],
+    ["Top right corner", "Esquina superior derecha"],
+    ["Bottom right corner", "Esquina inferior derecha"],
+    ["Bottom left corner", "Esquina inferior izquierda"],
+    ["Single machine", "Máquina simple"],
+    ["Double machine", "Máquina doble"],
+    ["Triple machine", "Máquina triple"],
+    ["Player", "Jugador"],
+    ["Exit", "Salida"],
+    ["Unknown tile", "Casilla desconocida"],
+    ["\nRight-click to see variants", "\nClic derecho para ver variantes"]
+  ];
   init(data: { nivelId?: string } = {}): void {
     if (data.nivelId !== undefined) {
       this.nivelId = data.nivelId;
@@ -289,13 +338,14 @@ export class EditorScene extends Phaser.Scene {
 
     this.crearFondoTablero();
 
-    this.textoEstado = this.add.text(24, 22, "Level Editor", {
+    this.textoEstado = this.add.text(24, 22, this.textoOpciones[0][spanish], {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "14px",
       color: "#95add6"
     });
 
-    let nombre = "Untitled Level";
+    let nombre = this.textoOpciones[1][spanish];
 
     if (this.nivelId !== null) {
       const nivel = obtenerNivel(this.nivelId);
@@ -306,6 +356,7 @@ export class EditorScene extends Phaser.Scene {
     }
 
     const nombreNivel = this.add.text(24, 46, nombre, {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "18px",
       color: "#ffffff",
@@ -361,7 +412,7 @@ export class EditorScene extends Phaser.Scene {
       xGuardar,
       yBotones,
       anchoBoton,
-      "Save",
+      this.textoOpciones[2][spanish],
       () => {
         this.guardarNivelActual();
       }
@@ -372,7 +423,7 @@ export class EditorScene extends Phaser.Scene {
       xVolver,
       yBotones,
       anchoBoton,
-      "Back",
+      this.textoOpciones[3][spanish],
       () => {
         this.solicitarSalida();
       }
@@ -383,7 +434,7 @@ export class EditorScene extends Phaser.Scene {
       xTest,
       yBotones,
       anchoBoton,
-      "Test",
+      this.textoOpciones[4][spanish],
       () => {
         this.testearNivel();
       }
@@ -2029,16 +2080,16 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     let mensaje =
-      "You have unsaved changes.\nLeave without saving?";
+      this.textoOpciones[5][spanish];
 
     if (this.nivelValido() === false) {
       if (
         this.existeTile(this.tileJugador) &&
         this.existeTile(this.tileBandera)
       ) {
-        mensaje = "The door must occupy the first and second rows.\nLeaving will discard your unsaved changes.";
+        mensaje = this.textoOpciones[6][spanish];
       } else {
-        mensaje = "The player or exit is missing.\nLeaving will discard your unsaved changes.";
+        mensaje = this.textoOpciones[7][spanish];
       }
     }
 
@@ -2046,9 +2097,9 @@ this.bordeTooltipTile.setVisible(false);
 
     mostrarConfirmacion(
       this,
-      "Unsaved Changes",
+      this.textoOpciones[8][spanish],
       mensaje,
-      "Leave Without Saving",
+      this.textoOpciones[9][spanish],
       0xe57373,
       () => {
         const transition = this.scene.get("transition") as TransitionScene;
@@ -2095,7 +2146,7 @@ this.bordeTooltipTile.setVisible(false);
       this.estadoGuardado = estadoEnviado;
     } catch (error) {
       if (this.scene.isActive()) {
-        window.alert("Could not save the level.\n\n" + String(error));
+        window.alert(this.textoOpciones[10][spanish] + String(error));
       }
     }
 
@@ -2233,16 +2284,16 @@ this.bordeTooltipTile.setVisible(false);
           this.existeTile(this.tileJugador) &&
           this.existeTile(this.tileBandera)
         ) {
-          this.textoEstado.setText("The door must occupy rows 1 and 2");
+          this.textoEstado.setText(this.textoOpciones[11][spanish]);
         } else {
-          this.textoEstado.setText("Player or exit missing");
+          this.textoEstado.setText(this.textoOpciones[12][spanish]);
         }
         this.textoEstado.setColor("#e6a05a");
       } else if (this.hayCambiosSinGuardar()) {
-        this.textoEstado.setText("Unsaved changes");
+        this.textoEstado.setText(this.textoOpciones[13][spanish]);
         this.textoEstado.setColor("#ffd166");
       } else {
-        this.textoEstado.setText("Level saved");
+        this.textoEstado.setText(this.textoOpciones[14][spanish]);
         this.textoEstado.setColor("#9ccc65");
       }
     }
@@ -2293,7 +2344,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Select",
+      this.textoOpciones[15][spanish],
       () => {
         if (this.herramienta === this.selectTool) {
           this.herramienta = this.sinHerramienta;
@@ -2318,7 +2369,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Deselect",
+      this.textoOpciones[16][spanish],
       () => this.quitarSeleccion()
     );
 
@@ -2329,7 +2380,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Copy",
+      this.textoOpciones[17][spanish],
       () => {
         this.copiarSeleccion();
         this.actualizarInterfaz();
@@ -2343,7 +2394,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Paste",
+      this.textoOpciones[18][spanish],
       () => {
         if (this.herramienta === this.pasteTool) {
           this.herramienta = this.sinHerramienta;
@@ -2369,7 +2420,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Delete",
+      this.textoOpciones[19][spanish],
       () => this.borrarOGoma()
     );
 
@@ -2380,7 +2431,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Portal",
+      this.textoOpciones[20][spanish],
       () => {
         if (this.herramienta === this.portalTool) {
           this.herramienta = this.sinHerramienta;
@@ -2407,7 +2458,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Link",
+      this.textoOpciones[21][spanish],
       () => {
         if (this.herramienta === this.linkTool) {
           this.herramienta = this.sinHerramienta;
@@ -2434,7 +2485,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Undo",
+      this.textoOpciones[22][spanish],
       () => this.undo()
     );
 
@@ -2445,7 +2496,7 @@ this.bordeTooltipTile.setVisible(false);
       x,
       y,
       ancho,
-      "Redo",
+      this.textoOpciones[23][spanish],
       () => this.redo()
     );
 
@@ -4351,66 +4402,66 @@ this.bordeTooltipTile.setVisible(false);
 
   private obtenerNombreTile(tile: number): string {
     if (tile >= 3 && tile <= 6) {
-      return "Mirror";
+      return this.textoOpciones[24][spanish];
     }
     if (tile >= 11 && tile <= 14) {
-      return "Emitter";
+      return this.textoOpciones[25][spanish];
     }
     if (tile >= 27 && tile <= 30) {
-      return "Receiver";
+      return this.textoOpciones[26][spanish];
     }
     if (tile === 37) {
-      return "Crate";
+      return this.textoOpciones[27][spanish];
     }
     if (tile === this.tilePlaca) {
-      return "Pressure plate";
+      return this.textoOpciones[28][spanish];
     }
     if (tile === 39) {
-      return "Interior wall";
+      return this.textoOpciones[29][spanish];
     }
     if (tile === 17) {
-      return "Top wall";
+      return this.textoOpciones[30][spanish];
     }
     if (tile === 20) {
-      return "Bottom wall";
+      return this.textoOpciones[31][spanish];
     }
     if (tile === 18) {
-      return "Right wall";
+      return this.textoOpciones[32][spanish];
     }
     if (tile === 19) {
-      return "Left wall";
+      return this.textoOpciones[33][spanish];
     }
     if (tile === 16) {
-      return "Ceiling";
+      return this.textoOpciones[34][spanish];
     }
     if (tile === 21) {
-      return "Top left corner";
+      return this.textoOpciones[35][spanish];
     }
     if (tile === 22) {
-      return "Top right corner";
+      return this.textoOpciones[36][spanish];
     }
     if (tile === 23) {
-      return "Bottom right corner";
+      return this.textoOpciones[37][spanish];
     }
     if (tile === 24) {
-      return "Bottom left corner";
+      return this.textoOpciones[38][spanish];
     }
     if (tile === 41) {
-      return "Single machine";
+      return this.textoOpciones[39][spanish];
     }
     if (tile === 200) {
-      return "Double machine";
+      return this.textoOpciones[40][spanish];
     }
     if (tile === 201) {
-      return "Triple machine";
+      return this.textoOpciones[41][spanish];
     }
     if (tile === this.tileJugador) {
-      return "Player";
+      return this.textoOpciones[42][spanish];
     }
     if (tile === this.tileBandera) {
-      return "Exit";
+      return this.textoOpciones[43][spanish];
     }
-    return "Unknown tile";
+    return this.textoOpciones[44][spanish];
   }
 
   private ocultarTooltipTile(): void {
@@ -4451,7 +4502,7 @@ this.bordeTooltipTile.setVisible(false);
         nombre += " (" + (variantes.indexOf(tile) + 1) + "/" + variantes.length + ")";
 
         if (mostrarAyudaVariantes) {
-          nombre += "\nRight-click to see variants";
+          nombre += this.textoOpciones[45][spanish];
         }
       }
 

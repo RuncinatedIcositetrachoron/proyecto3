@@ -61,6 +61,7 @@ export function mostrarConfirmacion(
     0,
     titulo,
     {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "24px",
       color: "#ffffff",
@@ -78,6 +79,7 @@ export function mostrarConfirmacion(
     0,
     mensaje,
     {
+      padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "18px",
       color: "#cbdbfc",
@@ -216,6 +218,7 @@ export function mostrarConfirmacion(
       y,
       etiqueta,
       {
+        padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "18px",
         color: "#222034"
@@ -290,11 +293,14 @@ export function mostrarAviso(
   titulo: string,
   mensaje: string
 ) {
+  const textoOpciones: string[][] = [
+    ["Got It", "Entendido"]
+  ];
   mostrarConfirmacion(
     escena,
     titulo,
     mensaje,
-    "Got It",
+    textoOpciones[0][spanish],
     0xe6c56a,
     () => {},
     false
