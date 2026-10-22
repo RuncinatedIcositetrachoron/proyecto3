@@ -348,6 +348,9 @@ export class GameScene extends Phaser.Scene {
     private tempstorage3: Entity | undefined;
     private movenumber: Boolean = false;
     private pushing: Boolean = false;
+    private coyotewindow: boolean = false;
+    private coyoteId: number = 0;
+    private currentMoveDirection: string = "";
     private playerMoving = false;
     private inputBuffer: string = "";
     private holdBufferOpen: Boolean = false;
@@ -944,7 +947,7 @@ private crearBarraSuperior() {
     }
 
     private undoMove() {
-        if (this.playerMoving) {
+        if (this.playerMoving && !this.coyotewindow) {
             return;
         }
 
@@ -3257,6 +3260,87 @@ private crearBarraSuperior() {
         if (!this.finishinglevel) this.actualizarAlphaPortal(player, 0);
     }
 
+    private changeCoyoteDir(newDir: string): boolean {
+        if (!this.coyotewindow) return false;
+        if (!this.playerMoving) return false;
+        if (newDir === this.currentMoveDirection) return false;
+        if (this.movimientoConPortal) return false;
+        const state = this.history.pop();
+        if (!state) return false;
+
+        this.coyoteId++;    
+        this.coyotewindow = false;
+
+        if (this.playerTween) {
+            this.playerTween.stop();
+        }
+
+        for (let i = 0; i < this.pushTweens.length; i++) {
+            this.pushTweens[i].stop();
+        }
+
+        for (let i = 0; i < this.shadowTweens.length; i++) {
+            this.shadowTweens[i].stop();
+        }
+
+        this.playerTween = undefined;
+        this.pushTweens = [];
+        this.shadowTweens = [];
+
+        this.playerMoving = false;
+        this.holdBufferOpen = false;
+        this.inputBuffer = "";
+
+        this.dead = false;
+        this.stopDeadSound();
+
+        if (this.menuup === 2) {
+            this.menuup = 0;
+            this.tweens.killTweensOf(this.pantallaMuerte);
+            this.pantallaMuerte.setVisible(false).setAlpha(0);
+        }
+
+        for (let i = 0; i < this.entities.length; i++) {
+            const entity = this.entities[i];
+            const oldEntity = state.entities[i];
+
+            entity.x = oldEntity.x;
+            entity.y = oldEntity.y;
+            entity.dir = oldEntity.dir;
+            entity.portal = oldEntity.portal;
+
+            entity.sprite.setPosition(
+                this.offsetX + entity.x * this.tilesize,
+                this.offsetY + entity.y * this.tilesize
+            );
+
+            entity.sprite.setDepth(2 * entity.y);
+
+            if (entity.shadow) {
+                entity.shadow.setPosition(this.offsetX + entity.x * this.tilesize - this.tilesize, this.offsetY + entity.y * this.tilesize - this.tilesize);
+            }
+
+            this.actualizarPortal(entity);
+
+            if (entity.type === "player") {
+                entity.sprite.stop();
+                entity.sprite.setOrigin(1, 1.04);
+            }
+
+            if (entity.type === "goal") {
+                entity.sprite.setDepth(-0.5);
+            }
+        }
+
+        this.laserFunction();
+        this.flagCheck();
+        this.updateLaserPositions();
+
+        this.doMovement(newDir);
+
+        return true;
+    }
+
     private animatePlayer(player: Entity, facing: number | undefined) {
         const animation = this.getLindseyAnimation(facing);
         let speed = this.lindseyspeed;
@@ -3265,7 +3349,17 @@ private crearBarraSuperior() {
         this.holdBufferOpen = false;
         player.sprite.play(animation);
 
-        this.time.delayedCall(160, () => {
+        this.coyoteId++;
+        const esteCoyote = this.coyoteId;
+        this.coyotewindow = true;
+
+        this.time.delayedCall(90, () => {
+            if (this.coyoteId === esteCoyote) {
+                this.coyotewindow = false;
+            }
+        });
+
+        this.time.delayedCall(200, () => {
             if (this.playerMoving) {
                 this.holdBufferOpen = true;
             }
@@ -4935,6 +5029,7 @@ async create() {
     //////////////////////////////
 
     private doMovement(direction: string) {
+        this.currentMoveDirection = direction;
         this.movimientoEmpujo = false;
         this.movimientoConPortal = false;
         this.pushTweens = [];
@@ -5063,8 +5158,27 @@ async create() {
         }
 
         if (this.playerMoving) {
+            let nuevaDireccion = "";
+            if (izquierda) {
+                nuevaDireccion = "left";
+            }
+            else if (derecha) {
+                nuevaDireccion = "right";
+            }
+            else if (arriba) {
+                nuevaDireccion = "up";
+            }
+            else if (abajo) {
+                nuevaDireccion = "down";
+            }
+            if (nuevaDireccion !== "") {
+                if (this.changeCoyoteDir(nuevaDireccion)) {
+                    return;
+                }
+            }
             if (this.menuup === 0) {
                 const player = this.entities.find(entity => entity.type === "player");
+
                 if (izquierda) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
