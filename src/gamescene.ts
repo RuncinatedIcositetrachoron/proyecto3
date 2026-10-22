@@ -103,8 +103,43 @@ export class GameScene extends Phaser.Scene {
     private sonidos = [
         // 1. WALKING:
         {
-            nombre: "paso",
+            nombre: "paso1",
             archivo: "lindsey_sfx/step01.wav",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "paso2",
+            archivo: "lindsey_sfx/step02.wav",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "paso3",
+            archivo: "lindsey_sfx/step03.wav",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "paso4",
+            archivo: "lindsey_sfx/step04.wav",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "paso5",
+            archivo: "lindsey_sfx/step05.wav",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "paso6",
+            archivo: "lindsey_sfx/step06.wav",
             volumen: 0.4,
             espera: 70,
             ultimo: -1000
@@ -117,19 +152,27 @@ export class GameScene extends Phaser.Scene {
             espera: 80,
             ultimo: -1000
         },
-        // 3. LASER REFLECTION
+        // 3. TRANSITION
         {
-            nombre: "rebote",
-            archivo: "lindsey_sfx/03_rebote_laser.ogg",
+            nombre: "entrar",
+            archivo: "lindsey_sfx/exitdoor.wav",
             volumen: 0.18,
-            espera: 80,
+            espera: 0,
             ultimo: -1000
         },
         // 4. DEATH
         {
             nombre: "morir",
-            archivo: "lindsey_sfx/04_morir.ogg",
-            volumen: 0.5,
+            archivo: "lindsey_sfx/die.mp3",
+            volumen: 0.05,
+            espera: 150,
+            ultimo: -1000
+        },
+        // 4.1. DEAD
+        {
+            nombre: "muerta",
+            archivo: "lindsey_sfx/dead.mp3",
+            volumen: 0.02,
             espera: 150,
             ultimo: -1000
         },
@@ -190,6 +233,7 @@ export class GameScene extends Phaser.Scene {
             ultimo: -1000
         }
     ];
+    private deadSound: Phaser.Sound.BaseSound | undefined;
     private levelNumber = 1;
     private history: GameState[] = [];
     private community: boolean = true;
@@ -364,6 +408,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     private reproducirSonido(nombre: string) {
+        if (nombre === "paso") {
+            const chance = Math.floor(Math.random()*6);
+            switch (chance) {
+                case 0: nombre = "paso1"; break;
+                case 1: nombre = "paso2"; break;
+                case 2: nombre = "paso3"; break;
+                case 3: nombre = "paso4"; break;
+                case 4: nombre = "paso5"; break;
+                case 5: nombre = "paso6"; break;
+            }
+        }
         if (this.cargandoNivel || this.volumenEfectos <= 0 || this.sound.locked) {
             return;
         }
@@ -372,7 +427,7 @@ export class GameScene extends Phaser.Scene {
             if (sonido.nombre !== nombre) {
                 continue;
             }
-            const clave = "game-" + nombre;
+            let clave = "game-" + nombre;
             if (sonido.archivo === "" || !this.cache.audio.exists(clave)) {
                 return;
             }
@@ -390,6 +445,23 @@ export class GameScene extends Phaser.Scene {
             });
             sonido.ultimo = this.time.now;
             return;
+        }
+    }
+
+    private startDeadSound() {
+        if (this.deadSound) return;
+        this.deadSound = this.sound.add("game-muerta", {
+            volume: 0.3 * this.volumenEfectos,
+            loop: true
+        });
+        this.deadSound.play();
+    }
+
+    private stopDeadSound() {
+        if (this.deadSound) {
+            this.deadSound.stop();
+            this.deadSound.destroy();
+            this.deadSound = undefined;
         }
     }
 
@@ -451,49 +523,49 @@ export class GameScene extends Phaser.Scene {
     }
 
     private async registrarVictoriaDescargada(): Promise<void> {
-    if (this.victoriaDescargadaEnCurso || this.idGlobalDescargado === null) {
-        return;
-    }
-    this.victoriaDescargadaEnCurso = true;
-    try {
-        const usuario = demo.usuarioActual;
-
-        if (usuario === null || usuario === undefined) {
-            throw new Error(this.textoOpciones[3][spanish]);
+        if (this.victoriaDescargadaEnCurso || this.idGlobalDescargado === null) {
+            return;
         }
+        this.victoriaDescargadaEnCurso = true;
+        try {
+            const usuario = demo.usuarioActual;
 
-        await completarNivelDescargadoBackend(
-            usuario.nombre,
-            this.idGlobalDescargado
-        );
-        for (let i = 0; i < demo.descargas.length; i++) {
-            const descarga = demo.descargas[i];
-            if (
-                descarga.usuarioId === usuario.id &&
-                descarga.nivelId === this.idGlobalDescargado
-            ) {
-                descarga.completado = true;
+            if (usuario === null || usuario === undefined) {
+                throw new Error(this.textoOpciones[3][spanish]);
             }
+
+            await completarNivelDescargadoBackend(
+                usuario.nombre,
+                this.idGlobalDescargado
+            );
+            for (let i = 0; i < demo.descargas.length; i++) {
+                const descarga = demo.descargas[i];
+                if (
+                    descarga.usuarioId === usuario.id &&
+                    descarga.nivelId === this.idGlobalDescargado
+                ) {
+                    descarga.completado = true;
+                }
+            }
+            if (this.nivelDescargado !== null) {
+                this.nivelDescargado.completado = true;
+            }
+        } catch (error: any) {
+            window.alert(
+                this.textoOpciones[4][spanish] +
+                String(error)
+            );
         }
-        if (this.nivelDescargado !== null) {
-            this.nivelDescargado.completado = true;
-        }
-    } catch (error: any) {
-        window.alert(
-            this.textoOpciones[4][spanish] +
-            String(error)
+        const transition = this.scene.get("transition") as TransitionScene;
+
+        transition.changeScene(
+            this.sys.settings.key,
+            "communityDemo",
+            {
+                pestana: "Descargados"
+            }
         );
     }
-    const transition = this.scene.get("transition") as TransitionScene;
-
-    transition.changeScene(
-        this.sys.settings.key,
-        "communityDemo",
-        {
-            pestana: "Descargados"
-        }
-    );
-}
       
     private crearBotonJuego(
         x: number,
@@ -764,8 +836,9 @@ private crearBarraSuperior() {
 }
 
 
-        private reiniciarNivel() {
+    private reiniciarNivel() {
         this.reproducirSonido("click");
+        this.stopDeadSound();
         this.scene.restart({
             modoTest: this.modoTest,
             nivelTest: this.nivelTest,
@@ -777,20 +850,20 @@ private crearBarraSuperior() {
             idGlobal: this.idGlobalDescargado,
             idsNivelesOficiales: this.idsNivelesOficiales
         });
-        }
+    }
 
-        private volver() {
-            if (this.saliendoDelNivel) {
-                return;
-            }
-            this.saliendoDelNivel = true;
-            this.menuup = 0;
-            this.playerMoving = false;
-            this.inputBuffer = "";
-            this.holdBufferOpen = false;
-            const transition = this.scene.get("transition") as TransitionScene;
-            transition.changeScene(this.sys.settings.key, this.escenaAnterior);
+    private volver() {
+        if (this.saliendoDelNivel) {
+            return;
         }
+        this.saliendoDelNivel = true;
+        this.menuup = 0;
+        this.playerMoving = false;
+        this.inputBuffer = "";
+        this.holdBufferOpen = false;
+        const transition = this.scene.get("transition") as TransitionScene;
+        transition.changeScene(this.sys.settings.key, this.escenaAnterior);
+    }
 
     private async ganarNivel() {
         if (this.saliendoDelNivel) {
@@ -874,6 +947,8 @@ private crearBarraSuperior() {
         if (this.playerMoving) {
             return;
         }
+
+        this.stopDeadSound();
         const state = this.history.pop();
         if (!state) {
             return;
@@ -2677,6 +2752,10 @@ private crearBarraSuperior() {
             this.holdBufferOpen = false;
             this.ayudaMovimiento.setVisible(false);
             this.dead = true;
+            this.time.delayedCall(40, () => {
+                this.reproducirSonido ("morir");
+                this.startDeadSound();
+            });
         }
         this.animatePlayer(player, facing);
         return true;
@@ -3271,7 +3350,6 @@ private crearBarraSuperior() {
                 this.holdBufferOpen = false;
                 this.playerTween = undefined;
                 if (this.menuup === 2) {
-                    this.reproducirSonido("morir");
                     this.tweens.killTweensOf(this.pantallaMuerte);
                     this.pantallaMuerte.setAlpha(0).setVisible(true);
                     this.tweens.add({
@@ -3288,6 +3366,7 @@ private crearBarraSuperior() {
     private animateEntrance() {
         const player = this.entities.find(entity => entity.type === "player");
         if (!player) return;
+        this.reproducirSonido("entrar");
         const finalX = this.offsetX + player.x * this.tilesize;
         const finalY = this.offsetY + player.y * this.tilesize;
         let startY: number;
