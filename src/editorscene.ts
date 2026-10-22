@@ -1,3 +1,4 @@
+import { COLORES, colorTexto, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { spanish } from "./idioma";
 import { cargarPortales, crearAnimacionesPortales, configurarPortal, direccionPortalEditor, esParedExteriorPortal } from "./portales";
@@ -164,9 +165,9 @@ export class EditorScene extends Phaser.Scene {
   ];
   private tilePlaca: number = 2;
   private tilePlacaConObjeto: number = 1000;
-  private colorLinkEmisor: number = 0xe6c56a;
-  private colorLinkPortales: number = 0x9ccc65;
-  private colorLinkPlaca: number = 0xb39ddb;
+  private colorLinkEmisor: number = COLORES.amarillo;
+  private colorLinkPortales: number = COLORES.verde;
+  private colorLinkPlaca: number = COLORES.violeta;
 
   private formasPared = [
     [
@@ -319,7 +320,7 @@ export class EditorScene extends Phaser.Scene {
 
   create(): void {
     crearAnimacionesPortales(this);
-    this.cameras.main.setBackgroundColor("#222034");
+    this.cameras.main.setBackgroundColor(colorTexto(COLORES.fondo));
     this.columns = 17;
     this.rows = 11;
 
@@ -342,7 +343,7 @@ export class EditorScene extends Phaser.Scene {
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "14px",
-      color: "#95add6"
+      color: colorTexto(COLORES.blanco)
     });
 
     let nombre = this.textoOpciones[1][spanish];
@@ -359,7 +360,7 @@ export class EditorScene extends Phaser.Scene {
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "18px",
-      color: "#ffffff",
+      color: colorTexto(COLORES.blanco),
     });
 
     let nombreVisible = nombre;
@@ -382,11 +383,11 @@ export class EditorScene extends Phaser.Scene {
       this.board_offset_y + this.cellsize / 2,
       this.cellsize - 2,
       this.cellsize - 2,
-      0x000000,
+      COLORES.negro,
       0.12
     );
 
-    this.hoverCell.setStrokeStyle(2, 0x6f87b0, 0.65);
+    this.hoverCell.setStrokeStyle(2, COLORES.borde, 0.65);
     this.hoverCell.setVisible(false);
     this.hoverCell.setDepth(6);
 
@@ -937,12 +938,12 @@ export class EditorScene extends Phaser.Scene {
       0,
       1,
       1,
-      0x9ccc65,
+      COLORES.verde,
       0.25
     );
 
     this.rectanguloSeleccion.setOrigin(0, 0);
-    this.rectanguloSeleccion.setStrokeStyle(2, 0x73994b, 1);
+    this.rectanguloSeleccion.setStrokeStyle(2, COLORES.verdeHover, 1);
     this.rectanguloSeleccion.setDepth(6);
     this.rectanguloSeleccion.setVisible(false);
 
@@ -1111,8 +1112,8 @@ export class EditorScene extends Phaser.Scene {
 
     this.vistaPegado = this.add.rectangle(0, 0, 1, 1);
     this.vistaPegado.setOrigin(0);
-    this.vistaPegado.setFillStyle(0xffffff, 0.25);
-    this.vistaPegado.setStrokeStyle(2, 0xffffff);
+    this.vistaPegado.setFillStyle(COLORES.blanco, 0.25);
+    this.vistaPegado.setStrokeStyle(2, COLORES.blanco);
     this.vistaPegado.setVisible(false);
 
     this.capaVistaPegado.setVisible(false);
@@ -1133,8 +1134,8 @@ export class EditorScene extends Phaser.Scene {
     this.textoTile = this.add.text(0, 0, "", {
       fontFamily: "Fuente",
       fontSize: "14px",
-      color: "#cbdbfc",
-      backgroundColor: "#171a2e",
+      color: colorTexto(COLORES.blanco),
+      backgroundColor: colorTexto(COLORES.panel),
       padding: { x: 10, y: 8 },
       align: "center",
     });
@@ -1143,11 +1144,11 @@ export class EditorScene extends Phaser.Scene {
     this.textoTile.setDepth(1000);
     this.textoTile.setVisible(false);
     this.bordeTooltipTile = this.add.rectangle(
-      0, 0, 1, 1, 0x171a2e
+      0, 0, 1, 1, COLORES.panel
     );
 
 this.bordeTooltipTile.setOrigin(0, 0);
-this.bordeTooltipTile.setStrokeStyle(2, 0xcbdbfc);
+this.bordeTooltipTile.setStrokeStyle(2, COLORES.normal);
 this.bordeTooltipTile.setDepth(999);
 this.bordeTooltipTile.setVisible(false);
 
@@ -1429,11 +1430,11 @@ this.bordeTooltipTile.setVisible(false);
     this.rectanguloSeleccion.setVisible(true);
 
     if (this.seleccionCompleta()) {
-      this.rectanguloSeleccion.setFillStyle(0x9ccc65, 0.25);
-      this.rectanguloSeleccion.setStrokeStyle(2, 0x73994b);
+      this.rectanguloSeleccion.setFillStyle(COLORES.verde, 0.25);
+      this.rectanguloSeleccion.setStrokeStyle(2, COLORES.verdeHover);
     } else {
-      this.rectanguloSeleccion.setFillStyle(0xff0000, 0.25);
-      this.rectanguloSeleccion.setStrokeStyle(2, 0xff0000);
+      this.rectanguloSeleccion.setFillStyle(COLORES.rojo, 0.25);
+      this.rectanguloSeleccion.setStrokeStyle(2, COLORES.rojo);
     }
 
     this.actualizarInterfaz();
@@ -1666,11 +1667,11 @@ this.bordeTooltipTile.setVisible(false);
     );
 
     if (entraEnTablero) {
-      this.vistaPegado.setFillStyle(0xffffff, 0.25);
-      this.vistaPegado.setStrokeStyle(2, 0xffffff);
+      this.vistaPegado.setFillStyle(COLORES.blanco, 0.25);
+      this.vistaPegado.setStrokeStyle(2, COLORES.blanco);
     } else {
-      this.vistaPegado.setFillStyle(0xff0000, 0.25);
-      this.vistaPegado.setStrokeStyle(2, 0xff0000);
+      this.vistaPegado.setFillStyle(COLORES.rojo, 0.25);
+      this.vistaPegado.setStrokeStyle(2, COLORES.rojo);
     }
 
     this.vistaPegado.setVisible(true);
@@ -1718,8 +1719,8 @@ this.bordeTooltipTile.setVisible(false);
 
     this.haySeleccion = true;
 
-    this.rectanguloSeleccion.setFillStyle(0x9ccc65, 0.25);
-    this.rectanguloSeleccion.setStrokeStyle(2, 0x73994b);
+    this.rectanguloSeleccion.setFillStyle(COLORES.verde, 0.25);
+    this.rectanguloSeleccion.setStrokeStyle(2, COLORES.verdeHover);
 
     this.rectanguloSeleccion.setPosition(
       this.board_offset_x + inicioX * this.cellsize,
@@ -2100,7 +2101,7 @@ this.bordeTooltipTile.setVisible(false);
       this.textoOpciones[8][spanish],
       mensaje,
       this.textoOpciones[9][spanish],
-      0xe57373,
+      COLORES.rojo,
       () => {
         const transition = this.scene.get("transition") as TransitionScene;
         transition.changeScene(
@@ -2160,9 +2161,9 @@ this.bordeTooltipTile.setVisible(false);
       return;
     }
 
-    const colorNormal = 0xcbdbfc;
-    const colorSeleccionado = 0xffd166;
-    const colorDesactivado = 0x79869e;
+    const colorNormal = COLORES.normal;
+    const colorSeleccionado = COLORES.amarillo;
+    const colorDesactivado = COLORES.desactivado;
 
     if (this.herramienta === this.selectTool) {
       this.botonSeleccionar.setFillStyle(colorSeleccionado);
@@ -2199,7 +2200,7 @@ this.bordeTooltipTile.setVisible(false);
       this.botonDeseleccionar.setAlpha(1);
       this.botonCopiar.setInteractive({ useHandCursor: true });
 
-      this.botonBorrar.setFillStyle(0xe57373);
+      this.botonBorrar.setFillStyle(COLORES.rojo);
       this.botonCopiar.setFillStyle(colorNormal);
 
       this.botonCopiar.setAlpha(1);
@@ -2259,19 +2260,19 @@ this.bordeTooltipTile.setVisible(false);
 
     if (puedeGuardar) {
       this.botonGuardar.setInteractive({ useHandCursor: true });
-      this.botonGuardar.setFillStyle(0x9ccc65);
+      this.botonGuardar.setFillStyle(COLORES.verde);
     } else {
       this.botonGuardar.disableInteractive();
       this.botonGuardar.setFillStyle(colorDesactivado);
     }
 
     this.botonVolver.setInteractive({ useHandCursor: true });
-    this.botonVolver.setFillStyle(0xe6a05a);
+    this.botonVolver.setFillStyle(COLORES.naranja);
 
     if (this.botonTest !== null) {
       if (valido) {
         this.botonTest.setInteractive({ useHandCursor: true });
-        this.botonTest.setFillStyle(0xb39ddb);
+        this.botonTest.setFillStyle(COLORES.violeta);
       } else {
         this.botonTest.disableInteractive();
         this.botonTest.setFillStyle(colorDesactivado);
@@ -2288,13 +2289,13 @@ this.bordeTooltipTile.setVisible(false);
         } else {
           this.textoEstado.setText(this.textoOpciones[12][spanish]);
         }
-        this.textoEstado.setColor("#e6a05a");
+        this.textoEstado.setColor(colorTexto(COLORES.naranja));
       } else if (this.hayCambiosSinGuardar()) {
         this.textoEstado.setText(this.textoOpciones[13][spanish]);
-        this.textoEstado.setColor("#ffd166");
+        this.textoEstado.setColor(colorTexto(COLORES.amarillo));
       } else {
         this.textoEstado.setText(this.textoOpciones[14][spanish]);
-        this.textoEstado.setColor("#9ccc65");
+        this.textoEstado.setColor(colorTexto(COLORES.verde));
       }
     }
 
@@ -2306,19 +2307,7 @@ this.bordeTooltipTile.setVisible(false);
 
       if (boton.input && boton.input.enabled) {
         if (boton.getData("hoverInterfaz") === true) {
-          if (boton.fillColor === colorSeleccionado) {
-            boton.setFillStyle(0xd9ad4f);
-          } else if (boton === this.botonVolver) {
-            boton.setFillStyle(0xc98543);
-          } else if (boton === this.botonGuardar) {
-            boton.setFillStyle(0x7eaa4c);
-          } else if (boton === this.botonTest) {
-            boton.setFillStyle(0x957bc1);
-          } else if (boton === this.botonBorrar && this.haySeleccion) {
-            boton.setFillStyle(0xc05757);
-          } else {
-            boton.setFillStyle(0x95add6);
-          }
+          boton.setFillStyle(oscurecerColor(boton.fillColor));
         }
       } else {
         boton.setData("hoverInterfaz", false);
@@ -2568,7 +2557,7 @@ this.bordeTooltipTile.setVisible(false);
         y + 3,
         tamaño + 4,
         44,
-        0x14121e
+        COLORES.sombra
       );
 
       const casilla = this.add.rectangle(
@@ -2576,10 +2565,10 @@ this.bordeTooltipTile.setVisible(false);
         y,
         tamaño,
         tamaño,
-        0x303038
+        COLORES.casilla
       );
 
-      casilla.setStrokeStyle(4, 0x222034);
+      casilla.setStrokeStyle(4, COLORES.fondo);
       casilla.setInteractive({ useHandCursor: true });
 
       const grafico = this.obtenerGraficoTile(
@@ -2610,7 +2599,7 @@ this.bordeTooltipTile.setVisible(false);
           0, 0,
           7, 0,
           7, 7,
-          0xffd166
+          COLORES.amarillo
         );
 
         marca.setDepth(12);
@@ -3468,7 +3457,7 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     const final = this.centroCasilla(this.mouseX, this.mouseY);
-    let color = 0xe57373;
+    let color = COLORES.rojo;
 
     if (this.linkInicioX === -1 || this.linkInicioY === -1) {
       if (this.hayPortalEn(this.mouseX, this.mouseY)) {
@@ -3543,7 +3532,7 @@ this.bordeTooltipTile.setVisible(false);
   ): void {
     graficos.fillStyle(color, 1);
     graficos.fillRect(x - 6, y - 6, 12, 12);
-    graficos.lineStyle(2, 0x222034, 1);
+    graficos.lineStyle(2, COLORES.fondo, 1);
     graficos.strokeRect(x - 6, y - 6, 12, 12);
   }
 
@@ -3748,8 +3737,8 @@ this.bordeTooltipTile.setVisible(false);
     this.restaurarTileHover();
     this.hoverTile.setVisible(false);
     this.hoverTile.clearTint();
-    this.hoverCell.setFillStyle(0x000000, 0.12);
-    this.hoverCell.setStrokeStyle(2, 0x6f87b0, 0.65);
+    this.hoverCell.setFillStyle(COLORES.negro, 0.12);
+    this.hoverCell.setStrokeStyle(2, COLORES.borde, 0.65);
 
     if (
       this.hoverCell.visible === false ||
@@ -3774,8 +3763,8 @@ this.bordeTooltipTile.setVisible(false);
       );
 
       if (puedeColocar === false) {
-        this.hoverCell.setFillStyle(0xff0000, 0.25);
-        this.hoverCell.setStrokeStyle(2, 0xff0000, 0.6);
+        this.hoverCell.setFillStyle(COLORES.rojo, 0.25);
+        this.hoverCell.setStrokeStyle(2, COLORES.rojo, 0.6);
       }
 
       const tile = this.tablero.getTileAt(this.mouseX, this.mouseY);
@@ -3804,7 +3793,7 @@ this.bordeTooltipTile.setVisible(false);
       this.recortarPortalEditor(this.hoverPortal);
 
       if (puedeColocar === false) {
-        this.hoverPortal.setTint(0xff0000);
+        this.hoverPortal.setTint(COLORES.rojo);
       }
 
       return;
@@ -3862,8 +3851,8 @@ this.bordeTooltipTile.setVisible(false);
     }
 
     if (entra === false) {
-      this.hoverCell.setFillStyle(0xff0000, 0.25);
-      this.hoverCell.setStrokeStyle(2, 0xff0000, 0.6);
+      this.hoverCell.setFillStyle(COLORES.rojo, 0.25);
+      this.hoverCell.setStrokeStyle(2, COLORES.rojo, 0.6);
     }
 
     for (let i = 0; i < forma.length; i++) {
@@ -3898,7 +3887,7 @@ this.bordeTooltipTile.setVisible(false);
         }
 
         if (entra === false) {
-          imagen.setTint(0xff0000);
+          imagen.setTint(COLORES.rojo);
         }
 
         this.hoverGrupo.push(imagen);
@@ -3919,7 +3908,7 @@ this.bordeTooltipTile.setVisible(false);
         imagenRelieve.setDepth(this.profundidadFila(y, 9));
 
         if (entra === false) {
-          imagenRelieve.setTint(0xff0000);
+          imagenRelieve.setTint(COLORES.rojo);
         }
 
         this.hoverGrupo.push(imagenRelieve);
@@ -4306,10 +4295,10 @@ this.bordeTooltipTile.setVisible(false);
       arriba + alto / 2,
       ancho,
       alto,
-      0x302641
+      COLORES.panelVariantes
     );
 
-    fondo.setStrokeStyle(4, 0x8573a6);
+    fondo.setStrokeStyle(4, COLORES.violetaHover);
     fondo.setDepth(19);
     fondo.setInteractive();
 
@@ -4333,10 +4322,10 @@ this.bordeTooltipTile.setVisible(false);
         y,
         tamaño,
         tamaño,
-        0x303038
+        COLORES.casilla
       );
 
-      casilla.setStrokeStyle(2, 0x222034);
+      casilla.setStrokeStyle(2, COLORES.fondo);
       casilla.setDepth(20);
       casilla.setInteractive({ useHandCursor: true });
 
@@ -4597,10 +4586,10 @@ this.bordeTooltipTile.setVisible(false);
       (arriba + abajo) / 2,
       this.anchoPanelTablero,
       abajo - arriba,
-      0x171a2e
+      COLORES.panel
     );
 
-    fondo.setStrokeStyle(4, 0x6f87b0);
+    fondo.setStrokeStyle(4, COLORES.borde);
     fondo.setDepth(-1);
   }
 
@@ -4612,19 +4601,19 @@ this.bordeTooltipTile.setVisible(false);
   ): void {
     const hover = casilla.getData("hoverHotbar") === true;
 
-    let color = 0x303038;
-    let borde = 0x62626e;
+    let color = COLORES.casilla;
+    let borde = COLORES.bordeCasilla;
 
     if (hover) {
-      color = 0x3d3d48;
-      borde = 0xb39ddb;
+      color = COLORES.casillaHover;
+      borde = COLORES.violeta;
     }
 
     if (seleccionada) {
-      borde = 0x9ccc65;
+      borde = COLORES.verde;
 
       if (hover) {
-        borde = 0xb0d782;
+        borde = COLORES.verdeHover;
       }
     }
 
@@ -4711,10 +4700,10 @@ this.bordeTooltipTile.setVisible(false);
       (arriba + abajo) / 2,
       derecha - izquierda + margen * 2,
       abajo - arriba + margen * 2,
-      0x171a2e
+      COLORES.panel
     );
 
-    fondo.setStrokeStyle(4, 0x6f87b0);
+    fondo.setStrokeStyle(4, COLORES.borde);
     fondo.setDepth(-1);
   }
 

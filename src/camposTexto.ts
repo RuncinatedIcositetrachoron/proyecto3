@@ -1,3 +1,4 @@
+import { COLORES, colorTexto as textoColor } from "./colores";
 import Phaser from "phaser";
 
 export const MAX_NOMBRE_NIVEL = 24;
@@ -51,9 +52,9 @@ export function crearCampoTexto(
   input.style.boxSizing = "border-box";
   input.style.width = ancho + "px";
   input.style.height = "38px";
-  input.style.border = "2px solid #cbdbfc";
-  input.style.backgroundColor = "#171a2e";
-  input.style.color = "#cbdbfc";
+  input.style.border = "2px solid " + textoColor(COLORES.normal);
+  input.style.backgroundColor = textoColor(COLORES.panel);
+  input.style.color = textoColor(COLORES.blanco);
   input.style.fontFamily = "Fuente";
   input.style.fontSize = "16px";
   input.style.paddingLeft = "8px";
@@ -106,11 +107,11 @@ export function crearCampoTexto(
   });
 
   input.addEventListener("focus", () => {
-    input.style.borderColor = "#ffd166";
+    input.style.borderColor = textoColor(COLORES.amarillo);
   });
 
   input.addEventListener("blur", () => {
-    input.style.borderColor = "#cbdbfc";
+    input.style.borderColor = textoColor(COLORES.normal);
   });
 
   const eventos = [

@@ -1,3 +1,4 @@
+import { COLORES, colorTexto, oscurecerColor } from "./colores";
 
 import Phaser from "phaser";
 import { spanish } from "./idioma";
@@ -293,8 +294,8 @@ export class CommunityDemoScene extends InterfazDemo {
       fondo.setAlpha(0.35);
       return fondo;
     }
-    fondo.on("pointerover", () => fondo.setAlpha(0.8));
-    fondo.on("pointerout", () => fondo.setAlpha(1));
+    fondo.on("pointerover", () => fondo.setFillStyle(oscurecerColor(color)));
+    fondo.on("pointerout", () => fondo.setFillStyle(color));
     return fondo;
   }
 
@@ -325,6 +326,7 @@ export class CommunityDemoScene extends InterfazDemo {
 
   crearTab(x: number, y: number, ancho: number, alto: number, texto: string,
            color: number, colorHover: number, activa: boolean, accion: () => void) {
+    colorHover = oscurecerColor(color);
     const grafico = this.add.graphics();
     const izquierda = x - ancho / 2;
     const derecha = x + ancho / 2;
@@ -334,7 +336,7 @@ export class CommunityDemoScene extends InterfazDemo {
       grafico.clear();
       grafico.fillStyle(colorActual);
       grafico.fillRect(izquierda, arriba, ancho, alto);
-      grafico.lineStyle(4, 0x171a2e);
+      grafico.lineStyle(4, COLORES.panel);
       grafico.beginPath();
       grafico.moveTo(izquierda, abajo);
       grafico.lineTo(izquierda, arriba);
@@ -344,7 +346,7 @@ export class CommunityDemoScene extends InterfazDemo {
     };
     dibujar(color);
     const zona = this.add.zone(x, y, ancho, alto).setInteractive({ useHandCursor: true });
-    this.add.text(x, y, texto, { padding: { top: 6, bottom: 6 }, fontFamily: "Fuente", fontSize: "16px", color: "#222034" }).setOrigin(0.5);
+    this.add.text(x, y, texto, { padding: { top: 6, bottom: 6 }, fontFamily: "Fuente", fontSize: "16px", color: colorTexto(COLORES.fondo) }).setOrigin(0.5);
     zona.on("pointerover", () => { if (!activa) dibujar(colorHover); });
     zona.on("pointerout", () => { if (!activa) dibujar(color); });
     zona.on("pointerdown", () => { if (!activa) accion(); });
@@ -366,15 +368,15 @@ export class CommunityDemoScene extends InterfazDemo {
         this.sys.settings.key,
         "menu",
       );
-    }, 0xb39ddb);
+    }, COLORES.violeta);
 
     const pestanas = [
-      { nombre: "Community", texto: this.textoOpciones[13][spanish], color: 0x95add6, colorHover: 0xaec1e1, colorInactivo: 0x6f87b0 },
-      { nombre: "Creados", texto: this.textoOpciones[14][spanish], color: 0x9ccc65, colorHover: 0xb0d782, colorInactivo: 0x73994b },
-      { nombre: "Publicados", texto: this.textoOpciones[15][spanish], color: 0xe6c56a, colorHover: 0xf0d58b, colorInactivo: 0xad934d },
-      { nombre: "Descargados", texto: this.textoOpciones[16][spanish], color: 0xb39ddb, colorHover: 0xc7b5e7, colorInactivo: 0x8573a6 }
+      { nombre: "Community", texto: this.textoOpciones[13][spanish], color: COLORES.azul, colorHover: COLORES.azulHover, colorInactivo: COLORES.borde },
+      { nombre: "Creados", texto: this.textoOpciones[14][spanish], color: COLORES.verde, colorHover: COLORES.verdeHover, colorInactivo: COLORES.verdeInactivo },
+      { nombre: "Publicados", texto: this.textoOpciones[15][spanish], color: COLORES.amarillo, colorHover: COLORES.amarilloHover, colorInactivo: COLORES.amarilloInactivo },
+      { nombre: "Descargados", texto: this.textoOpciones[16][spanish], color: COLORES.violeta, colorHover: COLORES.violetaHover, colorInactivo: COLORES.violetaInactivo }
     ];
-    let colorActual = 0x95add6;
+    let colorActual = COLORES.azul;
     for (let i = 0; i < pestanas.length; i++) {
       const p = pestanas[i];
       const activa = this.pestana === p.nombre;
@@ -385,7 +387,7 @@ export class CommunityDemoScene extends InterfazDemo {
       this.crearTab(145 + i * 170, y, 170, alto, p.texto, color, p.colorHover,
         activa, () => this.cambiarPestana(p.nombre));
     }
-    this.add.rectangle(400, 345, 720, 430, 0x171a2e).setStrokeStyle(4, colorActual);
+    this.add.rectangle(400, 345, 720, 430, COLORES.panel).setStrokeStyle(4, colorActual);
     const campo = crearCampoTexto(this, 60, 170, 680, this.textoOpciones[17][spanish], MAX_BUSQUEDA, (valor) => {
       this.busqueda = valor;
       this.pagina = 0;
@@ -424,17 +426,17 @@ export class CommunityDemoScene extends InterfazDemo {
 
   crearBotonEditor() {
     const fondo = this.add.rectangle(400, 249, this.anchoFilaCreada - 2,
-      this.altoFilaCreada - 2, 0x171a2e, 0);
-    fondo.setStrokeStyle(2, 0x6f87b0).setInteractive({ useHandCursor: true });
+      this.altoFilaCreada - 2, COLORES.panel, 0);
+    fondo.setStrokeStyle(2, COLORES.borde).setInteractive({ useHandCursor: true });
     const texto = this.texto(400, 249, this.textoOpciones[18][spanish], 20).setOrigin(0.5);
-    texto.setColor("#cbdbfc");
+    texto.setColor(colorTexto(COLORES.blanco));
     fondo.on("pointerover", () => {
-      fondo.setFillStyle(0x95add6, 0.15).setStrokeStyle(2, 0x95add6);
-      texto.setColor("#ffffff");
+      fondo.setFillStyle(COLORES.azul, 0.15).setStrokeStyle(2, COLORES.azul);
+      texto.setColor(colorTexto(COLORES.blanco));
     });
     fondo.on("pointerout", () => {
-      fondo.setFillStyle(0x171a2e, 0).setStrokeStyle(2, 0x6f87b0);
-      texto.setColor("#cbdbfc");
+      fondo.setFillStyle(COLORES.panel, 0).setStrokeStyle(2, COLORES.borde);
+      texto.setColor(colorTexto(COLORES.blanco));
     });
     fondo.on("pointerdown", () => {
       this.guardarPestana();
@@ -470,7 +472,7 @@ export class CommunityDemoScene extends InterfazDemo {
     for (let i = 0; i < visibles.length; i++) {
       const nivel = visibles[i];
       const y = primeraY + i * 64;
-      this.add.rectangle(400, y, this.anchoFilaCreada, this.altoFilaCreada, 0x171a2e);
+      this.add.rectangle(400, y, this.anchoFilaCreada, this.altoFilaCreada, COLORES.panel);
       const nombre = this.texto(80, y, nivel.nombre, 19).setOrigin(0, 0.5);
       let visible = nivel.nombre;
       while (nombre.width > 300 && visible.length > 0) {
@@ -487,7 +489,7 @@ export class CommunityDemoScene extends InterfazDemo {
             }
           );
         this.scene.sleep();
-      }, 0xb39ddb);
+      }, COLORES.violeta);
       const publicacion = this.buscarPublicacionDeNivel(nivel);
       if (publicacion === null || publicacion.publicado === false) {
         this.boton(640, y, 160, this.textoOpciones[21][spanish], () => {
@@ -499,8 +501,8 @@ export class CommunityDemoScene extends InterfazDemo {
         this.boton(640, y, 160, this.textoOpciones[24][spanish], () => {
           mostrarConfirmacion(this, this.textoOpciones[25][spanish],
             '"' + nivel.nombre + this.textoOpciones[26][spanish],
-            this.textoOpciones[24][spanish], 0xe6c56a, () => { this.actualizarPublicacion(nivel, publicacion); });
-        }, 0xe6c56a);
+            this.textoOpciones[24][spanish], COLORES.amarillo, () => { this.actualizarPublicacion(nivel, publicacion); });
+        }, COLORES.amarillo);
       } else {
         this.boton(640, y, 160, this.textoOpciones[27][spanish], () => {}, NORMAL, false);
       }
@@ -534,10 +536,10 @@ export class CommunityDemoScene extends InterfazDemo {
     for (let i = 0; i < visibles.length; i++) {
       const nivel = visibles[i];
       const y = 238 + i * 100;
-      this.add.rectangle(400, y + 7, 680, 80, 0x171a2e);
+      this.add.rectangle(400, y + 7, 680, 80, COLORES.panel);
       this.texto(80, y - 26, nivel.nombre, 19);
-      this.texto(80, y, "ID " + nivel.id + " - " + nivel.autor, 14).setColor("#a5b4ce");
-      this.texto(80, y + 23, this.textoDescargas(nivel.descargas), 14).setColor("#a5b4ce");
+      this.texto(80, y, "ID " + nivel.id + " - " + nivel.autor, 14).setColor(colorTexto(COLORES.textoSecundario));
+      this.texto(80, y + 23, this.textoDescargas(nivel.descargas), 14).setColor(colorTexto(COLORES.textoSecundario));
       const descargado = this.estaDescargado(nivel.id);
       let textoBoton = this.textoOpciones[29][spanish];
       if (descargado) textoBoton = this.textoOpciones[30][spanish];
@@ -562,16 +564,16 @@ export class CommunityDemoScene extends InterfazDemo {
     for (let i = 0; i < visibles.length; i++) {
       const nivel = visibles[i];
       const y = 238 + i * 100;
-      this.add.rectangle(400, y + 7, 680, 80, 0x171a2e);
+      this.add.rectangle(400, y + 7, 680, 80, COLORES.panel);
       const nombre = this.texto(80, y - 26, nivel.nombre, 19);
       let visible = nivel.nombre;
       while (nombre.width > 300 && visible.length > 0) {
         visible = visible.substring(0, visible.length - 1);
         nombre.setText(visible + "...");
       }
-      this.texto(80, y, "ID " + nivel.id, 14).setColor("#a5b4ce");
+      this.texto(80, y, "ID " + nivel.id, 14).setColor(colorTexto(COLORES.textoSecundario));
       this.texto(80, y + 23, this.textoOpciones[32][spanish] + nivel.version + " - " + this.textoDescargas(nivel.descargas), 14)
-        .setColor("#a5b4ce");
+        .setColor(colorTexto(COLORES.textoSecundario));
       const descargado = this.estaDescargado(nivel.id);
       let textoBoton = this.textoOpciones[29][spanish];
       if (descargado) textoBoton = this.textoOpciones[30][spanish];
@@ -606,12 +608,12 @@ export class CommunityDemoScene extends InterfazDemo {
     for (let i = 0; i < visibles.length; i++) {
       const nivel = visibles[i];
       const y = 238 + i * 100;
-      this.add.rectangle(400, y + 7, 680, 80, 0x171a2e);
+      this.add.rectangle(400, y + 7, 680, 80, COLORES.panel);
       this.texto(80, y - 26, nivel.nombre, 19);
-      this.texto(80, y, "ID " + nivel.nivelId + " - " + nivel.autor, 14).setColor("#a5b4ce");
+      this.texto(80, y, "ID " + nivel.nivelId + " - " + nivel.autor, 14).setColor(colorTexto(COLORES.textoSecundario));
       let estado = this.textoOpciones[37][spanish];
       if (nivel.completado) estado = this.textoOpciones[38][spanish];
-      this.texto(80, y + 23, estado, 14).setColor("#a5b4ce");
+      this.texto(80, y + 23, estado, 14).setColor(colorTexto(COLORES.textoSecundario));
       let original: any = null;
       for (let j = 0; j < demo.niveles.length; j++) {
         const p: any = demo.niveles[j];
@@ -623,7 +625,7 @@ export class CommunityDemoScene extends InterfazDemo {
       }
       let textoBoton = this.textoOpciones[39][spanish];
       let colorBoton = VERDE;
-      if (hayActualizacion) { textoBoton = this.textoOpciones[24][spanish]; colorBoton = 0xe6c56a; }
+      if (hayActualizacion) { textoBoton = this.textoOpciones[24][spanish]; colorBoton = COLORES.amarillo; }
       this.boton(475, y + 7, 150, textoBoton, () => {
         if (hayActualizacion && original !== null) {
           this.operar(async () => {

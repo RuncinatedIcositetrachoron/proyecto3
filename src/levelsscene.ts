@@ -1,3 +1,4 @@
+import { COLORES, colorTexto, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { spanish } from "./idioma";
 import { obtenerNiveles, obtenerNivel, crearNivel, eliminarNivel, crearBoton, renombrarNivel, duplicarNivel } from "./niveles";
@@ -110,17 +111,18 @@ export class LevelsScene extends Phaser.Scene {
     fondo.setFillStyle(color);
 
     fondo.on("pointerover", () => {
-      fondo.setAlpha(0.8);
+      fondo.setFillStyle(oscurecerColor(color));
     });
 
     fondo.on("pointerout", () => {
-      fondo.setAlpha(1);
+      fondo.setFillStyle(color);
     });
 
     return fondo;
   }
 
   crearTab(x: number, y: number, ancho: number, alto: number, texto: string, color: number, colorHover: number, activa: boolean, accion: () => void) {
+    colorHover = oscurecerColor(color);
     const grafico = this.add.graphics();
     const izquierda = x - ancho / 2;
     const derecha = x + ancho / 2;
@@ -131,7 +133,7 @@ export class LevelsScene extends Phaser.Scene {
       grafico.clear();
       grafico.fillStyle(colorActual);
       grafico.fillRect(izquierda, arriba, ancho, alto);
-      grafico.lineStyle(4, 0x171a2e);
+      grafico.lineStyle(4, COLORES.panel);
       grafico.beginPath();
       grafico.moveTo(izquierda, abajo);
       grafico.lineTo(izquierda, arriba);
@@ -149,7 +151,7 @@ export class LevelsScene extends Phaser.Scene {
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "16px",
-      color: "#222034"
+      color: colorTexto(COLORES.fondo)
     });
 
     textoTab.setOrigin(0.5);
@@ -183,23 +185,23 @@ export class LevelsScene extends Phaser.Scene {
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "26px",
-      color: "#cbdbfc"
+      color: colorTexto(COLORES.blanco)
     }).setOrigin(0.5, 0);
 
     const centroTitulo = titulo.y + titulo.displayHeight / 2;
 
     this.boton(100, centroTitulo, 120, this.textoOpciones[1][spanish], () => {
       this.volver();
-    }, 0xb39ddb);
+    }, COLORES.violeta);
 
     this.boton(680, centroTitulo, 160, this.textoOpciones[2][spanish], async () => {
       await this.cerrarNombre(true);
       abrirExportacionOficiales(this);
-    }, 0xffd166);
+    }, COLORES.amarillo);
 
-    this.crearTab(173, 103, 226, 54, this.textoOpciones[3][spanish], 0x9ccc65, 0xb0d782, true, () => {});
+    this.crearTab(173, 103, 226, 54, this.textoOpciones[3][spanish], COLORES.verde, COLORES.verdeHover, true, () => {});
 
-    this.crearTab(400, 108, 228, 44, this.textoOpciones[4][spanish], 0x73994b, 0xb0d782, false, async () => {
+    this.crearTab(400, 108, 228, 44, this.textoOpciones[4][spanish], COLORES.verdeInactivo, COLORES.verdeHover, false, async () => {
       await this.cerrarNombre(true);
 
       try {
@@ -218,12 +220,12 @@ export class LevelsScene extends Phaser.Scene {
       }
     });
 
-    this.crearTab(627, 108, 226, 44, this.textoOpciones[20][spanish], 0x73994b, 0xb0d782, false, async () => {
+    this.crearTab(627, 108, 226, 44, this.textoOpciones[20][spanish], COLORES.verdeInactivo, COLORES.verdeHover, false, async () => {
       await this.cerrarNombre(true);
       abrirImportacionNiveles(this);
     });
 
-    this.add.rectangle(400, 345, 720, 430, 0x171a2e).setStrokeStyle(4, 0x9ccc65);
+    this.add.rectangle(400, 345, 720, 430, COLORES.panel).setStrokeStyle(4, COLORES.verde);
 
     const campo = crearCampoTexto(this, 60, 170, 680, this.textoOpciones[6][spanish], MAX_BUSQUEDA, async (valor) => {
       this.busqueda = valor;
@@ -271,7 +273,7 @@ export class LevelsScene extends Phaser.Scene {
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "16px",
-      color: "#cbdbfc"
+      color: colorTexto(COLORES.blanco)
     });
 
     this.textoPagina.setOrigin(0.5);
@@ -387,7 +389,7 @@ export class LevelsScene extends Phaser.Scene {
         padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "18px",
-        color: "#ffffff"
+        color: colorTexto(COLORES.blanco)
       });
 
       nombre.setOrigin(0, 0.5);
@@ -395,11 +397,11 @@ export class LevelsScene extends Phaser.Scene {
       this.ajustarNombreVisible(nombre, nivel.nombre);
 
       nombre.on("pointerover", () => {
-        nombre.setColor("#ffd166");
+        nombre.setColor(colorTexto(COLORES.amarillo));
       });
 
       nombre.on("pointerout", () => {
-        nombre.setColor("#ffffff");
+        nombre.setColor(colorTexto(COLORES.blanco));
       });
 
       nombre.on("pointerdown", () => {
@@ -432,7 +434,7 @@ export class LevelsScene extends Phaser.Scene {
           testeando: true,
           escenaAnterior: this.sys.settings.key
         }, true);
-      }, 0xe6c56a);
+      }, COLORES.amarillo);
 
       this.botonLista(590, y, 90, this.textoOpciones[11][spanish], async () => {
         await this.cerrarNombre(true);
@@ -443,7 +445,7 @@ export class LevelsScene extends Phaser.Scene {
         } catch (error) {
           window.alert(this.textoOpciones[12][spanish] + String(error));
         }
-      }, 0xb39ddb);
+      }, COLORES.violeta);
 
       this.botonLista(690, y, 90, this.textoOpciones[13][spanish], async () => {
         await this.cerrarNombre(true);
@@ -466,7 +468,7 @@ export class LevelsScene extends Phaser.Scene {
       }, ROJO);
 
       if (i < fin - 1) {
-        const linea = this.add.rectangle(400, y + 34, 680, 2, 0x303653);
+        const linea = this.add.rectangle(400, y + 34, 680, 2, COLORES.separador);
         this.objetosLista.push(linea);
       }
 
@@ -478,7 +480,7 @@ export class LevelsScene extends Phaser.Scene {
         padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "16px",
-        color: "#cbdbfc"
+        color: colorTexto(COLORES.blanco)
       });
 
       mensaje.setOrigin(0.5);
@@ -538,9 +540,9 @@ export class LevelsScene extends Phaser.Scene {
     input.style.fontFamily = '"Fuente", monospace';
     input.style.fontSize = "16px";
     input.style.lineHeight = "32px";
-    input.style.backgroundColor = "#171a2e";
-    input.style.color = "#ffffff";
-    input.style.border = "2px solid #ffd166";
+    input.style.backgroundColor = colorTexto(COLORES.panel);
+    input.style.color = colorTexto(COLORES.blanco);
+    input.style.border = "2px solid " + colorTexto(COLORES.amarillo);
     input.style.borderRadius = "0";
     input.style.paddingLeft = "8px";
     input.style.paddingRight = "8px";
@@ -563,7 +565,7 @@ export class LevelsScene extends Phaser.Scene {
       const escrito = input.value;
       objeto.destroy();
       texto.setVisible(true);
-      texto.setColor("#ffffff");
+      texto.setColor(colorTexto(COLORES.blanco));
 
       if (guardar === false || escrito === nombreOriginal) {
         return;

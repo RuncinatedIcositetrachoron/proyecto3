@@ -1,3 +1,4 @@
+import { COLORES, colorTexto, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { spanish } from "./idioma";
 import { MAX_NOMBRE_NIVEL } from "./camposTexto";
@@ -221,34 +222,32 @@ export async function actualizarNivel(nivel: Nivel): Promise<void> {
 }
 
  export function crearBoton(escena: Phaser.Scene, x: number, y: number, ancho: number, texto: string, accion: () => void): Phaser.GameObjects.Rectangle {
-  escena.add.rectangle(x + 3, y + 3, ancho + 4, 44, 0x14121e);
-  const fondo = escena.add.rectangle(x, y, ancho, 40, 0xcbdbfc);
-  fondo.setStrokeStyle(4, 0x222034);
+  escena.add.rectangle(x + 3, y + 3, ancho + 4, 44, COLORES.sombra);
+  const fondo = escena.add.rectangle(x, y, ancho, 40, COLORES.normal);
+  fondo.setStrokeStyle(4, COLORES.fondo);
   fondo.setInteractive({ useHandCursor: true });
   escena.add.text(x, y, texto, {
     fontSize: "16px",
-    color: "#222034",
+    color: colorTexto(COLORES.fondo),
     padding: { top: 6, bottom: 6 },
     fontFamily: "Fuente",
     resolution: 1
   }).setOrigin(0.5);
 
-  const colorHover = 0x95add6;
-  const colorSeleccionado = 0xffd166;
-  const colorHoverSeleccionado = 0xd9ad4f;
+  let colorHover = fondo.fillColor;
   let colorAnterior = fondo.fillColor;
 
-  const bordeTooltip = escena.add.rectangle(0, 0, 1, 1, 0x171a2e)
+  const bordeTooltip = escena.add.rectangle(0, 0, 1, 1, COLORES.panel)
   .setOrigin(0)
-  .setStrokeStyle(2, 0xcbdbfc)
+  .setStrokeStyle(2, COLORES.normal)
   .setDepth(999)
   .setVisible(false);
 
   const tooltip = escena.add.text(0, 0, "", {
     fontFamily: "Fuente",
     fontSize: "16px",
-    color: "#cbdbfc",
-    backgroundColor: "#171a2e",
+    color: colorTexto(COLORES.blanco),
+    backgroundColor: colorTexto(COLORES.panel),
     padding: { left: 8, right: 8, top: 6, bottom: 6 },
     resolution: 1
   }).setDepth(1000).setVisible(false);
@@ -278,11 +277,8 @@ export async function actualizarNivel(nivel: Nivel): Promise<void> {
   fondo.on("pointerover", () => {
     if (fondo.input && fondo.input.enabled) {
       colorAnterior = fondo.fillColor;
-      if (colorAnterior === colorSeleccionado) {
-        fondo.setFillStyle(colorHoverSeleccionado);
-      } else {
-        fondo.setFillStyle(colorHover);
-      }
+      colorHover = oscurecerColor(colorAnterior);
+      fondo.setFillStyle(colorHover);
       mostrarTooltip();
     }
   });
@@ -290,7 +286,7 @@ export async function actualizarNivel(nivel: Nivel): Promise<void> {
   fondo.on("pointermove", mostrarTooltip);
 
   fondo.on("pointerout", () => {
-    if (fondo.fillColor === colorHover || fondo.fillColor === colorHoverSeleccionado) {
+    if (fondo.fillColor === colorHover) {
       fondo.setFillStyle(colorAnterior);
     }
     tooltip.setVisible(false);

@@ -1,3 +1,4 @@
+import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { spanish } from "./idioma";
 import { cargarPortales, crearAnimacionesPortales, configurarPortal, esParedExteriorPortal } from "./portales";
@@ -514,11 +515,11 @@ export class GameScene extends Phaser.Scene {
 
     private obtenerEtiquetaNivel() {
         let texto = "";
-        let color = "#9ccc65";
+        let color = textoColor(COLORES.verde);
 
         if (this.modoTest || this.testeando || (this.nivelId !== "" && this.nivelDescargado === null)) {
             texto = this.textoOpciones[2][spanish];
-            color = "#ffd166";
+            color = textoColor(COLORES.amarillo);
         } else if (this.community === false) {
             texto = this.textoOpciones[1][spanish] + this.levelNumber;
         }
@@ -613,13 +614,14 @@ export class GameScene extends Phaser.Scene {
         fondo.on("pointerover", () => {
             if (fondo.input && fondo.input.enabled) {
                 this.reproducirSonido("hover");
+                fondo.setFillStyle(oscurecerColor(color));
             }
-            fondo.setFillStyle(color);
-            fondo.setAlpha(0.8);
         });
 
         fondo.on("pointerout", () => {
-            fondo.setAlpha(1);
+            if (fondo.input && fondo.input.enabled) {
+                fondo.setFillStyle(color);
+            }
         });
 
         const teclado = this.input.keyboard;
@@ -671,7 +673,7 @@ private crearBarraSuperior() {
         alto / 2,
         this.scale.width,
         alto,
-        0x171a2e
+        COLORES.panel
     );
 
     barra.setDepth(-0.000002);
@@ -681,7 +683,7 @@ private crearBarraSuperior() {
         alto - 2,
         this.scale.width,
         4,
-        0x6f87b0
+        COLORES.borde
     );
 
     bordeInferior.setDepth(-0.0000000002);
@@ -696,7 +698,7 @@ private crearBarraSuperior() {
         padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "18px",
-        color: "#ffffff",
+        color: textoColor(COLORES.blanco),
     }
     );
 
@@ -739,7 +741,7 @@ private crearBarraSuperior() {
         y,
         anchoBoton,
         this.textoOpciones[5][spanish],
-        0x9ccc65,
+        COLORES.verde,
         903,
         () => {
             if (this.history.length === 0) {
@@ -755,7 +757,7 @@ private crearBarraSuperior() {
         y,
         anchoBoton,
         this.textoOpciones[6][spanish],
-        0xe6c56a,
+        COLORES.amarillo,
         903,
         () => {
             if (this.history.length === 0) {
@@ -771,7 +773,7 @@ private crearBarraSuperior() {
         y,
         anchoBoton,
         this.textoOpciones[7][spanish],
-        0xb39ddb,
+        COLORES.violeta,
         903,
         () => {
             this.abrirMenuPausa();
@@ -790,20 +792,20 @@ private crearBarraSuperior() {
     const actualizarBotones = () => {
         if (this.menuup === 2) {
             botonPausa.disableInteractive();
-            botonPausa.setFillStyle(0x79869e);
+            botonPausa.setFillStyle(COLORES.desactivado);
             botonPausa.setAlpha(1);
             botonPausa.emit("ocultarTooltip");
         } else {
             botonPausa.setInteractive({ useHandCursor: true });
-            botonPausa.setFillStyle(0xb39ddb);
+            botonPausa.setFillStyle(COLORES.violeta);
         }
 
         if (this.history.length === 0) {
             botonDeshacer.disableInteractive();
             botonReset.disableInteractive();
 
-            botonDeshacer.setFillStyle(0x79869e);
-            botonReset.setFillStyle(0x79869e);
+            botonDeshacer.setFillStyle(COLORES.desactivado);
+            botonReset.setFillStyle(COLORES.desactivado);
 
             botonDeshacer.setAlpha(1);
             botonReset.setAlpha(1);
@@ -816,8 +818,8 @@ private crearBarraSuperior() {
                 useHandCursor: true
             });
 
-            botonDeshacer.setFillStyle(0x9ccc65);
-            botonReset.setFillStyle(0xe6c56a);
+            botonDeshacer.setFillStyle(COLORES.verde);
+            botonReset.setFillStyle(COLORES.amarillo);
         }
     };
 
@@ -1004,14 +1006,14 @@ private crearBarraSuperior() {
         y: number,
         texto: string
     ) {
-        const sombra = this.add.rectangle(x, y + 3, 28, 28, 0x080b17);
-        const tecla = this.add.rectangle(x, y, 28, 28, 0x2c344c);
-        tecla.setStrokeStyle(2, 0x7c8eaf);
+        const sombra = this.add.rectangle(x, y + 3, 28, 28, COLORES.sombraPopup);
+        const tecla = this.add.rectangle(x, y, 28, 28, COLORES.tecla);
+        tecla.setStrokeStyle(2, COLORES.bordeTecla);
         contenedor.add([sombra, tecla]);
 
         if (texto === "up" || texto === "left" || texto === "down" || texto === "right") {
             const flecha = this.add.graphics();
-            flecha.lineStyle(3, 0xeef3ff, 1);
+            flecha.lineStyle(3, COLORES.blanco, 1);
             flecha.beginPath();
             flecha.moveTo(-6, 3);
             flecha.lineTo(0, -3);
@@ -1035,7 +1037,7 @@ private crearBarraSuperior() {
             padding: { top: 6, bottom: 6 },
             fontFamily: "Fuente, Arial",
             fontSize: "18px",
-            color: "#eef3ff"
+            color: textoColor(COLORES.blanco)
         }).setOrigin(0.5);
 
         contenedor.add(etiqueta);
@@ -1053,7 +1055,7 @@ private crearBarraSuperior() {
             0,
             this.scale.width,
             this.altoAvisos - 12,
-            0x171a2e,
+            COLORES.panel,
             0.82
         );
         this.pantallaMuerte.add(fondo);
@@ -1066,7 +1068,7 @@ private crearBarraSuperior() {
                 padding: { top: 6, bottom: 6 },
                 fontFamily: "Fuente",
                 fontSize: "21px",
-                color: "#e57373"
+                color: textoColor(COLORES.rojo)
             }
         ).setOrigin(0.5);
         this.pantallaMuerte.add(titulo);
@@ -1085,7 +1087,7 @@ private crearBarraSuperior() {
                     padding: { top: 6, bottom: 6 },
                     fontFamily: "Fuente",
                     fontSize: "16px",
-                    color: "#cbdbfc"
+                    color: textoColor(COLORES.blanco)
                 }).setOrigin(0, 0.5);
                 instrucciones.add(texto);
                 x += texto.width;
@@ -1125,7 +1127,7 @@ private crearBarraSuperior() {
 
         const fondo = this.add.rectangle(
             0, 0, this.scale.width,
-            this.altoAvisos - 12, 0x171a2e, 0.74
+            this.altoAvisos - 12, COLORES.panel, 0.74
         );
         this.ayudaMovimiento.add(fondo);
 
@@ -1150,7 +1152,7 @@ private crearBarraSuperior() {
                     padding: { top: 6, bottom: 6 },
                     fontFamily: "Fuente",
                     fontSize: "16px",
-                    color: "#cbdbfc",
+                    color: textoColor(COLORES.blanco),
                     align: "center",
                     wordWrap: { width: this.scale.width - 64 }
                 }).setOrigin(0, 0.5);
@@ -1182,7 +1184,7 @@ private crearBarraSuperior() {
             centroY,
             this.scale.width,
             this.scale.height,
-            0x080b17,
+            COLORES.sombraPopup,
             0.72
         );
 
@@ -1196,7 +1198,7 @@ private crearBarraSuperior() {
             centroY + 6,
             424,
             364,
-            0x080b17
+            COLORES.sombraPopup
         );
 
         sombra.setDepth(1001);
@@ -1208,10 +1210,10 @@ private crearBarraSuperior() {
             centroY,
             420,
             360,
-            0x171a2e
+            COLORES.panel
         );
 
-        panel.setStrokeStyle(4, 0xb39ddb);
+        panel.setStrokeStyle(4, COLORES.violeta);
         panel.setDepth(1002);
 
         this.objetosMenuPausa.push(panel);
@@ -1224,7 +1226,7 @@ private crearBarraSuperior() {
                 padding: { top: 6, bottom: 6 },
                 fontFamily: "Fuente",
                 fontSize: "26px",
-                color: "#ffffff",
+                color: textoColor(COLORES.blanco),
             }
         );
 
@@ -1261,7 +1263,7 @@ private crearBarraSuperior() {
                 padding: { top: 6, bottom: 6 },
                 fontFamily: "Fuente",
                 fontSize: "18px",
-                color: "#cbdbfc"
+                color: textoColor(COLORES.blanco)
             }
         ).setOrigin(0.5).setDepth(1003);
 
@@ -1276,7 +1278,7 @@ private crearBarraSuperior() {
             centroY - 10,
             260,
             this.textoOpciones[8][spanish],
-            0xcbdbfc,
+            COLORES.normal,
             1004,
             () => {
                 this.cerrarMenuPausa();
@@ -1292,7 +1294,7 @@ private crearBarraSuperior() {
             centroY + 50,
             260,
             this.textoOpciones[6][spanish],
-            0xe6c56a,
+            COLORES.amarillo,
             1004,
             () => {
                 this.cerrarMenuPausa();
@@ -1309,7 +1311,7 @@ private crearBarraSuperior() {
             centroY + 110,
             260,
             this.textoOpciones[16][spanish],
-            0xe57373,
+            COLORES.rojo,
             1004,
             () => {
                 this.volver();
@@ -4318,7 +4320,7 @@ async create() {
                 this.scale.width / 2,
                 this.scale.height / 2,
                 this.textoOpciones[17][spanish],
-                { padding: { top: 6, bottom: 6 }, fontFamily: "Fuente", fontSize: "20px", color: "#cbdbfc" }
+                { padding: { top: 6, bottom: 6 }, fontFamily: "Fuente", fontSize: "20px", color: textoColor(COLORES.blanco) }
             ).setOrigin(0.5);
             try {
                 if (this.idsNivelesOficiales.length === 0) {

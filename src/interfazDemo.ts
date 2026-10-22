@@ -1,10 +1,11 @@
+import { COLORES, colorTexto } from "./colores";
 import Phaser from 'phaser';
 import { spanish } from "./idioma";
 import { crearBoton } from './niveles';
 
-export const VERDE = 0x9ccc65;
-export const ROJO = 0xe57373;
-export const NORMAL = 0xcbdbfc;
+export const VERDE = COLORES.verde;
+export const ROJO = COLORES.rojo;
+export const NORMAL = COLORES.normal;
 
 export class InterfazDemo extends Phaser.Scene {
   limpiar() {
@@ -16,7 +17,7 @@ export class InterfazDemo extends Phaser.Scene {
       }
     }
     this.children.removeAll(true);
-    this.cameras.main.setBackgroundColor('#222034');
+    this.cameras.main.setBackgroundColor(colorTexto(COLORES.fondo));
   }
   texto(
     x: number,
@@ -28,7 +29,7 @@ export class InterfazDemo extends Phaser.Scene {
       padding: { top: 6, bottom: 6 },
       fontFamily: 'Fuente',
       fontSize: tamano + 'px',
-      color: '#cbdbfc',
+      color: colorTexto(COLORES.blanco),
       wordWrap: { width: 730 }
     });
     return texto;
@@ -53,7 +54,7 @@ export class InterfazDemo extends Phaser.Scene {
   
     if (!habilitado) {
       fondo.disableInteractive();
-      fondo.setFillStyle(0x999999);
+      fondo.setFillStyle(COLORES.desactivadoAlternativo);
     }
   
     return fondo;
@@ -82,7 +83,7 @@ export class InterfazDemo extends Phaser.Scene {
       300,
       800,
       600,
-      0x000000,
+      COLORES.negro,
       0.7
     ).setInteractive();
     this.add.rectangle(
@@ -90,7 +91,7 @@ export class InterfazDemo extends Phaser.Scene {
       300,
       710,
       250,
-      0x171a2e
+      COLORES.panel
     ).setStrokeStyle(3, NORMAL);
     this.texto(
       75,

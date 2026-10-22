@@ -1,3 +1,4 @@
+import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 import type Phaser from "phaser";
 import { spanish } from "./idioma";
 import { InterfazDemo } from "./interfazDemo";
@@ -71,6 +72,7 @@ export class UsuariosDemoScene extends InterfazDemo {
     activa: boolean,
     accion: () => void
   ) {
+    colorHover = oscurecerColor(color);
     const grafico = this.add.graphics();
 
     const izquierda = x - ancho / 2;
@@ -82,7 +84,7 @@ export class UsuariosDemoScene extends InterfazDemo {
       grafico.clear();
       grafico.fillStyle(colorActual);
       grafico.fillRect(izquierda, arriba, ancho, alto);
-      grafico.lineStyle(4, 0x171a2e);
+      grafico.lineStyle(4, COLORES.panel);
       grafico.beginPath();
       grafico.moveTo(izquierda, abajo);
       grafico.lineTo(izquierda, arriba);
@@ -101,7 +103,7 @@ export class UsuariosDemoScene extends InterfazDemo {
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "16px",
-      color: "#222034"
+      color: textoColor(COLORES.fondo)
     });
 
     textoTab.setOrigin(0.5);
@@ -146,9 +148,9 @@ export class UsuariosDemoScene extends InterfazDemo {
     boton.style.display = "flex";
     boton.style.alignItems = "center";
     boton.style.justifyContent = "center";
-    boton.style.backgroundColor = "#222034";
-    boton.style.color = "#cbdbfc";
-    boton.style.border = "2px solid #6f87b0";
+    boton.style.backgroundColor = textoColor(COLORES.fondo);
+    boton.style.color = textoColor(COLORES.blanco);
+    boton.style.border = "2px solid " + textoColor(COLORES.borde);
     boton.style.cursor = "pointer";
 
     const icono = document.createElement("span");
@@ -186,13 +188,13 @@ export class UsuariosDemoScene extends InterfazDemo {
     actualizarBoton();
 
     boton.addEventListener("mouseenter", () => {
-      boton.style.color = "#ffd166";
-      boton.style.borderColor = "#ffd166";
+      boton.style.color = textoColor(COLORES.amarillo);
+      boton.style.borderColor = textoColor(COLORES.amarillo);
     });
 
     boton.addEventListener("mouseleave", () => {
-      boton.style.color = "#cbdbfc";
-      boton.style.borderColor = "#6f87b0";
+      boton.style.color = textoColor(COLORES.blanco);
+      boton.style.borderColor = textoColor(COLORES.borde);
     });
 
     boton.addEventListener("mousedown", evento => {
@@ -245,12 +247,12 @@ export class UsuariosDemoScene extends InterfazDemo {
   dibujar() {
     this.limpiar();
 
-    const AZUL = 0x95add6;
-    const AZUL_HOVER = 0xaec1e1;
-    const AZUL_INACTIVO = 0x6f87b0;
-    const VERDE = 0x9ccc65;
-    const VERDE_HOVER = 0xb0d782;
-    const VERDE_INACTIVO = 0x73994b;
+    const AZUL = COLORES.azul;
+    const AZUL_HOVER = COLORES.azulHover;
+    const AZUL_INACTIVO = COLORES.borde;
+    const VERDE = COLORES.verde;
+    const VERDE_HOVER = COLORES.verdeHover;
+    const VERDE_INACTIVO = COLORES.verdeInactivo;
 
     let colorActual = AZUL;
 
@@ -338,7 +340,7 @@ export class UsuariosDemoScene extends InterfazDemo {
       centroPanel,
       anchoPanel,
       altoPanel,
-      0x171a2e
+      COLORES.panel
     ).setStrokeStyle(4, colorActual);
 
     let tituloFormulario = this.textoOpciones[3][spanish];
@@ -351,9 +353,9 @@ export class UsuariosDemoScene extends InterfazDemo {
     textoTitulo.setOrigin(0.5);
 
     if (this.registro) {
-      textoTitulo.setColor("#9ccc65");
+      textoTitulo.setColor(textoColor(COLORES.verde));
     } else {
-      textoTitulo.setColor("#95add6");
+      textoTitulo.setColor(textoColor(COLORES.blanco));
     }
 
     const etiquetaNombre = this.texto(xCampo, yNombre - 40, this.textoOpciones[6][spanish], 16);
@@ -472,7 +474,7 @@ export class UsuariosDemoScene extends InterfazDemo {
       const nombreEscrito = nombre.value.trim();
       const claveEscrita = clave.value;
 
-      aviso.setColor("#e57373");
+      aviso.setColor(textoColor(COLORES.rojo));
 
       if (nombreEscrito === "") {
         aviso.setText(this.textoOpciones[12][spanish]);
@@ -511,7 +513,7 @@ export class UsuariosDemoScene extends InterfazDemo {
         botonesClave[i].disabled = true;
       }
 
-      aviso.setColor("#cbdbfc");
+      aviso.setColor(textoColor(COLORES.blanco));
 
       try {
         if (this.registro) {
@@ -601,7 +603,7 @@ export class UsuariosDemoScene extends InterfazDemo {
           mensaje = this.textoOpciones[25][spanish] + mensaje + this.textoOpciones[26][spanish];
         }
 
-        aviso.setColor("#e57373");
+        aviso.setColor(textoColor(COLORES.rojo));
         aviso.setText(mensaje);
       }
     };
@@ -625,11 +627,11 @@ export class UsuariosDemoScene extends InterfazDemo {
       ).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
       accesoInvitado.on("pointerover", () => {
-        accesoInvitado.setColor("#ffd166");
+        accesoInvitado.setColor(textoColor(COLORES.amarillo));
       });
 
       accesoInvitado.on("pointerout", () => {
-        accesoInvitado.setColor("#cbdbfc");
+        accesoInvitado.setColor(textoColor(COLORES.blanco));
       });
 
       accesoInvitado.on("pointerdown", () => {
