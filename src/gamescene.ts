@@ -1389,7 +1389,7 @@ private crearBarraSuperior() {
             animation = "laser-horizontal2";
         }
 
-        const body = this.add.sprite(this.offsetX + x * this.tilesize, this.offsetY + y * this.tilesize, "laserBody", frame);
+        const body = this.add.sprite(this.offsetX + x * this.tilesize, this.offsetY + y * this.tilesize, "laserBody", frame).setDepth(1.00001);
         body.setOrigin(1, 1);
         body.setScale(this.pixelmultiplier);
         this.playLaserAnimation(body, animation, phase);
@@ -1557,7 +1557,7 @@ private crearBarraSuperior() {
             this.pixelmultiplier * height / this.tilesize
         );
 
-        let depth = 0;
+        let depth = 1.00001;
         if (laser.incomingDir !== laser.outgoingDir && laser.source) {
             depth = laser.source.sprite.depth + 0.00001;
         }
@@ -3463,6 +3463,10 @@ private crearBarraSuperior() {
             frameWidth: 20,
             frameHeight: 24,
         });
+        this.load.spritesheet("wallshadow2", "assets/wallshadow2.png", {
+            frameWidth: 20,
+            frameHeight: 24,
+        });
         this.load.spritesheet("sewingshadow", "assets/sewingshadow.png", {
             frameWidth: 36,
             frameHeight: 56,
@@ -4189,7 +4193,7 @@ async create() {
                             y: y,
                             pushable: false,
                             sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 3).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
-                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "wallshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
+                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "wallshadow2",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                             });
                             break;
                         }
