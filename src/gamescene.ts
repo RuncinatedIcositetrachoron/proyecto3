@@ -3390,17 +3390,32 @@ private crearBarraSuperior() {
     }
 
     private flashbang() {
-        const flash = this.add.image(this.scale.width/2, this.scale.height/2, "dario");
-        flash.setDepth(80000000).setScale(this.scale.height/flash.height).setOrigin(0.5,0.5);
-        this.tweens.add({
-            targets: flash,
-            alpha: 0,
-            duration: this.lindseyspeed * 5,
-            ease: "Linear",
-            onComplete: () => {
-                flash.destroy();
-            }
-        });
+        const chance = Math.floor(Math.random()*10);
+        if (chance === 0) { 
+            const flash = this.add.image(this.scale.width/2, this.scale.height/2, "dario");
+            flash.setDepth(80000000).setScale(this.scale.height/flash.height).setOrigin(0.5,0.5);
+            this.tweens.add({
+                targets: flash,
+                alpha: 0,
+                duration: this.lindseyspeed * 5,
+                ease: "Linear",
+                onComplete: () => {
+                    flash.destroy();
+                }
+            });
+        } else {
+            const flash = this.add.image(this.scale.width/2, this.scale.height/2, "white");
+            flash.setDepth(80000000).setScale(this.scale.width/flash.width).setOrigin(0.5,0.5);
+            this.tweens.add({
+                targets: flash,
+                alpha: 0,
+                duration: this.lindseyspeed * 5,
+                ease: "Linear",
+                onComplete: () => {
+                    flash.destroy();
+                }
+            });
+        }
     }
 
     constructor() {
@@ -3453,6 +3468,7 @@ private crearBarraSuperior() {
             frameHeight: 56,
         });
         this.load.image("dario", "assets/dariojumpscare.jpg");
+        this.load.image("white", "assets/white.jpg");
         cargarPortales(this);
         this.load.spritesheet("laserBody", "assets/laser.body.spritesheet.png", {
             frameWidth: 16,
