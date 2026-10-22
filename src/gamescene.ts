@@ -104,8 +104,43 @@ export class GameScene extends Phaser.Scene {
     private sonidos = [
         // 1. WALKING:
         {
-            nombre: "paso",
+            nombre: "paso1",
             archivo: "lindsey_sfx/step01.wav",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "paso2",
+            archivo: "lindsey_sfx/step02.wav",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "paso3",
+            archivo: "lindsey_sfx/step03.wav",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "paso4",
+            archivo: "lindsey_sfx/step04.wav",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "paso5",
+            archivo: "lindsey_sfx/step05.wav",
+            volumen: 0.4,
+            espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "paso6",
+            archivo: "lindsey_sfx/step06.wav",
             volumen: 0.4,
             espera: 70,
             ultimo: -1000
@@ -118,19 +153,27 @@ export class GameScene extends Phaser.Scene {
             espera: 80,
             ultimo: -1000
         },
-        // 3. LASER REFLECTION
+        // 3. TRANSITION
         {
-            nombre: "rebote",
-            archivo: "lindsey_sfx/03_rebote_laser.ogg",
+            nombre: "entrar",
+            archivo: "lindsey_sfx/exitdoor.wav",
             volumen: 0.18,
-            espera: 80,
+            espera: 0,
             ultimo: -1000
         },
         // 4. DEATH
         {
             nombre: "morir",
-            archivo: "lindsey_sfx/04_morir.ogg",
-            volumen: 0.5,
+            archivo: "lindsey_sfx/die.mp3",
+            volumen: 0.05,
+            espera: 150,
+            ultimo: -1000
+        },
+        // 4.1. DEAD
+        {
+            nombre: "muerta",
+            archivo: "lindsey_sfx/dead.mp3",
+            volumen: 0.02,
             espera: 150,
             ultimo: -1000
         },
@@ -191,6 +234,7 @@ export class GameScene extends Phaser.Scene {
             ultimo: -1000
         }
     ];
+    private deadSound: Phaser.Sound.BaseSound | undefined;
     private levelNumber = 1;
     private history: GameState[] = [];
     private community: boolean = true;
@@ -305,6 +349,9 @@ export class GameScene extends Phaser.Scene {
     private tempstorage3: Entity | undefined;
     private movenumber: Boolean = false;
     private pushing: Boolean = false;
+    private coyotewindow: boolean = false;
+    private coyoteId: number = 0;
+    private currentMoveDirection: string = "";
     private playerMoving = false;
     private inputBuffer: string = "";
     private holdBufferOpen: Boolean = false;
@@ -365,6 +412,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     private reproducirSonido(nombre: string) {
+        if (nombre === "paso") {
+            const chance = Math.floor(Math.random()*6);
+            switch (chance) {
+                case 0: nombre = "paso1"; break;
+                case 1: nombre = "paso2"; break;
+                case 2: nombre = "paso3"; break;
+                case 3: nombre = "paso4"; break;
+                case 4: nombre = "paso5"; break;
+                case 5: nombre = "paso6"; break;
+            }
+        }
         if (this.cargandoNivel || this.volumenEfectos <= 0 || this.sound.locked) {
             return;
         }
@@ -373,7 +431,7 @@ export class GameScene extends Phaser.Scene {
             if (sonido.nombre !== nombre) {
                 continue;
             }
-            const clave = "game-" + nombre;
+            let clave = "game-" + nombre;
             if (sonido.archivo === "" || !this.cache.audio.exists(clave)) {
                 return;
             }
@@ -391,6 +449,23 @@ export class GameScene extends Phaser.Scene {
             });
             sonido.ultimo = this.time.now;
             return;
+        }
+    }
+
+    private startDeadSound() {
+        if (this.deadSound) return;
+        this.deadSound = this.sound.add("game-muerta", {
+            volume: 0.3 * this.volumenEfectos,
+            loop: true
+        });
+        this.deadSound.play();
+    }
+
+    private stopDeadSound() {
+        if (this.deadSound) {
+            this.deadSound.stop();
+            this.deadSound.destroy();
+            this.deadSound = undefined;
         }
     }
 
@@ -452,49 +527,49 @@ export class GameScene extends Phaser.Scene {
     }
 
     private async registrarVictoriaDescargada(): Promise<void> {
-    if (this.victoriaDescargadaEnCurso || this.idGlobalDescargado === null) {
-        return;
-    }
-    this.victoriaDescargadaEnCurso = true;
-    try {
-        const usuario = demo.usuarioActual;
-
-        if (usuario === null || usuario === undefined) {
-            throw new Error(this.textoOpciones[3][spanish]);
+        if (this.victoriaDescargadaEnCurso || this.idGlobalDescargado === null) {
+            return;
         }
+        this.victoriaDescargadaEnCurso = true;
+        try {
+            const usuario = demo.usuarioActual;
 
-        await completarNivelDescargadoBackend(
-            usuario.nombre,
-            this.idGlobalDescargado
-        );
-        for (let i = 0; i < demo.descargas.length; i++) {
-            const descarga = demo.descargas[i];
-            if (
-                descarga.usuarioId === usuario.id &&
-                descarga.nivelId === this.idGlobalDescargado
-            ) {
-                descarga.completado = true;
+            if (usuario === null || usuario === undefined) {
+                throw new Error(this.textoOpciones[3][spanish]);
             }
+
+            await completarNivelDescargadoBackend(
+                usuario.nombre,
+                this.idGlobalDescargado
+            );
+            for (let i = 0; i < demo.descargas.length; i++) {
+                const descarga = demo.descargas[i];
+                if (
+                    descarga.usuarioId === usuario.id &&
+                    descarga.nivelId === this.idGlobalDescargado
+                ) {
+                    descarga.completado = true;
+                }
+            }
+            if (this.nivelDescargado !== null) {
+                this.nivelDescargado.completado = true;
+            }
+        } catch (error: any) {
+            window.alert(
+                this.textoOpciones[4][spanish] +
+                String(error)
+            );
         }
-        if (this.nivelDescargado !== null) {
-            this.nivelDescargado.completado = true;
-        }
-    } catch (error: any) {
-        window.alert(
-            this.textoOpciones[4][spanish] +
-            String(error)
+        const transition = this.scene.get("transition") as TransitionScene;
+
+        transition.changeScene(
+            this.sys.settings.key,
+            "communityDemo",
+            {
+                pestana: "Descargados"
+            }
         );
     }
-    const transition = this.scene.get("transition") as TransitionScene;
-
-    transition.changeScene(
-        this.sys.settings.key,
-        "communityDemo",
-        {
-            pestana: "Descargados"
-        }
-    );
-}
       
     private crearBotonJuego(
         x: number,
@@ -765,8 +840,9 @@ private crearBarraSuperior() {
 }
 
 
-        private reiniciarNivel() {
+    private reiniciarNivel() {
         this.reproducirSonido("click");
+        this.stopDeadSound();
         this.scene.restart({
             modoTest: this.modoTest,
             nivelTest: this.nivelTest,
@@ -778,20 +854,20 @@ private crearBarraSuperior() {
             idGlobal: this.idGlobalDescargado,
             idsNivelesOficiales: this.idsNivelesOficiales
         });
-        }
+    }
 
-        private volver() {
-            if (this.saliendoDelNivel) {
-                return;
-            }
-            this.saliendoDelNivel = true;
-            this.menuup = 0;
-            this.playerMoving = false;
-            this.inputBuffer = "";
-            this.holdBufferOpen = false;
-            const transition = this.scene.get("transition") as TransitionScene;
-            transition.changeScene(this.sys.settings.key, this.escenaAnterior);
+    private volver() {
+        if (this.saliendoDelNivel) {
+            return;
         }
+        this.saliendoDelNivel = true;
+        this.menuup = 0;
+        this.playerMoving = false;
+        this.inputBuffer = "";
+        this.holdBufferOpen = false;
+        const transition = this.scene.get("transition") as TransitionScene;
+        transition.changeScene(this.sys.settings.key, this.escenaAnterior);
+    }
 
     private async ganarNivel() {
         if (this.saliendoDelNivel) {
@@ -872,9 +948,11 @@ private crearBarraSuperior() {
     }
 
     private undoMove() {
-        if (this.playerMoving) {
+        if (this.playerMoving && !this.coyotewindow) {
             return;
         }
+
+        this.stopDeadSound();
         const state = this.history.pop();
         if (!state) {
             return;
@@ -1390,7 +1468,7 @@ private crearBarraSuperior() {
             animation = "laser-horizontal2";
         }
 
-        const body = this.add.sprite(this.offsetX + x * this.tilesize, this.offsetY + y * this.tilesize, "laserBody", frame);
+        const body = this.add.sprite(this.offsetX + x * this.tilesize, this.offsetY + y * this.tilesize, "laserBody", frame).setDepth(1.00001);
         body.setOrigin(1, 1);
         body.setScale(this.pixelmultiplier);
         this.playLaserAnimation(body, animation, phase);
@@ -1578,7 +1656,7 @@ private crearBarraSuperior() {
             this.pixelmultiplier * height / this.tilesize
         );
 
-        let depth = 0;
+        let depth = 1.00001;
         if (laser.incomingDir !== laser.outgoingDir && laser.source) {
             depth = laser.source.sprite.depth + 0.00001;
         }
@@ -2331,17 +2409,6 @@ private crearBarraSuperior() {
     //FUNCIONES GATE & MOVIMIENTO//
     ///////////////////////////////
 
-    private winConditionsMet(): boolean {
-        const goals = this.entities.filter(entity => entity.type === "goal");
-        for (const goal of goals) {
-            const box = this.entities.find(entity => entity.pushable ===true && entity.x === goal.x && entity.y === goal.y);
-            if (!box) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private flagCheck() {
         const flag = this.entities.find(entity => entity.secret === "flag");
         if (!flag) {
@@ -2451,6 +2518,7 @@ private crearBarraSuperior() {
             }
             this.movimientoEmpujo = true;
             let portalHandled = false;
+            let paradox: boolean = false;
             if (this.getPortalAt(newEntityX, newEntityY, dir)) {
                 const entry = this.getPortalAt(newEntityX, newEntityY);
                 if (!entry){
@@ -2464,6 +2532,8 @@ private crearBarraSuperior() {
                 }
                 this.movimientoConPortal = true;
                 if (exit === entity) {
+                    this.flashbang();
+                    paradox = true;
                     entry.x = 1000; entry.y = 0;
                     entry.sprite.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier);
                     if (entry.sprite2) entry.sprite2.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier);
@@ -2543,7 +2613,7 @@ private crearBarraSuperior() {
                 }
                 }
             }
-            if (!portalHandled) {
+            if (!portalHandled && !paradox) {
                 const otherEntity = this.getEntityAt(newEntityX, newEntityY);
 
                 if (entity.portal !== undefined && entity.portal === this.opposite(dir) && otherEntity && this.isPortalActive(entity)) {
@@ -2556,6 +2626,8 @@ private crearBarraSuperior() {
 
                     this.movimientoConPortal = true;
                     if (exit === otherEntity) {
+                        paradox = true;
+                        this.flashbang();
                         entry.x = 1000;
                         entry.y = 0;
                         entry.sprite.setPosition(this.offsetX + entry.x * 16*this.pixelmultiplier, this.offsetY + entry.y * 16*this.pixelmultiplier);
@@ -2659,15 +2731,17 @@ private crearBarraSuperior() {
                                 return false;
                             }
                         }
-                        const portalStartX = entry.x;
-                        const portalStartY = entry.y;
+                        if (!paradox) {
+                            const portalStartX = entry.x;
+                            const portalStartY = entry.y;
 
-                        entry.x = newEntityX;
-                        entry.y = newEntityY;
+                            entry.x = newEntityX;
+                            entry.y = newEntityY;
 
-                        this.animatePushable(entry);
+                            this.animatePushable(entry);
 
-                        this.animateEat(portalStartX, portalStartY, entry.portal, dx, dy);
+                            this.animateEat(portalStartX, portalStartY, entry.portal, dx, dy);
+                        }
                     }
                 } else {
                     if (this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) {
@@ -2700,6 +2774,10 @@ private crearBarraSuperior() {
             this.holdBufferOpen = false;
             this.ayudaMovimiento.setVisible(false);
             this.dead = true;
+            this.time.delayedCall(40, () => {
+                this.reproducirSonido ("morir");
+                this.startDeadSound();
+            });
         }
         this.animatePlayer(player, facing);
         return true;
@@ -3201,6 +3279,87 @@ private crearBarraSuperior() {
         if (!this.finishinglevel) this.actualizarAlphaPortal(player, 0);
     }
 
+    private changeCoyoteDir(newDir: string): boolean {
+        if (!this.coyotewindow) return false;
+        if (!this.playerMoving) return false;
+        if (newDir === this.currentMoveDirection) return false;
+        if (this.movimientoConPortal) return false;
+        const state = this.history.pop();
+        if (!state) return false;
+
+        this.coyoteId++;    
+        this.coyotewindow = false;
+
+        if (this.playerTween) {
+            this.playerTween.stop();
+        }
+
+        for (let i = 0; i < this.pushTweens.length; i++) {
+            this.pushTweens[i].stop();
+        }
+
+        for (let i = 0; i < this.shadowTweens.length; i++) {
+            this.shadowTweens[i].stop();
+        }
+
+        this.playerTween = undefined;
+        this.pushTweens = [];
+        this.shadowTweens = [];
+
+        this.playerMoving = false;
+        this.holdBufferOpen = false;
+        this.inputBuffer = "";
+
+        this.dead = false;
+        this.stopDeadSound();
+
+        if (this.menuup === 2) {
+            this.menuup = 0;
+            this.tweens.killTweensOf(this.pantallaMuerte);
+            this.pantallaMuerte.setVisible(false).setAlpha(0);
+        }
+
+        for (let i = 0; i < this.entities.length; i++) {
+            const entity = this.entities[i];
+            const oldEntity = state.entities[i];
+
+            entity.x = oldEntity.x;
+            entity.y = oldEntity.y;
+            entity.dir = oldEntity.dir;
+            entity.portal = oldEntity.portal;
+
+            entity.sprite.setPosition(
+                this.offsetX + entity.x * this.tilesize,
+                this.offsetY + entity.y * this.tilesize
+            );
+
+            entity.sprite.setDepth(2 * entity.y);
+
+            if (entity.shadow) {
+                entity.shadow.setPosition(this.offsetX + entity.x * this.tilesize - this.tilesize, this.offsetY + entity.y * this.tilesize - this.tilesize);
+            }
+
+            this.actualizarPortal(entity);
+
+            if (entity.type === "player") {
+                entity.sprite.stop();
+                entity.sprite.setOrigin(1, 1.04);
+            }
+
+            if (entity.type === "goal") {
+                entity.sprite.setDepth(-0.5);
+            }
+        }
+
+        this.laserFunction();
+        this.flagCheck();
+        this.updateLaserPositions();
+
+        this.doMovement(newDir);
+
+        return true;
+    }
+
     private animatePlayer(player: Entity, facing: number | undefined) {
         const animation = this.getLindseyAnimation(facing);
         let speed = this.lindseyspeed;
@@ -3209,7 +3368,17 @@ private crearBarraSuperior() {
         this.holdBufferOpen = false;
         player.sprite.play(animation);
 
-        this.time.delayedCall(160, () => {
+        this.coyoteId++;
+        const esteCoyote = this.coyoteId;
+        this.coyotewindow = true;
+
+        this.time.delayedCall(90, () => {
+            if (this.coyoteId === esteCoyote) {
+                this.coyotewindow = false;
+            }
+        });
+
+        this.time.delayedCall(200, () => {
             if (this.playerMoving) {
                 this.holdBufferOpen = true;
             }
@@ -3295,7 +3464,6 @@ private crearBarraSuperior() {
                 this.holdBufferOpen = false;
                 this.playerTween = undefined;
                 if (this.menuup === 2) {
-                    this.reproducirSonido("morir");
                     this.tweens.killTweensOf(this.pantallaMuerte);
                     this.pantallaMuerte.setAlpha(0).setVisible(true);
                     this.tweens.add({
@@ -3312,6 +3480,7 @@ private crearBarraSuperior() {
     private animateEntrance() {
         const player = this.entities.find(entity => entity.type === "player");
         if (!player) return;
+        this.reproducirSonido("entrar");
         const finalX = this.offsetX + player.x * this.tilesize;
         const finalY = this.offsetY + player.y * this.tilesize;
         let startY: number;
@@ -3413,6 +3582,35 @@ private crearBarraSuperior() {
         });
     }
 
+    private flashbang() {
+        const chance = Math.floor(Math.random()*10);
+        if (chance === 0) { 
+            const flash = this.add.image(this.scale.width/2, this.scale.height/2, "dario");
+            flash.setDepth(80000000).setScale(this.scale.height/flash.height).setOrigin(0.5,0.5);
+            this.tweens.add({
+                targets: flash,
+                alpha: 0,
+                duration: this.lindseyspeed * 5,
+                ease: "Linear",
+                onComplete: () => {
+                    flash.destroy();
+                }
+            });
+        } else {
+            const flash = this.add.image(this.scale.width/2, this.scale.height/2, "white");
+            flash.setDepth(80000000).setScale(this.scale.width/flash.width).setOrigin(0.5,0.5);
+            this.tweens.add({
+                targets: flash,
+                alpha: 0,
+                duration: this.lindseyspeed * 5,
+                ease: "Linear",
+                onComplete: () => {
+                    flash.destroy();
+                }
+            });
+        }
+    }
+
     constructor() {
         super("game");
     }
@@ -3458,10 +3656,16 @@ private crearBarraSuperior() {
             frameWidth: 20,
             frameHeight: 24,
         });
+        this.load.spritesheet("wallshadow2", "assets/wallshadow2.png", {
+            frameWidth: 20,
+            frameHeight: 24,
+        });
         this.load.spritesheet("sewingshadow", "assets/sewingshadow.png", {
             frameWidth: 36,
             frameHeight: 56,
         });
+        this.load.image("dario", "assets/dariojumpscare.jpg");
+        this.load.image("white", "assets/white.jpg");
         cargarPortales(this);
         this.load.image("laserOutlineSender", "assets/laser.outline(sender).png");
         this.load.image("laserOutlineReceiver", "assets/laser.outline(reciever).png");
@@ -4184,7 +4388,7 @@ async create() {
                             y: y,
                             pushable: false,
                             sprite: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier, "spritestall", 3).setOrigin(1,1).setScale(this.pixelmultiplier).setDepth(2*y),
-                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "wallshadow",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
+                            shadow: this.add.sprite(this.offsetX+x*16*this.pixelmultiplier - 16*this.pixelmultiplier, this.offsetY+y*16*this.pixelmultiplier - 16*this.pixelmultiplier, "wallshadow2",0).setOrigin(0,0).setScale(this.pixelmultiplier).setDepth(1)
                             });
                             break;
                         }
@@ -4867,6 +5071,7 @@ async create() {
     //////////////////////////////
 
     private doMovement(direction: string) {
+        this.currentMoveDirection = direction;
         this.movimientoEmpujo = false;
         this.movimientoConPortal = false;
         this.pushTweens = [];
@@ -4996,8 +5201,27 @@ async create() {
         }
 
         if (this.playerMoving) {
+            let nuevaDireccion = "";
+            if (izquierda) {
+                nuevaDireccion = "left";
+            }
+            else if (derecha) {
+                nuevaDireccion = "right";
+            }
+            else if (arriba) {
+                nuevaDireccion = "up";
+            }
+            else if (abajo) {
+                nuevaDireccion = "down";
+            }
+            if (nuevaDireccion !== "") {
+                if (this.changeCoyoteDir(nuevaDireccion)) {
+                    return;
+                }
+            }
             if (this.menuup === 0) {
                 const player = this.entities.find(entity => entity.type === "player");
+
                 if (izquierda) {
                     if (this.movenumber) this.movenumber = false
                     else this.movenumber = true;
