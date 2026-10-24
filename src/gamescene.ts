@@ -107,51 +107,51 @@ export class GameScene extends Phaser.Scene {
         {
             nombre: "paso1",
             archivo: "lindsey_sfx/step01.wav",
-            volumen: 0.4,
+            volumen: 0.3,
             espera: 70,
             ultimo: -1000
         },
         {
             nombre: "paso2",
             archivo: "lindsey_sfx/step02.wav",
-            volumen: 0.4,
+            volumen: 0.3,
             espera: 70,
             ultimo: -1000
         },
         {
             nombre: "paso3",
             archivo: "lindsey_sfx/step03.wav",
-            volumen: 0.4,
+            volumen: 0.3,
             espera: 70,
             ultimo: -1000
         },
         {
             nombre: "paso4",
             archivo: "lindsey_sfx/step04.wav",
-            volumen: 0.4,
+            volumen: 0.3,
             espera: 70,
             ultimo: -1000
         },
         {
             nombre: "paso5",
             archivo: "lindsey_sfx/step05.wav",
-            volumen: 0.4,
+            volumen: 0.3,
             espera: 70,
             ultimo: -1000
         },
         {
             nombre: "paso6",
             archivo: "lindsey_sfx/step06.wav",
-            volumen: 0.4,
+            volumen: 0.3,
             espera: 70,
             ultimo: -1000
         },
         // 2. PUSHING
         {
             nombre: "empujar",
-            archivo: "lindsey_sfx/02_empujar.ogg",
+            archivo: "lindsey_sfx/pushpickup.wav",
             volumen: 0.45,
-            espera: 80,
+            espera: 10,
             ultimo: -1000
         },
         // 3. TRANSITION
@@ -165,15 +165,15 @@ export class GameScene extends Phaser.Scene {
         // 4. DEATH
         {
             nombre: "morir",
-            archivo: "lindsey_sfx/die.mp3",
-            volumen: 0.05,
+            archivo: "lindsey_sfx/lindseydying.wav",
+            volumen: 0.45,
             espera: 150,
             ultimo: -1000
         },
         // 4.1. DEAD
         {
             nombre: "muerta",
-            archivo: "lindsey_sfx/dead.mp3",
+            archivo: "lindsey_sfx/lindseydead.wav",
             volumen: 0.02,
             espera: 150,
             ultimo: -1000
@@ -236,12 +236,14 @@ export class GameScene extends Phaser.Scene {
         }
     ];
     private deadSound: Phaser.Sound.BaseSound | undefined;
+    private pushSound: any;
+    private pushsoundFade: Phaser.Tweens.Tween | undefined;
     private levelNumber = 1;
     private history: GameState[] = [];
     private community: boolean = true;
+
     private movimientosAyuda = 0;
     private tutorialActual: TutorialNivel | null = null;
-
     private tutoriales: TutorialNivel[] = [
         {
             nivel: 1,
@@ -470,6 +472,60 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    private startPushSound() {
+        if (!this.pushSound) return;
+        if (this.pushsoundFade) {
+            this.pushsoundFade.stop();
+            this.pushsoundFade = undefined;
+        }
+        const volumen = 0.45 * this.volumenEfectos;
+        if (!this.pushSound.isPlaying) {
+            this.pushSound.setVolume(0);
+            this.pushSound.play();
+        }
+        this.pushsoundFade = this.tweens.add({
+            targets: this.pushSound,
+            volume: volumen,
+            duration: 25,
+            ease: "Linear",
+            onComplete: () => {
+                this.pushsoundFade = undefined;
+            }
+        });
+    }
+
+    private stopPushSound(immediate: boolean = false) {
+        if (!this.pushSound) return;
+
+        if (this.pushsoundFade) {
+            this.pushsoundFade.stop();
+            this.pushsoundFade = undefined;
+        }
+
+        if (!this.pushSound.isPlaying) {
+            return;
+        }
+
+        if (immediate) {
+            this.pushSound.stop();
+            this.pushSound.setVolume(0);
+            return;
+        }
+
+        const sonido = this.pushSound;
+
+        this.pushsoundFade = this.tweens.add({
+            targets: sonido,
+            volume: 0,
+            duration: 55,
+            ease: "Linear",
+            onComplete: () => {
+                sonido.stop();
+                this.pushsoundFade = undefined;
+            }
+        });
+    }
+
     private actualizarSonidosReflejos() {
         const reflejosActuales: string[] = [];
         let hayNuevoReflejo = false;
@@ -640,210 +696,210 @@ export class GameScene extends Phaser.Scene {
         return objetos;
     }
 
-private crearBarraSuperior() {
-    const alto = this.altoBarra;
+    private crearBarraSuperior() {
+        const alto = this.altoBarra;
 
-    const separacion = 12;
-    const margen = separacion / 2;
+        const separacion = 12;
+        const margen = separacion / 2;
 
-    const anchoBoton = 96;
+        const anchoBoton = 96;
 
-    const y = 30;
+        const y = 30;
 
-    const xPausa =
-        this.scale.width -
-        margen -
-        anchoBoton / 2 -
-        5;
+        const xPausa =
+            this.scale.width -
+            margen -
+            anchoBoton / 2 -
+            5;
 
-    const xReset =
-        xPausa -
-        anchoBoton -
-        separacion -
-        5;
+        const xReset =
+            xPausa -
+            anchoBoton -
+            separacion -
+            5;
 
-    const xDeshacer =
-        xReset -
-        anchoBoton -
-        separacion -
-        5;
+        const xDeshacer =
+            xReset -
+            anchoBoton -
+            separacion -
+            5;
 
-    const barra = this.add.rectangle(
-        this.scale.width / 2,
-        alto / 2,
-        this.scale.width,
-        alto,
-        COLORES.panel
-    );
-
-    barra.setDepth(-0.000002);
-
-    const bordeInferior = this.add.rectangle(
-        this.scale.width / 2,
-        alto - 2,
-        this.scale.width,
-        4,
-        COLORES.borde
-    );
-
-    bordeInferior.setDepth(-0.0000000002);
-
-    const nombreCompleto = this.obtenerNombreNivel();
-
-    const nombre = this.add.text(
-    margen*2,
-    alto / 2,
-    nombreCompleto,
-    {
-        padding: { top: 6, bottom: 6 },
-        fontFamily: "Fuente",
-        fontSize: "18px",
-        color: textoColor(COLORES.blanco),
-    }
-    );
-
-    nombre.setOrigin(0, 0.5);
-    nombre.setDepth(902);
-
-    const datosEtiqueta = this.obtenerEtiquetaNivel();
-    const etiqueta = this.add.text(nombre.x, nombre.y, datosEtiqueta.texto, {
-        padding: { top: 6, bottom: 6 },
-        fontFamily: "Fuente",
-        fontSize: "18px",
-        color: datosEtiqueta.color
-    }).setOrigin(0, 0.5).setDepth(902);
-
-    if (datosEtiqueta.texto !== "") {
-        nombre.setX(etiqueta.x + etiqueta.width + 16);
-    }
-
-    let nombreVisible = nombreCompleto;
-
-    const anchoMaximo =
-        xDeshacer -
-        anchoBoton / 2 -
-        separacion -
-        nombre.x;
-
-    while (
-        nombre.width > anchoMaximo &&
-        nombreVisible.length > 0
-    ) {
-        nombreVisible = nombreVisible.substring(
-            0,
-            nombreVisible.length - 1
+        const barra = this.add.rectangle(
+            this.scale.width / 2,
+            alto / 2,
+            this.scale.width,
+            alto,
+            0x171a2e
         );
 
-        nombre.setText(nombreVisible + "...");
-    }
-    const objetosDeshacer = this.crearBotonJuego(
-        xDeshacer,
-        y,
-        anchoBoton,
-        this.textoOpciones[5][spanish],
-        COLORES.verde,
-        903,
-        () => {
-            if (this.history.length === 0) {
-                return;
-            }
+        barra.setDepth(-0.000002);
 
-            this.undoMove();
+        const bordeInferior = this.add.rectangle(
+            this.scale.width / 2,
+            alto - 2,
+            this.scale.width,
+            4,
+            0x6f87b0
+        );
+
+        bordeInferior.setDepth(-0.0000000002);
+
+        const nombreCompleto = this.obtenerNombreNivel();
+
+        const nombre = this.add.text(
+        margen*2,
+        alto / 2,
+        nombreCompleto,
+        {
+            padding: { top: 6, bottom: 6 },
+            fontFamily: "Fuente",
+            fontSize: "18px",
+            color: "#ffffff",
         }
-    );
+        );
 
-    const objetosReset = this.crearBotonJuego(
-        xReset,
-        y,
-        anchoBoton,
-        this.textoOpciones[6][spanish],
-        COLORES.amarillo,
-        903,
-        () => {
-            if (this.history.length === 0) {
-                return;
-            }
+        nombre.setOrigin(0, 0.5);
+        nombre.setDepth(902);
 
-            this.reiniciarNivel();
-        }
-    );
+        const datosEtiqueta = this.obtenerEtiquetaNivel();
+        const etiqueta = this.add.text(nombre.x, nombre.y, datosEtiqueta.texto, {
+            padding: { top: 6, bottom: 6 },
+            fontFamily: "Fuente",
+            fontSize: "18px",
+            color: datosEtiqueta.color
+        }).setOrigin(0, 0.5).setDepth(902);
 
-    const objetosPausa = this.crearBotonJuego(
-        xPausa,
-        y,
-        anchoBoton,
-        this.textoOpciones[7][spanish],
-        COLORES.violeta,
-        903,
-        () => {
-            this.abrirMenuPausa();
-        }
-    );
-
-    const botonDeshacer =
-        objetosDeshacer[1] as Phaser.GameObjects.Rectangle;
-
-    const botonReset =
-        objetosReset[1] as Phaser.GameObjects.Rectangle;
-
-    const botonPausa =
-        objetosPausa[1] as Phaser.GameObjects.Rectangle;
-
-    const actualizarBotones = () => {
-        if (this.menuup === 2) {
-            botonPausa.disableInteractive();
-            botonPausa.setFillStyle(COLORES.desactivado);
-            botonPausa.setAlpha(1);
-            botonPausa.emit("ocultarTooltip");
-        } else {
-            botonPausa.setInteractive({ useHandCursor: true });
-            botonPausa.setFillStyle(COLORES.violeta);
+        if (datosEtiqueta.texto !== "") {
+            nombre.setX(etiqueta.x + etiqueta.width + 16);
         }
 
-        if (this.history.length === 0) {
-            botonDeshacer.disableInteractive();
-            botonReset.disableInteractive();
+        let nombreVisible = nombreCompleto;
 
-            botonDeshacer.setFillStyle(COLORES.desactivado);
-            botonReset.setFillStyle(COLORES.desactivado);
+        const anchoMaximo =
+            xDeshacer -
+            anchoBoton / 2 -
+            separacion -
+            nombre.x;
 
-            botonDeshacer.setAlpha(1);
-            botonReset.setAlpha(1);
-        } else {
-            botonDeshacer.setInteractive({
-                useHandCursor: true
-            });
-
-            botonReset.setInteractive({
-                useHandCursor: true
-            });
-
-            botonDeshacer.setFillStyle(COLORES.verde);
-            botonReset.setFillStyle(COLORES.amarillo);
-        }
-    };
-
-    actualizarBotones();
-
-    this.events.on(
-        Phaser.Scenes.Events.UPDATE,
-        actualizarBotones
-    );
-
-    this.events.once(
-        Phaser.Scenes.Events.SHUTDOWN,
-        () => {
-            this.events.off(
-                Phaser.Scenes.Events.UPDATE,
-                actualizarBotones
+        while (
+            nombre.width > anchoMaximo &&
+            nombreVisible.length > 0
+        ) {
+            nombreVisible = nombreVisible.substring(
+                0,
+                nombreVisible.length - 1
             );
-        }
-    );
-}
 
+            nombre.setText(nombreVisible + "...");
+        }
+        const objetosDeshacer = this.crearBotonJuego(
+            xDeshacer,
+            y,
+            anchoBoton,
+            this.textoOpciones[5][spanish],
+            0x9ccc65,
+            903,
+            () => {
+                if (this.history.length === 0) {
+                    return;
+                }
+
+                this.undoMove();
+            }
+        );
+
+        const objetosReset = this.crearBotonJuego(
+            xReset,
+            y,
+            anchoBoton,
+            this.textoOpciones[6][spanish],
+            0xe6c56a,
+            903,
+            () => {
+                if (this.history.length === 0) {
+                    return;
+                }
+
+                this.reiniciarNivel();
+            }
+        );
+
+        const objetosPausa = this.crearBotonJuego(
+            xPausa,
+            y,
+            anchoBoton,
+            this.textoOpciones[7][spanish],
+            0xb39ddb,
+            903,
+            () => {
+                this.abrirMenuPausa();
+            }
+        );
+
+        const botonDeshacer =
+            objetosDeshacer[1] as Phaser.GameObjects.Rectangle;
+
+        const botonReset =
+            objetosReset[1] as Phaser.GameObjects.Rectangle;
+
+        const botonPausa =
+            objetosPausa[1] as Phaser.GameObjects.Rectangle;
+
+        const actualizarBotones = () => {
+            if (this.menuup === 2) {
+                botonPausa.disableInteractive();
+                botonPausa.setFillStyle(0x79869e);
+                botonPausa.setAlpha(1);
+                botonPausa.emit("ocultarTooltip");
+            } else {
+                botonPausa.setInteractive({ useHandCursor: true });
+                botonPausa.setFillStyle(0xb39ddb);
+            }
+
+            if (this.history.length === 0) {
+                botonDeshacer.disableInteractive();
+                botonReset.disableInteractive();
+
+                botonDeshacer.setFillStyle(0x79869e);
+                botonReset.setFillStyle(0x79869e);
+
+                botonDeshacer.setAlpha(1);
+                botonReset.setAlpha(1);
+            } else {
+                botonDeshacer.setInteractive({
+                    useHandCursor: true
+                });
+
+                botonReset.setInteractive({
+                    useHandCursor: true
+                });
+
+                botonDeshacer.setFillStyle(0x9ccc65);
+                botonReset.setFillStyle(0xe6c56a);
+            }
+        };
+
+        actualizarBotones();
+
+        this.events.on(
+            Phaser.Scenes.Events.UPDATE,
+            actualizarBotones
+        );
+
+        this.events.once(
+            Phaser.Scenes.Events.SHUTDOWN,
+            () => {
+                this.events.off(
+                    Phaser.Scenes.Events.UPDATE,
+                    actualizarBotones
+                );
+            }
+        );
+    }
 
     private reiniciarNivel() {
         this.reproducirSonido("click");
+        this.stopPushSound(true);
         this.stopDeadSound();
         this.scene.restart({
             modoTest: this.modoTest,
@@ -955,6 +1011,7 @@ private crearBarraSuperior() {
         }
 
         this.stopDeadSound();
+        this.stopPushSound(true);
         const state = this.history.pop();
         if (!state) {
             return;
@@ -1164,7 +1221,6 @@ private crearBarraSuperior() {
 
         instrucciones.setX(-(x - 16) / 2);
     }
-
 
     private abrirMenuPausa() {
         if (this.menuup != 0) {
@@ -2848,6 +2904,12 @@ private crearBarraSuperior() {
     //FUNCIONES ANIMACIONES//
     /////////////////////////
 
+    private pushwall(player: Entity, facing: number | undefined) {
+        switch (facing) {
+            case 0: 
+        }
+    }
+
     private duplicateSprite(sprite: Phaser.GameObjects.Sprite): Phaser.GameObjects.Sprite {
         const copy = this.add.sprite(sprite.x, sprite.y, sprite.texture.key, sprite.frame.name);
         copy.setOrigin(sprite.originX, sprite.originY);
@@ -3202,11 +3264,20 @@ private crearBarraSuperior() {
                 }
             }
         } else {
-            switch(facing) {
-                case 0: animation = "lindseypush0"; break;
-                case 1: animation = "lindseypush1"; break;
-                case 2: animation = "lindseypush2"; break;
-                case 3: animation = "lindseypush3"; break;
+            if (this.movenumber == false) {
+                switch(facing) {
+                    case 0: animation = "lindseypush0"; break;
+                    case 1: animation = "lindseypush1"; break;
+                    case 2: animation = "lindseypush2"; break;
+                    case 3: animation = "lindseypush3"; break;
+                }
+            } else {
+                switch(facing) {
+                    case 0: animation = "lindseypush0b"; break;
+                    case 1: animation = "lindseypush1b"; break;
+                    case 2: animation = "lindseypush2b"; break;
+                    case 3: animation = "lindseypush3b"; break;
+                }
             }
         }
 
@@ -3366,8 +3437,13 @@ private crearBarraSuperior() {
         const animation = this.getLindseyAnimation(facing);
         let speed = this.lindseyspeed;
 
+        if (this.pushing) this.startPushSound();
+        else this.stopPushSound();
+
         this.playerMoving = true;
         this.holdBufferOpen = false;
+        player.sprite.stop();
+        player.sprite.setTexture("lindseyi", facing);
         player.sprite.play(animation);
 
         this.coyoteId++;
@@ -3465,6 +3541,9 @@ private crearBarraSuperior() {
                 this.playerMoving = false;
                 this.holdBufferOpen = false;
                 this.playerTween = undefined;
+                if (this.pushing && this.inputBuffer === "") {
+                    this.stopPushSound();
+                }
                 if (this.menuup === 2) {
                     this.tweens.killTweensOf(this.pantallaMuerte);
                     this.pantallaMuerte.setAlpha(0).setVisible(true);
@@ -3626,7 +3705,11 @@ private crearBarraSuperior() {
             frameWidth: 16,
             frameHeight: 28,
         });
-        this.load.spritesheet("lindseypush", "assets/lindsey.pushing.anim.png", {
+        this.load.spritesheet("lindseypush1", "assets/lindsey.pushing1.anim.png", {
+            frameWidth: 18,
+            frameHeight: 28,
+        });
+        this.load.spritesheet("lindseypush2", "assets/lindsey.pushing2.anim.png", {
             frameWidth: 18,
             frameHeight: 28,
         });
@@ -3709,17 +3792,22 @@ private crearBarraSuperior() {
         this.cargarSonidos();
     }
 
-async create() {
-    crearAnimacionesPortales(this);
+    async create() {
+        crearAnimacionesPortales(this);
     
-    this.cargandoNivel = true;
-    const cargaActual = ++this.numeroCarga;
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-        this.numeroCarga++;
         this.cargandoNivel = true;
-    });
+        const cargaActual = ++this.numeroCarga;
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.stopPushSound(true);
+            if (this.pushSound) {
+                this.pushSound.destroy();
+                this.pushSound = undefined;
+            }
+            this.pushsoundFade = undefined;
+            this.numeroCarga++;
+            this.cargandoNivel = true;
+        });
 
-    this.entities = [];
         this.entities = [];
         this.history = [];
         this.lasers = [];
@@ -3854,61 +3942,121 @@ async create() {
             this.anims.create({
                 key: "lindseypush0",
                 frames: [
-                    { key: "lindseypush", frame: 0 },
-                    { key: "lindseypush", frame: 4 },
-                    { key: "lindseypush", frame: 8 },
-                    { key: "lindseypush", frame: 12 },
-                    { key: "lindseypush", frame: 16 },
-                    { key: "lindseypush", frame: 20 },
-                    { key: "lindseypush", frame: 24 },
-                    { key: "lindseypush", frame: 28 }
+                    { key: "lindseypush1", frame: 0 },
+                    { key: "lindseypush1", frame: 4 },
+                    { key: "lindseypush1", frame: 8 },
+                    { key: "lindseypush1", frame: 12 },
+                    { key: "lindseypush1", frame: 16 },
+                    { key: "lindseypush1", frame: 20 },
+                    { key: "lindseypush1", frame: 24 },
+                    { key: "lindseypush1", frame: 28 }
                 ],
-                frameRate: this.animationspeed*1.5,
+                frameRate: this.animationspeed*2,
                 repeat: -1
             });
             this.anims.create({
-                key: "lindseypush1",
+                key: "lindseypush0b",
                 frames: [
-                    { key: "lindseypush", frame: 1 },
-                    { key: "lindseypush", frame: 5 },
-                    { key: "lindseypush", frame: 9 },
-                    { key: "lindseypush", frame: 13 },
-                    { key: "lindseypush", frame: 17 },
-                    { key: "lindseypush", frame: 21 },
-                    { key: "lindseypush", frame: 25 },
-                    { key: "lindseypush", frame: 29 }
+                    { key: "lindseypush2", frame: 0 },
+                    { key: "lindseypush2", frame: 4 },
+                    { key: "lindseypush2", frame: 8 },
+                    { key: "lindseypush2", frame: 12 },
+                    { key: "lindseypush2", frame: 16 },
+                    { key: "lindseypush2", frame: 20 },
+                    { key: "lindseypush2", frame: 24 },
+                    { key: "lindseypush2", frame: 28 }
                 ],
-                frameRate: this.animationspeed*1.5,
+                frameRate: this.animationspeed*2,
                 repeat: -1
             });
             this.anims.create({
                 key: "lindseypush2",
                 frames: [
-                    { key: "lindseypush", frame: 2 },
-                    { key: "lindseypush", frame: 6 },
-                    { key: "lindseypush", frame: 10 },
-                    { key: "lindseypush", frame: 14 },
-                    { key: "lindseypush", frame: 18 },
-                    { key: "lindseypush", frame: 22 },
-                    { key: "lindseypush", frame: 26 },
-                    { key: "lindseypush", frame: 30 }
+                    { key: "lindseypush1", frame: 1 },
+                    { key: "lindseypush1", frame: 5 },
+                    { key: "lindseypush1", frame: 9 },
+                    { key: "lindseypush1", frame: 13 },
+                    { key: "lindseypush1", frame: 17 },
+                    { key: "lindseypush1", frame: 21 },
+                    { key: "lindseypush1", frame: 25 },
+                    { key: "lindseypush1", frame: 29 },
                 ],
-                frameRate: this.animationspeed*1.5,
+                frameRate: this.animationspeed*2,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseypush2b",
+                frames: [
+                    { key: "lindseypush2", frame: 1 },
+                    { key: "lindseypush2", frame: 5 },
+                    { key: "lindseypush2", frame: 9 },
+                    { key: "lindseypush2", frame: 13 },
+                    { key: "lindseypush2", frame: 17 },
+                    { key: "lindseypush2", frame: 21 },
+                    { key: "lindseypush2", frame: 25 },
+                    { key: "lindseypush2", frame: 29 },
+                ],
+                frameRate: this.animationspeed*2,
                 repeat: -1
             });
             this.anims.create({
                 key: "lindseypush3",
                 frames: [
-                    { key: "lindseypush", frame: 3 },
-                    { key: "lindseypush", frame: 7 },
-                    { key: "lindseypush", frame: 11 },
-                    { key: "lindseypush", frame: 15 },
-                    { key: "lindseypush", frame: 19 },
-                    { key: "lindseypush", frame: 23 },
-                    { key: "lindseypush", frame: 27 },
-                    { key: "lindseypush", frame: 31 }
+                    { key: "lindseypush1", frame: 2 },
+                    { key: "lindseypush1", frame: 6 },
+                    { key: "lindseypush1", frame: 10 },
+                    { key: "lindseypush1", frame: 18 },
+                    { key: "lindseypush1", frame: 22 },
+                    { key: "lindseypush1", frame: 22 },
+                    { key: "lindseypush1", frame: 18 },
+                    { key: "lindseypush1", frame: 10 }
                 ],
-                frameRate: this.animationspeed*1.5,
+                frameRate: this.animationspeed*2,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseypush3b",
+                frames: [
+                    { key: "lindseypush2", frame: 2 },
+                    { key: "lindseypush2", frame: 6 },
+                    { key: "lindseypush2", frame: 10 },
+                    { key: "lindseypush2", frame: 18 },
+                    { key: "lindseypush2", frame: 22 },
+                    { key: "lindseypush2", frame: 22 },
+                    { key: "lindseypush2", frame: 18 },
+                    { key: "lindseypush2", frame: 10 }
+                ],
+                frameRate: this.animationspeed*2,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseypush1",
+                frames: [
+                    { key: "lindseypush1", frame: 3 },
+                    { key: "lindseypush1", frame: 7 },
+                    { key: "lindseypush1", frame: 11 },
+                    { key: "lindseypush1", frame: 19 },
+                    { key: "lindseypush1", frame: 23 },
+                    { key: "lindseypush1", frame: 23 },
+                    { key: "lindseypush1", frame: 19 },
+                    { key: "lindseypush1", frame: 11 }
+                ],
+                frameRate: this.animationspeed*2,
+                repeat: -1
+            });
+            this.anims.create({
+                key: "lindseypush1b",
+                frames: [
+                    { key: "lindseypush2", frame: 3 },
+                    { key: "lindseypush2", frame: 7 },
+                    { key: "lindseypush2", frame: 11 },
+                    { key: "lindseypush2", frame: 19 },
+                    { key: "lindseypush2", frame: 23 },
+                    { key: "lindseypush2", frame: 23 },
+                    { key: "lindseypush2", frame: 19 },
+                    { key: "lindseypush2", frame: 11 }
+                ],
+                frameRate: this.animationspeed*2,
                 repeat: -1
             });
             this.anims.create({
@@ -5062,6 +5210,10 @@ async create() {
         this.crearAyudaMovimiento();
         this.laserFunction();
         this.crearBarraSuperior();
+        this.pushSound = this.sound.add("game-empujar", {
+            volume: 0,
+            loop: true
+        });
         this.cargandoNivel = false;
         this.flagCheck();
         this.sonidosPreparados = true;
@@ -5125,15 +5277,11 @@ async create() {
             this.playerVertical = true; 
         }
         if (movimientoRealizado) {
-            if (this.movimientoEmpujo) {
-                this.reproducirSonido("empujar");
-            } else {
-                this.reproducirSonido("paso");
-            }
+            this.reproducirSonido("paso");
             if (this.movimientoConPortal) {
                 this.reproducirSonido("portal");
             }
-        }
+        } else this.stopPushSound();
         if (movimientoRealizado && this.ayudaPendiente()) {
             this.movimientosAyuda++;
             if (this.ayudaPendiente() === false) {
