@@ -8,6 +8,7 @@ export class TransitionScene extends Phaser.Scene {
     private oldDomZIndex = "";
     private oldCanvasPosition = "";
     private oldCanvasZIndex = "";
+    private volumenEfectos = 0.7;
 
     constructor() {
         super({
@@ -25,6 +26,8 @@ export class TransitionScene extends Phaser.Scene {
                 frameHeight: 108,
             }
         );
+        this.load.audio("open", "assets/sound/ui_sfx/screentransitionopen.wav",);
+        this.load.audio("close", "assets/sound/ui_sfx/screentransitionclose.wav",);
     }
 
     create() {
@@ -124,9 +127,7 @@ export class TransitionScene extends Phaser.Scene {
         canvas.style.zIndex = this.oldCanvasZIndex;
     }
 
-    private playTransition(
-        animation: string
-    ): Promise<void> {
+    private playTransition(animation: string): Promise<void> {
 
         return new Promise((resolve) => {
 
@@ -154,6 +155,14 @@ export class TransitionScene extends Phaser.Scene {
         });
     }
 
+    private wait(ms: number): Promise<void> {
+        return new Promise((resolve) => {
+            this.time.delayedCall(ms, () => {
+                resolve();
+            });
+        });
+    }
+
     async changeScene(
         oldScene: string,
         newScene: string,
@@ -172,12 +181,15 @@ export class TransitionScene extends Phaser.Scene {
 
         this.putDomBehindCanvas();
 
-        await this.playTransition(
-            "transitionclose"
-        );
+        await Promise.all([
+            this.playTransition("transitionclose"),
+            this.sound.play("open", {
+                volume: this.volumenEfectos
+            })
+        ]);
+        await this.wait(240);
 
-        const destinationSleeping =
-            this.scene.isSleeping(newScene);
+        const destinationSleeping = this.scene.isSleeping(newScene);
 
         if (destinationSleeping) {
 
@@ -222,10 +234,12 @@ export class TransitionScene extends Phaser.Scene {
         this.scene.bringToTop("transition");
 
         await this.waitFrame();
+
+        this.sound.play("close", {
+            volume: this.volumenEfectos
+        });
         
-        await this.playTransition(
-            "transitionopen"
-        );
+        await this.playTransition("transitionopen");
 
         this.transition.setVisible(false);
         this.blocker.setVisible(false);
