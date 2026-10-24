@@ -1,3 +1,4 @@
+import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { spanish } from "./idioma";
 import { cargarPortales, crearAnimacionesPortales, configurarPortal, esParedExteriorPortal } from "./portales";
@@ -31,6 +32,7 @@ interface Entity {
     sprite: Phaser.GameObjects.Sprite;
     sprite2?: Phaser.GameObjects.Sprite;
     shadow?: Phaser.GameObjects.Sprite;
+    outline?: Phaser.GameObjects.Image;
 }
 
 interface TutorialNivel {
@@ -569,11 +571,11 @@ export class GameScene extends Phaser.Scene {
 
     private obtenerEtiquetaNivel() {
         let texto = "";
-        let color = "#9ccc65";
+        let color = textoColor(COLORES.verde);
 
         if (this.modoTest || this.testeando || (this.nivelId !== "" && this.nivelDescargado === null)) {
             texto = this.textoOpciones[2][spanish];
-            color = "#ffd166";
+            color = textoColor(COLORES.amarillo);
         } else if (this.community === false) {
             texto = this.textoOpciones[1][spanish] + this.levelNumber;
         }
@@ -668,13 +670,14 @@ export class GameScene extends Phaser.Scene {
         fondo.on("pointerover", () => {
             if (fondo.input && fondo.input.enabled) {
                 this.reproducirSonido("hover");
+                fondo.setFillStyle(oscurecerColor(color));
             }
-            fondo.setFillStyle(color);
-            fondo.setAlpha(0.8);
         });
 
         fondo.on("pointerout", () => {
-            fondo.setAlpha(1);
+            if (fondo.input && fondo.input.enabled) {
+                fondo.setFillStyle(color);
+            }
         });
 
         const teclado = this.input.keyboard;
@@ -1060,14 +1063,14 @@ export class GameScene extends Phaser.Scene {
         y: number,
         texto: string
     ) {
-        const sombra = this.add.rectangle(x, y + 3, 28, 28, 0x080b17);
-        const tecla = this.add.rectangle(x, y, 28, 28, 0x2c344c);
-        tecla.setStrokeStyle(2, 0x7c8eaf);
+        const sombra = this.add.rectangle(x, y + 3, 28, 28, COLORES.sombraPopup);
+        const tecla = this.add.rectangle(x, y, 28, 28, COLORES.tecla);
+        tecla.setStrokeStyle(2, COLORES.bordeTecla);
         contenedor.add([sombra, tecla]);
 
         if (texto === "up" || texto === "left" || texto === "down" || texto === "right") {
             const flecha = this.add.graphics();
-            flecha.lineStyle(3, 0xeef3ff, 1);
+            flecha.lineStyle(3, COLORES.blanco, 1);
             flecha.beginPath();
             flecha.moveTo(-6, 3);
             flecha.lineTo(0, -3);
@@ -1091,7 +1094,7 @@ export class GameScene extends Phaser.Scene {
             padding: { top: 6, bottom: 6 },
             fontFamily: "Fuente, Arial",
             fontSize: "18px",
-            color: "#eef3ff"
+            color: textoColor(COLORES.blanco)
         }).setOrigin(0.5);
 
         contenedor.add(etiqueta);
@@ -1109,7 +1112,7 @@ export class GameScene extends Phaser.Scene {
             0,
             this.scale.width,
             this.altoAvisos - 12,
-            0x171a2e,
+            COLORES.panel,
             0.82
         );
         this.pantallaMuerte.add(fondo);
@@ -1122,7 +1125,7 @@ export class GameScene extends Phaser.Scene {
                 padding: { top: 6, bottom: 6 },
                 fontFamily: "Fuente",
                 fontSize: "21px",
-                color: "#e57373"
+                color: textoColor(COLORES.rojo)
             }
         ).setOrigin(0.5);
         this.pantallaMuerte.add(titulo);
@@ -1141,7 +1144,7 @@ export class GameScene extends Phaser.Scene {
                     padding: { top: 6, bottom: 6 },
                     fontFamily: "Fuente",
                     fontSize: "16px",
-                    color: "#cbdbfc"
+                    color: textoColor(COLORES.blanco)
                 }).setOrigin(0, 0.5);
                 instrucciones.add(texto);
                 x += texto.width;
@@ -1181,7 +1184,7 @@ export class GameScene extends Phaser.Scene {
 
         const fondo = this.add.rectangle(
             0, 0, this.scale.width,
-            this.altoAvisos - 12, 0x171a2e, 0.74
+            this.altoAvisos - 12, COLORES.panel, 0.74
         );
         this.ayudaMovimiento.add(fondo);
 
@@ -1206,7 +1209,7 @@ export class GameScene extends Phaser.Scene {
                     padding: { top: 6, bottom: 6 },
                     fontFamily: "Fuente",
                     fontSize: "16px",
-                    color: "#cbdbfc",
+                    color: textoColor(COLORES.blanco),
                     align: "center",
                     wordWrap: { width: this.scale.width - 64 }
                 }).setOrigin(0, 0.5);
@@ -1237,7 +1240,7 @@ export class GameScene extends Phaser.Scene {
             centroY,
             this.scale.width,
             this.scale.height,
-            0x080b17,
+            COLORES.sombraPopup,
             0.72
         );
 
@@ -1251,7 +1254,7 @@ export class GameScene extends Phaser.Scene {
             centroY + 6,
             424,
             364,
-            0x080b17
+            COLORES.sombraPopup
         );
 
         sombra.setDepth(1001);
@@ -1263,10 +1266,10 @@ export class GameScene extends Phaser.Scene {
             centroY,
             420,
             360,
-            0x171a2e
+            COLORES.panel
         );
 
-        panel.setStrokeStyle(4, 0xb39ddb);
+        panel.setStrokeStyle(4, COLORES.violeta);
         panel.setDepth(1002);
 
         this.objetosMenuPausa.push(panel);
@@ -1279,7 +1282,7 @@ export class GameScene extends Phaser.Scene {
                 padding: { top: 6, bottom: 6 },
                 fontFamily: "Fuente",
                 fontSize: "26px",
-                color: "#ffffff",
+                color: textoColor(COLORES.blanco),
             }
         );
 
@@ -1316,7 +1319,7 @@ export class GameScene extends Phaser.Scene {
                 padding: { top: 6, bottom: 6 },
                 fontFamily: "Fuente",
                 fontSize: "18px",
-                color: "#cbdbfc"
+                color: textoColor(COLORES.blanco)
             }
         ).setOrigin(0.5).setDepth(1003);
 
@@ -1331,7 +1334,7 @@ export class GameScene extends Phaser.Scene {
             centroY - 10,
             260,
             this.textoOpciones[8][spanish],
-            0xcbdbfc,
+            COLORES.normal,
             1004,
             () => {
                 this.cerrarMenuPausa();
@@ -1347,7 +1350,7 @@ export class GameScene extends Phaser.Scene {
             centroY + 50,
             260,
             this.textoOpciones[6][spanish],
-            0xe6c56a,
+            COLORES.amarillo,
             1004,
             () => {
                 this.cerrarMenuPausa();
@@ -1364,7 +1367,7 @@ export class GameScene extends Phaser.Scene {
             centroY + 110,
             260,
             this.textoOpciones[16][spanish],
-            0xe57373,
+            COLORES.rojo,
             1004,
             () => {
                 this.volver();
@@ -1559,6 +1562,26 @@ export class GameScene extends Phaser.Scene {
         this.playLaserAnimation(cap, "laserhead", laser.outgoingPhase);
         laser.cap = cap;
         this.updateLaserCapDepth(laser);
+    }
+
+    private actualizarLaserOutlines() {
+        for (let i = 0; i < this.entities.length; i++) {
+            const entity = this.entities[i];
+            if (!entity.outline) continue;
+
+            const escala = entity.sprite.scaleX;
+            let direccion = 0;
+            if (entity.dir !== undefined) direccion = entity.dir;
+
+            entity.outline.setPosition(
+                entity.sprite.x - 8 * escala,
+                entity.sprite.y - 8 * escala
+            );
+            entity.outline.setScale(escala);
+            entity.outline.setAngle(direccion * 90);
+            entity.outline.setDepth(entity.sprite.depth + 1.01);
+            entity.outline.setAlpha(entity.sprite.alpha);
+        }
     }
 
     private updateEntityDepth(entity: Entity) {
@@ -2306,6 +2329,7 @@ export class GameScene extends Phaser.Scene {
             emissor.sprite.clearTint();
 
             if (this.isEmitterActive(emissor)) {
+                if (emissor.outline) emissor.outline.setVisible(true);
                 this.setEmitting(emissor, emissor.dir, 0);
 
                 switch(emissor.dir) {
@@ -2315,6 +2339,7 @@ export class GameScene extends Phaser.Scene {
                     case 3: emissor.sprite.setTexture("tileset-fogo", 12); break;
                 }
             } else {
+                if (emissor.outline) emissor.outline.setVisible(false);
                 switch(emissor.dir) {
                     case 0: emissor.sprite.setTexture("tileset-fogo", 30); break;
                     case 1: emissor.sprite.setTexture("tileset-fogo", 25); break;
@@ -2324,17 +2349,6 @@ export class GameScene extends Phaser.Scene {
             }
         }
     }
-        const recievers = this.entities.filter(entity => entity.type === "laserReciever");
-        if (recievers) {
-            for (const emissor of recievers) {
-                switch(emissor.dir) {
-                    case 0: emissor.sprite.setTexture("tileset-fogo", 6); break;
-                    case 1: emissor.sprite.setTexture("tileset-fogo", 9); break;
-                    case 2: emissor.sprite.setTexture("tileset-fogo", 7); break;
-                    case 3: emissor.sprite.setTexture("tileset-fogo", 8); break;
-                }
-            }
-        }
         const portals = this.entities.filter(entity => entity.portal !== undefined);
         if (portals) {
             for (const portal of portals) {
@@ -2349,98 +2363,104 @@ export class GameScene extends Phaser.Scene {
             }
         }
         this.raycast();
+        this.winConditionsMet2();
         this.actualizarSonidosReflejos();
     }
 
-    private winConditionsMet2(): boolean {
-    let todosActivados = true;
-    const recievers = this.entities.filter(entity => entity.type === "laserReciever");
-    for (const reciever of recievers) {
-        const currX = reciever.x;
-        const currY = reciever.y;
-        let activated = false;
-        switch (reciever.dir) {
-            case 0:
-                if (
-                    this.lasers.find((laser) =>
-                        laser.sprite.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
-                        laser.sprite.y === this.offsetY + (currY - 1) * 16 * this.pixelmultiplier &&
-                        laser.outgoingDir === 2
-                    ) ||
-                    this.entities.find((emissor) =>
-                        emissor.y === currY - 1 &&
-                        emissor.x === currX &&
-                        emissor.emitting === 2
-                    )
-                ) {
-                    activated = true;
-                    reciever.sprite.setTexture("tileset-fogo", 6).setScale(this.pixelmultiplier);
-                } else reciever.sprite.setTexture("tileset-fogo", 26).setScale(this.pixelmultiplier);
-                break;
-            case 1:
-                if (
-                    this.lasers.find((laser) =>
-                        laser.sprite.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
-                        laser.sprite.x === this.offsetX + (currX + 1) * 16 * this.pixelmultiplier &&
-                        laser.outgoingDir === 3
-                    ) ||
-                    this.entities.find((emissor) =>
-                        emissor.y === currY &&
-                        emissor.x === currX + 1 &&
-                        emissor.emitting === 3
-                    )
-                ) {
-                    activated = true;
-                    reciever.sprite.setTexture("tileset-fogo", 9).setScale(this.pixelmultiplier);
-                } else reciever.sprite.setTexture("tileset-fogo", 29).setScale(this.pixelmultiplier);
-                break;
-            case 2:
-                if (
-                    this.lasers.find((laser) =>
-                        laser.sprite.x === this.offsetX + currX * 16 * this.pixelmultiplier &&
-                        laser.sprite.y === this.offsetY + (currY + 1) * 16 * this.pixelmultiplier &&
-                        laser.outgoingDir === 0
-                    ) ||
-                    this.entities.find((emissor) =>
-                        emissor.y === currY + 1 &&
-                        emissor.x === currX &&
-                        emissor.emitting === 0
-                    )
-                ) {
-                    activated = true;
-                    reciever.sprite.setTexture("tileset-fogo", 7).setScale(this.pixelmultiplier);
-                } else reciever.sprite.setTexture("tileset-fogo", 27).setScale(this.pixelmultiplier);
-                break;
-            case 3:
-                if (
-                    this.lasers.find((laser) =>
-                        laser.sprite.y === this.offsetY + currY * 16 * this.pixelmultiplier &&
-                        laser.sprite.x === this.offsetX + (currX - 1) * 16 * this.pixelmultiplier &&
-                        laser.outgoingDir === 1
-                    ) ||
-                    this.entities.find((emissor) =>
-                        emissor.y === currY &&
-                        emissor.x === currX - 1 &&
-                        emissor.emitting === 1
-                    )
-                ) {
-                    activated = true;
-                    reciever.sprite.setTexture("tileset-fogo", 8).setScale(this.pixelmultiplier);
-                } else reciever.sprite.setTexture("tileset-fogo", 28).setScale(this.pixelmultiplier);
-                break;
+    private hayLaserEn(x: number, y: number, dir: number): boolean {
+        const objetivoX = this.offsetX + x * this.tilesize;
+        const objetivoY = this.offsetY + y * this.tilesize;
+
+        for (let i = 0; i < this.lasers.length; i++) {
+            const laser = this.lasers[i];
+            if (laser.outgoingDir !== dir) {
+                continue;
+            }
+
+            let laserX = laser.sprite.x;
+            let laserY = laser.sprite.y;
+
+            if (laser.source && laser.incomingDir !== laser.outgoingDir) {
+                laserX = this.offsetX + laser.source.x * this.tilesize;
+                laserY = this.offsetY + laser.source.y * this.tilesize;
+            }
+
+            if (Math.abs(laserX - objetivoX) < 0.01 &&
+                Math.abs(laserY - objetivoY) < 0.01) {
+                return true;
+            }
         }
-        if (
-            this.sonidosPreparados && activated &&
-            reciever.sprite.getData("receptorActivo") === false
-        ) {
-            this.reproducirSonido("receptor");
+
+        for (let i = 0; i < this.entities.length; i++) {
+            const entity = this.entities[i];
+            if (entity.x === x && entity.y === y && entity.emitting === dir) {
+                return true;
+            }
         }
-        reciever.sprite.setData("receptorActivo", activated);
-        if (activated === false) {
-            todosActivados = false;
-        }
+
+        return false;
     }
-    return todosActivados;
+
+    private winConditionsMet2(): boolean {
+        let todosActivados = true;
+
+        for (let i = 0; i < this.entities.length; i++) {
+            const reciever = this.entities[i];
+            if (reciever.type !== "laserReciever" || reciever.dir === undefined) {
+                continue;
+            }
+
+            let x = reciever.x;
+            let y = reciever.y;
+            let frameActivo = 0;
+            let frameInactivo = 0;
+
+            switch (reciever.dir) {
+                case 0:
+                    y--;
+                    frameActivo = 6;
+                    frameInactivo = 26;
+                    break;
+                case 1:
+                    x++;
+                    frameActivo = 9;
+                    frameInactivo = 29;
+                    break;
+                case 2:
+                    y++;
+                    frameActivo = 7;
+                    frameInactivo = 27;
+                    break;
+                case 3:
+                    x--;
+                    frameActivo = 8;
+                    frameInactivo = 28;
+                    break;
+            }
+
+            const activated = this.hayLaserEn(x, y, this.opposite(reciever.dir));
+
+            if (activated) {
+                reciever.sprite.setTexture("tileset-fogo", frameActivo);
+            } else {
+                reciever.sprite.setTexture("tileset-fogo", frameInactivo);
+                todosActivados = false;
+            }
+
+            reciever.sprite.setScale(this.pixelmultiplier);
+
+            if (this.sonidosPreparados && activated &&
+                reciever.sprite.getData("receptorActivo") === false) {
+                this.reproducirSonido("receptor");
+            }
+
+            reciever.sprite.setData("receptorActivo", activated);
+            if (reciever.outline) {
+                reciever.outline.setVisible(activated);
+            }
+        }
+
+        return todosActivados;
     }
 
     ///////////////////////////////
@@ -2762,6 +2782,7 @@ export class GameScene extends Phaser.Scene {
                                 if (this.tempstorage2c) this.tempstorage2c.destroy();
 
                                 otherEntity.sprite.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier, this.offsetY + otherEntity.y * 16*this.pixelmultiplier).setDepth(2*otherEntity.y);
+                                if (otherEntity.shadow) otherEntity.shadow.setPosition(this.offsetX + otherEntity.x * 16*this.pixelmultiplier - this.tilesize, this.offsetY + otherEntity.y * 16*this.pixelmultiplier - this.tilesize);
 
                                 this.actualizarPortal(otherEntity);
 
@@ -3200,7 +3221,7 @@ export class GameScene extends Phaser.Scene {
             this.portalTweens.push(tween2);
         }
         if (copiaSombra) {
-            const masks3 = Phaser.Actions.AddMaskShape(copiaPortal, {
+            const masks3 = Phaser.Actions.AddMaskShape(copiaSombra, {
                 shape: "rectangle",
                 region: region
             });
@@ -3208,16 +3229,16 @@ export class GameScene extends Phaser.Scene {
             const maskShape3 = maskFilter3.maskGameObject as Phaser.GameObjects.Rectangle;
             maskFilter3.autoUpdate = true;
             const tween3 = this.tweens.add({
-                targets: maskShape3, 
+                targets: maskShape3,
                 x: maskShape3.x + dx*this.tilesize,
                 y: maskShape3.y + dy*this.tilesize,
                 duration: this.lindseyspeed,
                 ease: "Linear",
 
                 onComplete: () => {
-                    if(copiaPortal.filters) copiaPortal.filters.external.remove(maskFilter3);
+                    if (copiaSombra.filters) copiaSombra.filters.external.remove(maskFilter3);
                     maskShape3.destroy();
-                    copiaPortal.destroy();
+                    copiaSombra.destroy();
                 }
             });
             this.shadowTweens.push(tween3);
@@ -3462,15 +3483,16 @@ export class GameScene extends Phaser.Scene {
                 this.updateEntityDepth(player);
                 player.sprite.stop();
                 if (this.dead === true) {
-                    player.sprite.setOrigin(0.96, 1).play("lindseydie"+String(facing));
+                    player.sprite.setOrigin(0.96, 36 / 35).play("lindseydie"+String(facing));
                     player.sprite.once(
                         Phaser.Animations.Events.ANIMATION_COMPLETE,
                         () => {
-                            player.sprite.play("lindseydied"+String(facing));
+                            player.sprite.setOrigin(0.96, 1).play("lindseydied"+String(facing));
                         }
                     );
+                } else {
+                    player.sprite.setTexture("lindseyi", facing);
                 }
-                player.sprite.setTexture("lindseyi", facing);
 
                 if (this.playerPortalMask) {
                     if (player.sprite.filters) player.sprite.filters.external.remove(this.playerPortalMask);
@@ -3730,6 +3752,8 @@ export class GameScene extends Phaser.Scene {
         this.load.image("dario", "assets/dariojumpscare.jpg");
         this.load.image("white", "assets/white.jpg");
         cargarPortales(this);
+        this.load.image("laserOutlineSender", "assets/laser.outline(sender).png");
+        this.load.image("laserOutlineReceiver", "assets/laser.outline(reciever).png");
         this.load.spritesheet("laserBody", "assets/laser.body.spritesheet.png", {
             frameWidth: 16,
             frameHeight: 16,
@@ -4062,7 +4086,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "lindseydie", frame: 16 },
                     { key: "lindseydie", frame: 20 },
                     { key: "lindseydie", frame: 24 },
-                    { key: "lindseydie", frame: 18 },
+                    { key: "lindseydie", frame: 28 },
                     { key: "lindseydie", frame: 32 },
                     { key: "lindseydie", frame: 36 },
                 ],
@@ -4127,7 +4151,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "lindseydied", frame: 16 },
                     { key: "lindseydied", frame: 20 },
                     { key: "lindseydied", frame: 24 },
-                    { key: "lindseydied", frame: 18 },
+                    { key: "lindseydied", frame: 28 },
                 ],
                 frameRate: this.animationspeed*1,
                 repeat: -1
@@ -4444,7 +4468,7 @@ export class GameScene extends Phaser.Scene {
                 this.scale.width / 2,
                 this.scale.height / 2,
                 this.textoOpciones[17][spanish],
-                { padding: { top: 6, bottom: 6 }, fontFamily: "Fuente", fontSize: "20px", color: "#cbdbfc" }
+                { padding: { top: 6, bottom: 6 }, fontFamily: "Fuente", fontSize: "20px", color: textoColor(COLORES.blanco) }
             ).setOrigin(0.5);
             try {
                 if (this.idsNivelesOficiales.length === 0) {
@@ -5159,7 +5183,27 @@ export class GameScene extends Phaser.Scene {
         }
 
         for (let i = 0; i < this.entities.length; i++) {
-            this.actualizarPortal(this.entities[i]);
+            const entity = this.entities[i];
+            this.actualizarPortal(entity);
+
+            let texturaOutline = "";
+            if (entity.type === "laserEmissor") texturaOutline = "laserOutlineSender";
+            if (entity.type === "laserReciever") texturaOutline = "laserOutlineReceiver";
+
+            if (texturaOutline !== "") {
+                const outline = this.add.image(entity.sprite.x, entity.sprite.y, texturaOutline);
+                outline.setCrop(15, 15, 18, 11);
+                outline.setOrigin(24 / outline.width, 24 / outline.height);
+                outline.setScale(this.pixelmultiplier);
+                outline.setPosition(
+                    entity.sprite.x - 8 * this.pixelmultiplier,
+                    entity.sprite.y - 8 * this.pixelmultiplier
+                );
+                if (entity.dir !== undefined) outline.setAngle(entity.dir * 90);
+                outline.setDepth(entity.sprite.depth + 1.01);
+                outline.setVisible(false);
+                entity.outline = outline;
+            }
         }
         this.cursors = this.input.keyboard!.createCursorKeys();
         this.crearPantallaMuerte();
@@ -5269,6 +5313,7 @@ export class GameScene extends Phaser.Scene {
         if (this.saliendoDelNivel || this.cargandoNivel || !this.cursors) {
          return;
         }
+        this.actualizarLaserOutlines();
         const flechaIzquierda = Phaser.Input.Keyboard.JustDown(this.cursors.left!);
         const flechaDerecha = Phaser.Input.Keyboard.JustDown(this.cursors.right!);
         const flechaArriba = Phaser.Input.Keyboard.JustDown(this.cursors.up!);

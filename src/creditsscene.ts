@@ -1,3 +1,4 @@
+import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { InterfazDemo } from "./interfazDemo";
 import { crearBoton } from "./niveles";
@@ -24,7 +25,7 @@ export class CreditsScene extends InterfazDemo {
   }
 
   create() {
-    this.cameras.main.setBackgroundColor("#222034");
+    this.cameras.main.setBackgroundColor(textoColor(COLORES.fondo));
 
     const centroX = 400;
     const panelY = 330;
@@ -53,14 +54,14 @@ export class CreditsScene extends InterfazDemo {
 
     volver.removeAllListeners("pointerover");
     volver.removeAllListeners("pointerout");
-    volver.setFillStyle(0xb39ddb);
+    volver.setFillStyle(COLORES.violeta);
 
     volver.on("pointerover", () => {
-      volver.setFillStyle(0x957bc1);
+      volver.setFillStyle(oscurecerColor(COLORES.violeta));
     });
 
     volver.on("pointerout", () => {
-      volver.setFillStyle(0xb39ddb);
+      volver.setFillStyle(COLORES.violeta);
     });
 
     this.add.rectangle(
@@ -68,7 +69,7 @@ export class CreditsScene extends InterfazDemo {
       panelY + 5,
       panelAncho + 4,
       panelAlto + 4,
-      0x14121e
+      COLORES.sombra
     );
 
     this.add.rectangle(
@@ -76,8 +77,8 @@ export class CreditsScene extends InterfazDemo {
       panelY,
       panelAncho,
       panelAlto,
-      0x171a2e
-    ).setStrokeStyle(4, 0xb39ddb);
+      COLORES.panel
+    ).setStrokeStyle(4, COLORES.violeta);
 
     const logo = this.add.image(
       centroX,
@@ -97,7 +98,7 @@ export class CreditsScene extends InterfazDemo {
       260,
       640,
       2,
-      0x303653
+      COLORES.separador
     );
 
     const creditos = [
@@ -136,7 +137,7 @@ export class CreditsScene extends InterfazDemo {
         y + 4,
         anchoTarjeta,
         altoTarjeta,
-        0x080b17
+        COLORES.sombraPopup
       );
 
       this.add.rectangle(
@@ -144,8 +145,8 @@ export class CreditsScene extends InterfazDemo {
         y,
         anchoTarjeta,
         altoTarjeta,
-        0x222034
-      ).setStrokeStyle(2, 0x6f87b0);
+        COLORES.fondo
+      ).setStrokeStyle(2, COLORES.borde);
 
       const nombre = this.texto(
         x,
@@ -156,7 +157,7 @@ export class CreditsScene extends InterfazDemo {
 
       nombre.setPadding(0, 10, 0, 4);
       nombre.setOrigin(0.5);
-      nombre.setColor("#ffffff");
+      nombre.setColor(textoColor(COLORES.blanco));
 
       if (nombre.width > anchoTarjeta - 28) {
         nombre.setScale(
@@ -173,7 +174,7 @@ export class CreditsScene extends InterfazDemo {
 
       rol.setPadding(0, 8, 0, 4);
       rol.setOrigin(0.5);
-      rol.setColor("#95add6");
+      rol.setColor(textoColor(COLORES.textoSecundario));
 
       if (rol.width > anchoTarjeta - 28) {
         rol.setScale(

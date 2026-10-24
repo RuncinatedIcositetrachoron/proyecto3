@@ -1,3 +1,4 @@
+import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { demo } from "./datosDemo";
 import { obtenerNiveles, crearNivel, crearBoton } from "./niveles";
@@ -85,7 +86,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     }
   }
 
-  const titulo = texto(centroX, 0, textoOpciones[13][spanish], 24, "#ffd166");
+  const titulo = texto(centroX, 0, textoOpciones[13][spanish], 24, textoColor(COLORES.amarillo));
   const altoLista = nivelesPorPagina * 32;
   const alto = margen + titulo.displayHeight + 20 + altoLista +
     20 + 44 + 20 + 32 + 20 + 44 + margen;
@@ -95,11 +96,11 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
 
   objetos.push(titulo);
   objetos.push(escena.add.rectangle(centroX, centroY,
-    escena.scale.width, escena.scale.height, 0x080b17, 0.72).setDepth(1000).setInteractive());
+    escena.scale.width, escena.scale.height, COLORES.sombraPopup, 0.72).setDepth(1000).setInteractive());
   objetos.push(escena.add.rectangle(centroX + 6, centroY + 6,
-    ancho + 4, alto + 4, 0x080b17).setDepth(1001));
+    ancho + 4, alto + 4, COLORES.sombraPopup).setDepth(1001));
   objetos.push(escena.add.rectangle(centroX, centroY,
-    ancho, alto, 0x171a2e).setStrokeStyle(4, 0xffd166).setDepth(1002));
+    ancho, alto, COLORES.panel).setStrokeStyle(4, COLORES.amarillo).setDepth(1002));
 
   const anchoPagina = 124;
   const yPagina = arribaLista + altoLista + 20 + 22;
@@ -109,13 +110,13 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     textoOpciones[0][spanish], () => {
       paginaActual--;
       mostrarNiveles();
-    }, 0x95add6);
+    }, COLORES.azul);
   const textoPagina = texto(centroX, yPagina, "", 16).setOrigin(0.5);
   const botonSiguiente = boton(derecha - anchoPagina / 2, yPagina, anchoPagina - 4,
     textoOpciones[1][spanish], () => {
       paginaActual++;
       mostrarNiveles();
-    }, 0x95add6);
+    }, COLORES.azul);
 
   const estado = texto(centroX, yPagina + 22 + 20, "", 14);
   objetos.push(textoPagina, estado);
@@ -123,11 +124,11 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
   const separacion = anchoBoton + 20;
   const y = arriba + alto - margen - 22;
   boton(centroX - separacion, y, anchoBoton - 4,
-    textoOpciones[2][spanish], cerrar, 0xe57373);
+    textoOpciones[2][spanish], cerrar, COLORES.rojo);
   const botonCrear = boton(centroX, y, anchoBoton - 4,
-    textoOpciones[3][spanish], crear, 0x9ccc65);
+    textoOpciones[3][spanish], crear, COLORES.verde);
   const botonExportar = boton(centroX + separacion, y, anchoBoton - 4,
-    textoOpciones[4][spanish], exportarJson, 0xffd166);
+    textoOpciones[4][spanish], exportarJson, COLORES.amarillo);
 
   escena.events.once(Phaser.Scenes.Events.SHUTDOWN, cerrar);
   if (teclado) {
@@ -148,7 +149,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
   }
   mostrarNiveles();
 
-  function texto(x: number, y: number, valor: string, tamano: number, color = "#cbdbfc") {
+  function texto(x: number, y: number, valor: string, tamano: number, color = textoColor(COLORES.blanco)) {
     return escena.add.text(x, y, valor, {
       fontFamily: "Fuente", fontSize: tamano + "px", color: color,
       align: "center", wordWrap: { width: anchoTexto }
@@ -162,14 +163,14 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
     const sombra = escena.children.list[inicio] as Phaser.GameObjects.Rectangle;
     const etiqueta = escena.children.list[inicio + 2] as Phaser.GameObjects.Text;
     objetos.push(sombra, fondo, etiqueta);
-    sombra.setFillStyle(0x080b17);
+    sombra.setFillStyle(COLORES.sombraPopup);
     sombra.setDepth(1003);
     fondo.setDepth(1004);
     fondo.removeAllListeners("pointerover");
     fondo.removeAllListeners("pointerout");
     fondo.setFillStyle(color);
-    fondo.on("pointerover", () => { fondo.setAlpha(0.8); });
-    fondo.on("pointerout", () => { fondo.setAlpha(1); });
+    fondo.on("pointerover", () => { fondo.setFillStyle(oscurecerColor(color)); });
+    fondo.on("pointerout", () => { fondo.setFillStyle(color); });
 
     etiqueta.setFontSize(18).setWordWrapWidth(ancho - 16).setAlign("center").setDepth(1005);
     return fondo;
@@ -204,10 +205,10 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
       const nivel = niveles[i];
       const posicion = seleccion.indexOf(nivel.id);
       let titulo = nivel.nombre;
-      let color = "#cbdbfc";
+      let color = textoColor(COLORES.blanco);
       if (posicion !== -1) {
         titulo = "Level " + (posicion + 1) + " - " + nivel.nombre;
-        color = "#9ccc65";
+        color = textoColor(COLORES.verde);
       }
       const x = centroX - ancho / 2 + margen;
       const y = arribaLista + 16 + (i - primero) * 32;
@@ -215,7 +216,7 @@ export function abrirExportacionOficiales(escena: LevelsScene): void {
       link.setOrigin(0, 0.5);
       link.setAlign("left");
       link.setInteractive({ useHandCursor: true });
-      link.on("pointerover", () => { link.setColor("#ffd166"); });
+      link.on("pointerover", () => { link.setColor(textoColor(COLORES.amarillo)); });
       link.on("pointerout", () => { link.setColor(color); });
       link.on("pointerdown", () => { cambiarSeleccion(nivel.id); });
       linksNiveles.push(link);

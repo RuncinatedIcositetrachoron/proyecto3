@@ -1,3 +1,4 @@
+import { COLORES, colorTexto as textoColor } from "./colores";
 
 import Phaser from "phaser";
 import {
@@ -83,7 +84,7 @@ export class MenuScene extends Phaser.Scene {
       this.numeroCarga++;
     });
 
-    this.cameras.main.setBackgroundColor("#0f102e");
+    this.cameras.main.setBackgroundColor(textoColor(COLORES.fondoMenu));
 
     const usuario = demo.usuarioActual;
 
@@ -121,14 +122,14 @@ export class MenuScene extends Phaser.Scene {
     arte.setScale(Math.max((ancho - anchoMenu) / 139, alto / 123));
     arte.play("arteMenuAnimado");
 
-    this.add.rectangle(0, 0, anchoMenu, alto, 0x0f102e).setOrigin(0);
+    this.add.rectangle(0, 0, anchoMenu, alto, COLORES.fondoMenu).setOrigin(0);
 
     this.add.rectangle(
-      anchoMenu, 0, 8 * escalaTexto, alto, 0x080b17, 0.2
+      anchoMenu, 0, 8 * escalaTexto, alto, COLORES.sombraPopup, 0.2
     ).setOrigin(0);
 
     const anchoBorde = Math.max(2, Math.round(8 * escalaTexto));
-    this.add.rectangle(anchoMenu - anchoBorde, 0, anchoBorde, alto, 0x80759d, 0.28).setOrigin(0);
+    this.add.rectangle(anchoMenu - anchoBorde, 0, anchoBorde, alto, COLORES.bordeMenu, 0.28).setOrigin(0);
 
     const logo = this.add.image(anchoMenu / 2, Math.round(alto * 0.055), "logoMenu");
     logo.setOrigin(0.5, 0);
@@ -248,7 +249,7 @@ export class MenuScene extends Phaser.Scene {
           padding: { top: 6, bottom: 6 },
           fontFamily: "Fuente",
           fontSize: 28 * escalaTexto + "px",
-          color: "#a9a3bc",
+          color: textoColor(COLORES.textoSecundario),
           resolution: 4
         }
       ).setOrigin(0.5);
@@ -337,12 +338,12 @@ export class MenuScene extends Phaser.Scene {
         habilitado = false;
       }
 
-      let colorTexto = "#ffffff";
-      let colorIcono = 0xffffff;
+      let colorTexto = textoColor(COLORES.blanco);
+      let colorIcono = COLORES.blanco;
 
       if (habilitado === false) {
-        colorTexto = "#51515f";
-        colorIcono = 0x51515f;
+        colorTexto = textoColor(COLORES.desactivadoMenu);
+        colorIcono = COLORES.desactivadoMenu;
       }
 
       const icono = this.add.image(
@@ -382,8 +383,8 @@ export class MenuScene extends Phaser.Scene {
       grupo.add(boton);
 
       boton.on("pointerover", () => {
-        texto.setColor("#ffd166");
-        icono.setTint(0xffd166);
+        texto.setColor(textoColor(COLORES.amarillo));
+        icono.setTint(COLORES.amarillo);
       });
 
       boton.on("pointerout", () => {
@@ -407,7 +408,7 @@ export class MenuScene extends Phaser.Scene {
           padding: { top: 6, bottom: 6 },
           fontFamily: "Fuente",
           fontSize: 22 * escalaTexto + "px",
-          color: "#e6a39f",
+          color: textoColor(COLORES.rojo),
           resolution: 4
         }
       ).setOrigin(0.5, 0);
@@ -421,7 +422,7 @@ export class MenuScene extends Phaser.Scene {
           padding: { top: 6, bottom: 6 },
           fontFamily: "Fuente",
           fontSize: 24 * escalaTexto + "px",
-          color: "#ffd166",
+          color: textoColor(COLORES.amarillo),
           resolution: 4
         }
       ).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
@@ -463,15 +464,15 @@ export class MenuScene extends Phaser.Scene {
       51,
       1,
       1,
-      0x0f102e,
+      COLORES.fondoMenu,
       0.72
-    ).setOrigin(1, 0.5).setStrokeStyle(grosorBordeUsuario, 0xb39ddb, 0.35);
+    ).setOrigin(1, 0.5).setStrokeStyle(grosorBordeUsuario, COLORES.violeta, 0.35);
 
     const textoUsuario = this.add.text(derechaUsuario, 36, nombre, {
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "16px",
-      color: "#cbdbfc",
+      color: textoColor(COLORES.blanco),
       resolution: 4
     }).setOrigin(1, 0.5);
 
@@ -491,7 +492,7 @@ export class MenuScene extends Phaser.Scene {
     const enlaceCuenta = this.add.text(derechaUsuario, 66, accionCuenta, {
       fontFamily: "Fuente",
       fontSize: "14px",
-      color: "#b39ddb",
+      color: textoColor(COLORES.violeta),
       padding: { left: 0, right: 0, top: 5, bottom: 5 },
       resolution: 4
     }).setOrigin(1, 0.5)
@@ -512,11 +513,11 @@ export class MenuScene extends Phaser.Scene {
     recuadroUsuario.setSize(anchoUsuario, abajoUsuario - arribaUsuario);
 
     enlaceCuenta.on("pointerover", () => {
-      enlaceCuenta.setColor("#ffd166");
+      enlaceCuenta.setColor(textoColor(COLORES.amarillo));
     });
 
     enlaceCuenta.on("pointerout", () => {
-      enlaceCuenta.setColor("#b39ddb");
+      enlaceCuenta.setColor(textoColor(COLORES.violeta));
     });
 
     enlaceCuenta.on("pointerdown", () => {
@@ -559,7 +560,7 @@ export class MenuScene extends Phaser.Scene {
             this.textoOpciones[12][spanish],
             this.textoOpciones[13][spanish],
             this.textoOpciones[14][spanish],
-            0xffd166,
+            COLORES.amarillo,
             () => {
               this.abrirPartida(true);
             }

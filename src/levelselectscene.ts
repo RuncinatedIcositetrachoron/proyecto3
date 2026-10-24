@@ -1,3 +1,4 @@
+import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 
 import Phaser from "phaser";
 import { spanish } from "./idioma";
@@ -19,6 +20,7 @@ export class LevelselectScene extends Phaser.Scene {
     ["Next", "Siguiente"],
     [" levels completed", " niveles completados"]
   ];
+
   totalNiveles = 0;
   nivelesOficiales: NivelBackend[] = [];
   numeroCarga = 0;
@@ -41,6 +43,7 @@ export class LevelselectScene extends Phaser.Scene {
 
   async create() {
     const cargaActual = ++this.numeroCarga;
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.numeroCarga++;
     });
@@ -157,13 +160,13 @@ export class LevelselectScene extends Phaser.Scene {
       }
     }
 
-    this.cameras.main.setBackgroundColor("#222034");
+    this.cameras.main.setBackgroundColor(textoColor(COLORES.fondo));
 
     const titulo = this.add.text(400, 25, this.textoOpciones[3][spanish], {
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "26px",
-      color: "#cbdbfc"
+      color: textoColor(COLORES.blanco)
     });
 
     titulo.setOrigin(0.5, 0);
@@ -183,7 +186,7 @@ export class LevelselectScene extends Phaser.Scene {
           "menu"
         );
       },
-      0xb39ddb
+      COLORES.violeta
     );
 
     if (this.totalNiveles === 0) {
@@ -197,7 +200,7 @@ export class LevelselectScene extends Phaser.Scene {
         padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "20px",
-        color: "#cbdbfc",
+        color: textoColor(COLORES.blanco),
         align: "center",
         wordWrap: { width: 640 }
       }).setOrigin(0.5);
@@ -210,7 +213,7 @@ export class LevelselectScene extends Phaser.Scene {
         padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "14px",
-        color: "#ffd166",
+        color: textoColor(COLORES.amarillo),
         align: "center",
         wordWrap: { width: 640 }
       }).setOrigin(0.5, 0);
@@ -244,7 +247,7 @@ export class LevelselectScene extends Phaser.Scene {
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "14px",
-      color: "#a5b4ce"
+      color: textoColor(COLORES.textoSecundario)
     });
 
     progreso.setOrigin(0.5, 0);
@@ -287,10 +290,10 @@ export class LevelselectScene extends Phaser.Scene {
       (arribaPanel + abajoPanel) / 2,
       anchoGrilla + margenLateral * 2,
       altoPanel,
-      0x171a2e
+      COLORES.panel
     );
 
-    panel.setStrokeStyle(4, 0xb39ddb);
+    panel.setStrokeStyle(4, COLORES.violeta);
     panel.setDepth(-1);
 
     this.dibujarNiveles(
@@ -359,23 +362,23 @@ export class LevelselectScene extends Phaser.Scene {
       desbloqueado = true;
     }
 
-    let colorFondo = 0x4e566b;
-    let colorBorde = 0x303653;
-    let colorTexto = "#79869e";
-    let colorHover = 0x4e566b;
+    let colorFondo = COLORES.nivelBloqueado;
+    let colorBorde = COLORES.separador;
+    let colorTexto = textoColor(COLORES.desactivado);
+    let colorHover = COLORES.nivelBloqueado;
 
     if (completado) {
-      colorFondo = 0x9ccc65;
-      colorHover = 0x7eaa4c;
-      colorBorde = 0x222034;
-      colorTexto = "#222034";
+      colorFondo = COLORES.verde;
+      colorHover = COLORES.verdeHover;
+      colorBorde = COLORES.fondo;
+      colorTexto = textoColor(COLORES.fondo);
     }
 
     if (actual) {
-      colorFondo = 0xffd166;
-      colorHover = 0xd9ad4f;
-      colorBorde = 0x222034;
-      colorTexto = "#222034";
+      colorFondo = COLORES.amarillo;
+      colorHover = COLORES.amarilloHover;
+      colorBorde = COLORES.fondo;
+      colorTexto = textoColor(COLORES.fondo);
     }
 
     this.add.rectangle(
@@ -383,7 +386,7 @@ export class LevelselectScene extends Phaser.Scene {
       y + 3,
       this.tamanoCasilla + 4,
       this.tamanoCasilla + 4,
-      0x14121e
+      COLORES.sombra
     );
 
     const fondo = this.add.rectangle(
@@ -436,7 +439,7 @@ export class LevelselectScene extends Phaser.Scene {
         this.paginaActual--;
         this.dibujar();
       },
-      0xb39ddb,
+      COLORES.violeta,
       this.paginaActual > 0
     );
 
@@ -448,7 +451,7 @@ export class LevelselectScene extends Phaser.Scene {
         padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "16px",
-        color: "#b39ddb"
+        color: textoColor(COLORES.violeta)
       }
     ).setOrigin(0.5);
 
@@ -465,7 +468,7 @@ export class LevelselectScene extends Phaser.Scene {
         this.paginaActual++;
         this.dibujar();
       },
-      0xb39ddb,
+      COLORES.violeta,
       this.paginaActual < paginas - 1
     );
   }
@@ -525,10 +528,9 @@ export class LevelselectScene extends Phaser.Scene {
     if (
       usuario !== null &&
       usuario !== undefined &&
-      usuario.id !== 0 &&
-      this.progresoOficial.length === this.totalNiveles
+      usuario.id !== 0
     ) {
-      indice = numeroNivel - 1;
+      indice = nivel.id - 1;
     }
 
     return this.progresoOficial[indice] === true;
@@ -562,7 +564,7 @@ export class LevelselectScene extends Phaser.Scene {
     ancho: number,
     titulo: string,
     accion: () => void,
-    color = 0xcbdbfc,
+    color = COLORES.normal,
     habilitado = true
   ) {
     const fondo = crearBoton(
@@ -588,11 +590,11 @@ export class LevelselectScene extends Phaser.Scene {
     }
 
     fondo.on("pointerover", () => {
-      fondo.setAlpha(0.8);
+      fondo.setFillStyle(oscurecerColor(color));
     });
 
     fondo.on("pointerout", () => {
-      fondo.setAlpha(1);
+      fondo.setFillStyle(color);
     });
   }
 
@@ -605,10 +607,9 @@ export class LevelselectScene extends Phaser.Scene {
         if (
           usuario !== null &&
           usuario !== undefined &&
-          usuario.id !== 0 &&
-          this.progresoOficial.length === this.totalNiveles
+          usuario.id !== 0
         ) {
-          indice = i;
+          indice = id - 1;
         }
 
         this.progresoOficial[indice] = true;

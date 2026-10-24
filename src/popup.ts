@@ -1,3 +1,4 @@
+import { COLORES, colorTexto, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { spanish } from "./idioma";
 
@@ -48,7 +49,7 @@ export function mostrarConfirmacion(
     centroY,
     escena.scale.width,
     escena.scale.height,
-    0x080b17,
+    COLORES.sombraPopup,
     0.72
   );
 
@@ -64,7 +65,7 @@ export function mostrarConfirmacion(
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "24px",
-      color: "#ffffff",
+      color: colorTexto(COLORES.blanco),
       align: "center",
       wordWrap: { width: anchoTexto }
     }
@@ -82,7 +83,7 @@ export function mostrarConfirmacion(
       padding: { top: 6, bottom: 6 },
       fontFamily: "Fuente",
       fontSize: "18px",
-      color: "#cbdbfc",
+      color: colorTexto(COLORES.blanco),
       align: "center",
       lineSpacing: 6,
       wordWrap: { width: anchoTexto }
@@ -109,7 +110,7 @@ export function mostrarConfirmacion(
     centroY + 6,
     ancho + 4,
     alto + 4,
-    0x080b17
+    COLORES.sombraPopup
   );
 
   sombra.setDepth(1001);
@@ -120,7 +121,7 @@ export function mostrarConfirmacion(
     centroY,
     ancho,
     alto,
-    0x171a2e
+    COLORES.panel
   );
 
   panel.setStrokeStyle(4, colorAccion);
@@ -190,7 +191,7 @@ export function mostrarConfirmacion(
       y + 3,
       anchoBoton,
       44,
-      0x080b17
+      COLORES.sombraPopup
     );
 
     sombraBoton.setDepth(1003);
@@ -204,7 +205,7 @@ export function mostrarConfirmacion(
       color
     );
 
-    fondo.setStrokeStyle(4, 0x222034);
+    fondo.setStrokeStyle(4, COLORES.fondo);
     fondo.setDepth(1004);
 
     fondo.setInteractive({
@@ -221,7 +222,7 @@ export function mostrarConfirmacion(
         padding: { top: 6, bottom: 6 },
         fontFamily: "Fuente",
         fontSize: "18px",
-        color: "#222034"
+        color: colorTexto(COLORES.fondo)
       }
     );
 
@@ -230,11 +231,11 @@ export function mostrarConfirmacion(
     objetos.push(texto);
 
     fondo.on("pointerover", () => {
-      fondo.setAlpha(0.8);
+      fondo.setFillStyle(oscurecerColor(color));
     });
 
     fondo.on("pointerout", () => {
-      fondo.setAlpha(1);
+      fondo.setFillStyle(color);
     });
 
     fondo.on(
@@ -265,7 +266,7 @@ export function mostrarConfirmacion(
     crearBotonPopup(
       centroX - separacionCentros,
       textoOpciones[0][spanish],
-      0x95add6,
+      COLORES.hover,
       () => {}
     );
     xAccion = centroX + separacionCentros;
@@ -301,7 +302,7 @@ export function mostrarAviso(
     titulo,
     mensaje,
     textoOpciones[0][spanish],
-    0xe6c56a,
+    COLORES.amarillo,
     () => {},
     false
   );
