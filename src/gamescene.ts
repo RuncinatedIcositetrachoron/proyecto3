@@ -1622,12 +1622,12 @@ export class GameScene extends Phaser.Scene {
             case 2: frame = 0.5*Math.PI; origina = 1; break;
             case 3: frame = Math.PI; break;
         }
-        const tail = this.add.sprite(body.x, body.y, "lasertails", 1).setRotation(frame);
+        const tail = this.add.sprite(body.x, body.y, "lasertail", 1).setRotation(frame);
 
         tail.setOrigin(origina, originb);
         tail.setScale(this.pixelmultiplier);
         tail.setDepth(body.depth);
-        this.playLaserAnimation(tail, "lasertails", laser.outgoingPhase);
+        this.playLaserAnimation(tail, "lasertail", laser.outgoingPhase);
 
         const cut = 4 * this.pixelmultiplier;
 
@@ -2525,7 +2525,7 @@ export class GameScene extends Phaser.Scene {
                 player.x = savedPlayerX;
                 player.dir = savedPlayerDir;
                 player.sprite.setPosition(this.offsetX + savedPlayerX * this.tilesize, this.offsetY + savedPlayerY * this.tilesize).setDepth(2 * player.y);
-                return false;
+                return this.pushwall(player, this.opposite(origDir));
             }
             this.animatePortalEntry(savedPlayerX, savedPlayerY, entry.x, entry.y, entry.portal, this.opposite(dir));
                     this.maskPlayerPortal(player, exit.x, exit.y, exit.portal);
@@ -2534,7 +2534,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         if (this.isWall(newX, newY)) {
-            return false;
+            return this.pushwall(player, this.opposite(origDir));
         }
 
         const entity = this.getEntityAt(newX, newY);
@@ -2572,7 +2572,7 @@ export class GameScene extends Phaser.Scene {
                 player.sprite.setPosition(this.offsetX + player.x * 16*this.pixelmultiplier, this.offsetY + player.y * 16*this.pixelmultiplier).setDepth(2 * player.y);
             }
             if (this.isDoor(newEntityX, newEntityY)) {
-                return false;
+                return this.pushwall(player, this.opposite(origDir));
             }
             this.movimientoEmpujo = true;
             let portalHandled = false;
@@ -2803,7 +2803,7 @@ export class GameScene extends Phaser.Scene {
                     }
                 } else {
                     if (this.isWall(newEntityX, newEntityY) || this.getEntityAt(newEntityX, newEntityY)) {
-                        return false;
+                        return this.pushwall(player, this.opposite(origDir));
                     }
                     entity.x = newEntityX;
                     entity.y = newEntityY;
@@ -2904,10 +2904,25 @@ export class GameScene extends Phaser.Scene {
     //FUNCIONES ANIMACIONES//
     /////////////////////////
 
-    private pushwall(player: Entity, facing: number | undefined) {
-        switch (facing) {
-            case 0: 
-        }
+    private pushwall(player: Entity, facing: number): boolean {
+        player.dir = facing;
+        this.playerMoving = true;
+        this.holdBufferOpen = false;
+        this.inputBuffer = "";
+        this.stopPushSound();
+
+        player.sprite.stop();
+        player.sprite.setTexture("lindseyi", facing);
+        player.sprite.play("lindseywall" + String(facing));
+
+        player.sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+                player.sprite.stop();
+                player.sprite.setTexture("lindseyi", facing);
+                this.playerMoving = false;
+                this.holdBufferOpen = false;
+            }
+        );
+        return false;
     }
 
     private duplicateSprite(sprite: Phaser.GameObjects.Sprite): Phaser.GameObjects.Sprite {
@@ -4058,6 +4073,66 @@ export class GameScene extends Phaser.Scene {
                 ],
                 frameRate: this.animationspeed*2,
                 repeat: -1
+            });
+            this.anims.create({
+                key: "lindseywall0",
+                frames: [
+                    { key: "lindseypush1", frame: 0 },
+                    { key: "lindseypush1", frame: 4 },
+                    { key: "lindseypush1", frame: 8 },
+                    { key: "lindseypush1", frame: 12 },
+                    { key: "lindseypush1", frame: 16 },
+                    { key: "lindseypush1", frame: 20 },
+                    { key: "lindseypush1", frame: 24 },
+                    { key: "lindseypush1", frame: 28 }
+                ],
+                frameRate: this.animationspeed*2,
+                repeat: 0
+            });
+            this.anims.create({
+                key: "lindseywall2",
+                frames: [
+                    { key: "lindseypush1", frame: 1 },
+                    { key: "lindseypush1", frame: 5 },
+                    { key: "lindseypush1", frame: 9 },
+                    { key: "lindseypush1", frame: 13 },
+                    { key: "lindseypush1", frame: 17 },
+                    { key: "lindseypush1", frame: 21 },
+                    { key: "lindseypush1", frame: 25 },
+                    { key: "lindseypush1", frame: 29 },
+                ],
+                frameRate: this.animationspeed*2,
+                repeat: 0
+            });
+            this.anims.create({
+                key: "lindseywall3",
+                frames: [
+                    { key: "lindseypush1", frame: 2 },
+                    { key: "lindseypush1", frame: 6 },
+                    { key: "lindseypush1", frame: 10 },
+                    { key: "lindseypush1", frame: 18 },
+                    { key: "lindseypush1", frame: 22 },
+                    { key: "lindseypush1", frame: 22 },
+                    { key: "lindseypush1", frame: 18 },
+                    { key: "lindseypush1", frame: 10 }
+                ],
+                frameRate: this.animationspeed*2,
+                repeat: 0
+            });
+            this.anims.create({
+                key: "lindseywall1",
+                frames: [
+                    { key: "lindseypush1", frame: 3 },
+                    { key: "lindseypush1", frame: 7 },
+                    { key: "lindseypush1", frame: 11 },
+                    { key: "lindseypush1", frame: 19 },
+                    { key: "lindseypush1", frame: 23 },
+                    { key: "lindseypush1", frame: 23 },
+                    { key: "lindseypush1", frame: 19 },
+                    { key: "lindseypush1", frame: 11 }
+                ],
+                frameRate: this.animationspeed*2,
+                repeat: 0
             });
             this.anims.create({
                 key: "lindseydie1",
