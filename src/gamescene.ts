@@ -75,29 +75,29 @@ interface LaserVisual {
 /////////////////////
 
 export class GameScene extends Phaser.Scene {    
-  textoOpciones: string[][] = [
-    ["Untitled Level", "Nivel sin título"],
-    ["Level ", "Nivel "],
-    ["Test Mode", "Modo de prueba"],
-    ["No active session.", "No hay una sesión activa."],
-    ["Level completed, but your progress could not be saved:\n\n", "Nivel completado, pero no se pudo guardar tu progreso:\n\n"],
-    ["Undo", "Deshacer"],
-    ["Reset", "Reiniciar"],
-    ["Pause", "Pausa"],
-    ["Continue", "Continuar"],
-    ["YOU DIED", "MORISTE"],
-    ["Press", "Presioná"],
-    ["to undo", "para deshacer"],
-    ["or", "o"],
-    ["to restart", "para reiniciar"],
-    ["PAUSED", "PAUSA"],
-    ["COMMUNITY LEVEL", "NIVEL DE LA COMUNIDAD"],
-    ["Exit", "Salir"],
-    ["Loading level...", "Cargando nivel..."],
-    ["Could not load the official level:\n\n", "No se pudo cargar el nivel oficial:\n\n"]
-  ];
+    textoOpciones: string[][] = [
+        ["Untitled Level", "Nivel sin título"],
+        ["Level ", "Nivel "],
+        ["Test Mode", "Modo de prueba"],
+        ["No active session.", "No hay una sesión activa."],
+        ["Level completed, but your progress could not be saved:\n\n", "Nivel completado, pero no se pudo guardar tu progreso:\n\n"],
+        ["Undo", "Deshacer"],
+        ["Reset", "Reiniciar"],
+        ["Pause", "Pausa"],
+        ["Continue", "Continuar"],
+        ["YOU DIED", "MORISTE"],
+        ["Press", "Presioná"],
+        ["to undo", "para deshacer"],
+        ["or", "o"],
+        ["to restart", "para reiniciar"],
+        ["PAUSED", "PAUSA"],
+        ["COMMUNITY LEVEL", "NIVEL DE LA COMUNIDAD"],
+        ["Exit", "Salir"],
+        ["Loading level...", "Cargando nivel..."],
+        ["Could not load the official level:\n\n", "No se pudo cargar el nivel oficial:\n\n"]
+    ];
 
-    private volumenEfectos = 0.7; 
+    private volumenEfectos = 1.4; 
     private sonidosPreparados = false;
     private reflejosSonido: string[] = [];
     private movimientoEmpujo = false;
@@ -197,7 +197,7 @@ export class GameScene extends Phaser.Scene {
         // 7. DOOR OPENING
         {
             nombre: "puerta",
-            archivo: "lindsey_sfx/07_puerta_abrir.ogg",
+            archivo: "lindsey_sfx/unlockdoor.wav",
             volumen: 0.4,
             espera: 100,
             ultimo: -1000
@@ -205,7 +205,7 @@ export class GameScene extends Phaser.Scene {
         // 7b. DOOR CLOSING
         {
             nombre: "puertaCerrar",
-            archivo: "lindsey_sfx/07b_puerta_cerrar.ogg",
+            archivo: "lindsey_sfx/roodkcolnu.wav",
             volumen: 0.3,
             espera: 100,
             ultimo: -1000
@@ -213,7 +213,7 @@ export class GameScene extends Phaser.Scene {
         // 8. LEVEL COMPLETE
         {
             nombre: "victoria",
-            archivo: "lindsey_sfx/08_victoria.ogg",
+            archivo: "lindsey_sfx/nthoeunt.ogg",
             volumen: 0.5,
             espera: 1000,
             ultimo: -1000
@@ -441,10 +441,7 @@ export class GameScene extends Phaser.Scene {
             if (this.time.now - sonido.ultimo < sonido.espera) {
                 return;
             }
-            let tono = 0;
-            if (nombre === "paso" || nombre === "empujar") {
-                tono = Phaser.Math.Between(-60, 60);
-            }
+            let tono = 0; // for later
             this.sound.play(clave, {
                 volume: sonido.volumen * this.volumenEfectos,
                 detune: tono,
@@ -901,17 +898,24 @@ export class GameScene extends Phaser.Scene {
         this.reproducirSonido("click");
         this.stopPushSound(true);
         this.stopDeadSound();
-        this.scene.restart({
-            modoTest: this.modoTest,
-            nivelTest: this.nivelTest,
-            nivelId: this.nivelId,
-            testeando: this.testeando,
-            nivelDescargado: this.nivelDescargado,
-            escenaAnterior: this.escenaAnterior,
-            level: this.levelNumber,
-            idGlobal: this.idGlobalDescargado,
-            idsNivelesOficiales: this.idsNivelesOficiales
-        });
+
+        const transition = this.scene.get("transition") as TransitionScene;
+
+        transition.changeScene(
+            this.sys.settings.key,
+            "game",
+            {
+                modoTest: this.modoTest,
+                nivelTest: this.nivelTest,
+                nivelId: this.nivelId,
+                testeando: this.testeando,
+                nivelDescargado: this.nivelDescargado,
+                escenaAnterior: this.escenaAnterior,
+                level: this.levelNumber,
+                idGlobal: this.idGlobalDescargado,
+                idsNivelesOficiales: this.idsNivelesOficiales
+            }
+        );
     }
 
     private volver() {
@@ -4488,7 +4492,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "door", frame: 10 },
                     { key: "door", frame: 11 },
                 ],
-                frameRate: this.animationspeed*1,
+                frameRate: this.animationspeed*0.7,
                 repeat: 0
             });
             this.anims.create({
@@ -4507,7 +4511,7 @@ export class GameScene extends Phaser.Scene {
                     { key: "door", frame: 1 },
                     { key: "door", frame: 0 },
                 ],
-                frameRate: this.animationspeed*1,
+                frameRate: this.animationspeed*0.7,
                 repeat: 0
             });
         }
@@ -4572,8 +4576,7 @@ export class GameScene extends Phaser.Scene {
             }
         }
 
-        const [staticLayer, dynamicLayer, laserLayer, portalLayer, directionLayer, darkLayer,
-            plateControlLayer, emitterControlLayer] = level.split("^");
+        const [staticLayer, dynamicLayer, laserLayer, portalLayer, directionLayer, darkLayer, plateControlLayer, emitterControlLayer] = level.split("^");
         this.staticRows = staticLayer.trim().split("\n");
         const dynamicRows = dynamicLayer.trim().split("\n");
         const laserRows = laserLayer.trim().split("\n");
