@@ -13,7 +13,8 @@ import {
   leerNivelesOriginalesBackend,
   leerProgresoOriginalBackend
 } from "./api";
-import { spanish, cambiarIdioma } from "./idioma";
+import { spanish } from "./idioma";
+import { ajustesCargados, cargarAjustes, olvidarAjustes } from "./ajustes";
 
 export class MenuScene extends Phaser.Scene {
   abriendoPartida = false;
@@ -36,7 +37,7 @@ export class MenuScene extends Phaser.Scene {
     ["Level Editor", "Editor De Niveles"],
     ["Credits", "Créditos"],
     ["Exit", "Salir"],
-    ["Change Language", "Cambiar Idioma"],
+    ["Options", "Opciones"],
     ["Retry", "Reintentar"],
     ["Could not load progress", "No se logró cargar el progreso"],
     ["Loading progress...", "Cargando el progreso..."],
@@ -92,6 +93,21 @@ export class MenuScene extends Phaser.Scene {
       this.scene.start("usuariosDemo");
       return;
     }
+
+    if (ajustesCargados(usuario.nombre, esInvitado()) === false) {
+      this.add.text(400, 300, "Loading...", {
+        fontFamily: "Fuente",
+        fontSize: "24px",
+        color: textoColor(COLORES.blanco)
+      }).setOrigin(0.5);
+      cargarAjustes(usuario.nombre, esInvitado()).then(() => {
+        if (this.scene.isActive("menu") && demo.usuarioActual === usuario) {
+          this.scene.restart();
+        }
+      });
+      return;
+    }
+
 
     const ancho = this.scale.width;
     const alto = this.scale.height;
@@ -290,7 +306,7 @@ export class MenuScene extends Phaser.Scene {
       "Level Editor",
       "Credits",
       "Exit",
-      "Language"
+      "Options"
     ];
 
     const medida = this.add.text(0, 0, this.textoOpciones[4][spanish], {
@@ -442,6 +458,10 @@ export class MenuScene extends Phaser.Scene {
       textura.add("Language", 0, 16, 64, 16, 16);
     }
 
+    if (textura.has("Options") === false) {
+      textura.add("Options", 0, 16, 48, 16, 16);
+    }
+
     if (textura.has("Start New Game")) {
       return;
     }
@@ -582,12 +602,12 @@ export class MenuScene extends Phaser.Scene {
         transition.changeScene("menu", "credits");
         break;
       case 6:
+        olvidarAjustes();
         cerrarSesion();
         transition.changeScene("menu", "usuariosDemo");
         break;
-      case 7: 
-        cambiarIdioma();
-        transition.changeScene("menu", "menu");
+      case 7:
+        transition.changeScene("menu", "options");
         break;
     }
   }

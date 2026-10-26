@@ -63,7 +63,7 @@ export type PerfilBackend = {
 export type ConfiguracionBackend = {
   theme: string;
   volume: number;
-  resolution: string;
+  resolution: string | null;
   user: string;
 };
 
@@ -96,7 +96,7 @@ export async function obtenerConfiguracion(nombre: string): Promise<Configuracio
 }
 
 export async function guardarConfiguracion(
-  nombre: string, tema: string, volumen: number, resolucion: string
+  nombre: string, tema: string, volumen: number, resolucion: string | null
 ): Promise<void> {
   await pedir("/" + encodeURIComponent(nombre) + "/saveConfigs", "POST", {
     theme: tema, volume: volumen, resolution: resolucion

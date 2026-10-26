@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { InterfazDemo } from "./interfazDemo";
 import { crearBoton } from "./niveles";
 import { spanish } from "./idioma";
+import { TransitionScene } from "./transitionScene";
 
 export class CreditsScene extends InterfazDemo {
   textoOpciones: string[][] = [
@@ -202,6 +203,7 @@ export class CreditsScene extends InterfazDemo {
   }
 
   volver() {
-    this.scene.start("menu");
+    const transition = this.scene.get("transition") as TransitionScene;
+    transition.changeScene("credits", "menu");
   }
 }
