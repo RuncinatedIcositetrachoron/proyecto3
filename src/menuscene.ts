@@ -16,6 +16,8 @@ import {
 import { spanish, cambiarIdioma } from "./idioma";
 
 export class MenuScene extends Phaser.Scene {
+  private menuMusic: any;
+  private menuMusic2: any;
   abriendoPartida = false;
   numeroCarga = 0;
   abajoLogo = 0;
@@ -66,6 +68,13 @@ export class MenuScene extends Phaser.Scene {
       "./laserfont.fnt"
     );
     this.load.font("Fuente", "./font.ttf", "truetype");
+
+    if (!this.cache.audio.exists("menuMusic")) {
+      this.load.audio("menuMusic", "assets/music/mainmenucicadas.opus");
+    }
+    if (!this.cache.audio.exists("menuMusic2")) {
+      this.load.audio("menuMusic2", "assets/music/mainmenumusic.ogg");
+    }
   }
 
   create() {
@@ -91,6 +100,29 @@ export class MenuScene extends Phaser.Scene {
     if (usuario === null || usuario === undefined) {
       this.scene.start("usuariosDemo");
       return;
+    }
+
+    const existingMusic = this.sound.get("menuMusic");
+    if (existingMusic && existingMusic.isPlaying) {
+      this.menuMusic = existingMusic;
+    } else {
+      this.menuMusic = this.sound.add("menuMusic", {
+        volume: 0.4,
+        loop: true
+      });
+
+      this.menuMusic.play();
+    }
+    const existingMusic2 = this.sound.get("menuMusic2");
+    if (existingMusic2 && existingMusic2.isPlaying) {
+      this.menuMusic2 = existingMusic2;
+    } else {
+      this.menuMusic2 = this.sound.add("menuMusic2", {
+        volume: 0.2,
+        loop: true
+      });
+
+      this.menuMusic2.play();
     }
 
     const ancho = this.scale.width;

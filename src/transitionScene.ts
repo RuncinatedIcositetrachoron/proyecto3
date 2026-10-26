@@ -8,7 +8,7 @@ export class TransitionScene extends Phaser.Scene {
     private oldDomZIndex = "";
     private oldCanvasPosition = "";
     private oldCanvasZIndex = "";
-    private volumenEfectos = 0.7;
+    private volumenEfectos = 0.35;
 
     constructor() {
         super({
@@ -187,7 +187,7 @@ export class TransitionScene extends Phaser.Scene {
                 volume: this.volumenEfectos
             })
         ]);
-        await this.wait(240);
+        await this.wait(480);
 
         const destinationSleeping = this.scene.isSleeping(newScene);
 
