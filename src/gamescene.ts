@@ -1,7 +1,7 @@
 import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { spanish, volumensfx } from "./configs.ts";
-import { cargarPortales, crearAnimacionesPortales, configurarPortal, esParedExteriorPortal } from "./portales";
+import { cargarPortales, crearAnimacionesPortales, configurarPortal, esParedExteriorPortal, actualizarEstadoPortal } from "./portales";
 
 import { obtenerNivel, crearBoton } from "./niveles";
 import { convertirNivel } from "./parser";
@@ -2365,12 +2365,28 @@ export class GameScene extends Phaser.Scene {
         if (portals) {
             for (const portal of portals) {
                 portal.emitting = undefined;
-                if (portal.sprite2) {
-                    if (this.isPortalActive(portal)) {
-                        portal.sprite2.setAlpha(portal.sprite.alpha);
-                    } else {
-                        portal.sprite2.setAlpha(0.25 * portal.sprite.alpha);
+
+                if (portal.sprite2 && portal.portal !== undefined) {
+                    let grupo = 0;
+
+                    if (portal.group !== undefined) {
+                        grupo = portal.group;
                     }
+
+                    const normal =
+                        portal.type === "wall" &&
+                        portal.sprite.texture.key === "tileset-fogo" &&
+                        esParedExteriorPortal(Number(portal.sprite.frame.name) + 1);
+
+                    actualizarEstadoPortal(
+                        portal.sprite2,
+                        grupo,
+                        portal.portal,
+                        normal,
+                        this.isPortalActive(portal)
+                    );
+
+                    portal.sprite2.setAlpha(portal.sprite.alpha);
                 }
             }
         }
@@ -2953,9 +2969,7 @@ export class GameScene extends Phaser.Scene {
     private actualizarAlphaPortal(entity: Entity, alpha: number): void {
         entity.sprite.setAlpha(alpha);
         if (entity.sprite2) {
-            let alphaPortal = alpha;
-            if (!this.isPortalActive(entity)) alphaPortal *= 0.25;
-            entity.sprite2.setAlpha(alphaPortal);
+            entity.sprite2.setAlpha(alpha);
         }
         if (entity.shadow) {
             entity.shadow.setAlpha(alpha);
