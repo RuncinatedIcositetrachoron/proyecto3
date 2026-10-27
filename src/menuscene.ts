@@ -311,8 +311,8 @@ export class MenuScene extends Phaser.Scene {
     acciones.push(2);
     acciones.push(3);
     acciones.push(4);
-    acciones.push(5);
     acciones.push(7);
+    acciones.push(5);
     acciones.push(6);
 
     const nombres = [
