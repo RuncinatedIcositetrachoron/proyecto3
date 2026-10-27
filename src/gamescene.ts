@@ -1,6 +1,6 @@
 import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 import Phaser from "phaser";
-import { spanish } from "./idioma";
+import { spanish, volumensfx } from "./configs.ts";
 import { cargarPortales, crearAnimacionesPortales, configurarPortal, esParedExteriorPortal } from "./portales";
 
 import { obtenerNivel, crearBoton } from "./niveles";
@@ -97,7 +97,7 @@ export class GameScene extends Phaser.Scene {
         ["Could not load the official level:\n\n", "No se pudo cargar el nivel oficial:\n\n"]
     ];
 
-    private volumenEfectos = 1.4; 
+    private volumenEfectos = 1.6 * volumensfx; 
     private sonidosPreparados = false;
     private reflejosSonido: string[] = [];
     private movimientoEmpujo = false;
@@ -231,6 +231,14 @@ export class GameScene extends Phaser.Scene {
             nombre: "click",
             archivo: "lindsey_sfx/09b_ui_click.ogg",
             volumen: 0.12,
+            espera: 70,
+            ultimo: -1000
+        },
+        // 10. PARADOX EXPLOSION
+        {
+            nombre: "paradoxexplosion",
+            archivo: "lindsey_sfx/paradoxexplosion.wav",
+            volumen: 0.5,
             espera: 70,
             ultimo: -1000
         }
@@ -3683,6 +3691,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     private flashbang() {
+        this.reproducirSonido("paradoxexplosion");
         const chance = Math.floor(Math.random()*10);
         if (chance === 0) { 
             const flash = this.add.image(this.scale.width/2, this.scale.height/2, "dario");

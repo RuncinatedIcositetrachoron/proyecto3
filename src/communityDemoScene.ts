@@ -1,7 +1,7 @@
 import { COLORES, colorTexto, oscurecerColor } from "./colores";
 
 import Phaser from "phaser";
-import { spanish } from "./idioma";
+import { spanish } from "./configs";
 import { InterfazDemo, VERDE, ROJO, NORMAL } from "./interfazDemo";
 import { demo } from "./datosDemo";
 import { obtenerNiveles, crearBoton, cargarNivelesServidor } from "./niveles";

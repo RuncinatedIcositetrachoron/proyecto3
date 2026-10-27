@@ -1,6 +1,6 @@
 import { COLORES, colorTexto, oscurecerColor } from "./colores";
 import Phaser from "phaser";
-import { spanish } from "./idioma";
+import { spanish } from "./configs";
 import { obtenerNiveles, obtenerNivel, crearNivel, eliminarNivel, crearBoton, renombrarNivel, duplicarNivel } from "./niveles";
 import { crearCampoTexto, filtrarTexto, MAX_BUSQUEDA, MAX_NOMBRE_NIVEL } from "./camposTexto";
 import { demo } from "./datosDemo";

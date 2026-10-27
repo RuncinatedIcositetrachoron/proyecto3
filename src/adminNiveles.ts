@@ -6,7 +6,7 @@ import type { LevelsScene } from "./levelsscene";
 import type { NivelBackend } from "./api";
 import { editorAApi } from "./parserApi";
 import type { NivelEditor } from "./parserApi";
-import { spanish } from "./idioma";
+import { spanish } from "./configs";
 
 const textoOpciones: string[][] = [
   ["Previous", "Anterior"],

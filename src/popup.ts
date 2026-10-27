@@ -1,6 +1,6 @@
 import { COLORES, colorTexto, oscurecerColor } from "./colores";
 import Phaser from "phaser";
-import { spanish } from "./idioma";
+import { spanish } from "./configs";
 
 export function mostrarConfirmacion(
   escena: Phaser.Scene,

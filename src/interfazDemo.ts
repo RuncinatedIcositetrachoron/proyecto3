@@ -1,6 +1,6 @@
 import { COLORES, colorTexto } from "./colores";
 import Phaser from 'phaser';
-import { spanish } from "./idioma";
+import { spanish } from "./configs";
 import { crearBoton } from './niveles';
 
 export const VERDE = COLORES.verde;

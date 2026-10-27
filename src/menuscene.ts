@@ -13,7 +13,7 @@ import {
   leerNivelesOriginalesBackend,
   leerProgresoOriginalBackend
 } from "./api";
-import { spanish, cambiarIdioma } from "./idioma";
+import { spanish, cambiarIdioma, volumenmusica, volumensfx } from "./configs";
 
 export class MenuScene extends Phaser.Scene {
   private menuMusic: any;
@@ -107,7 +107,7 @@ export class MenuScene extends Phaser.Scene {
       this.menuMusic = existingMusic;
     } else {
       this.menuMusic = this.sound.add("menuMusic", {
-        volume: 0.4,
+        volume: 0.4 * volumensfx,
         loop: true
       });
 
@@ -118,7 +118,7 @@ export class MenuScene extends Phaser.Scene {
       this.menuMusic2 = existingMusic2;
     } else {
       this.menuMusic2 = this.sound.add("menuMusic2", {
-        volume: 0.2,
+        volume: 0.3 * volumenmusica,
         loop: true
       });
 

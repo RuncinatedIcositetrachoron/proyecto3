@@ -1,7 +1,7 @@
 import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 
 import Phaser from "phaser";
-import { spanish } from "./idioma";
+import { spanish } from "./configs";
 import { crearBoton } from "./niveles";
 import { leerNivelesOriginalesBackend, leerProgresoOriginalBackend } from "./api";
 import type { NivelBackend } from "./api";

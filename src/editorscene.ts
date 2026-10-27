@@ -1,6 +1,6 @@
 import { COLORES, colorTexto, oscurecerColor } from "./colores";
 import Phaser from "phaser";
-import { spanish } from "./idioma";
+import { spanish } from "./configs";
 import { cargarPortales, crearAnimacionesPortales, configurarPortal, direccionPortalEditor, esParedExteriorPortal } from "./portales";
 import { obtenerNivel, actualizarNivel, crearBoton } from "./niveles";
 import { convertirNivel } from "./parser";

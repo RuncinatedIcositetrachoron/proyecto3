@@ -1,6 +1,6 @@
 import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 import type Phaser from "phaser";
-import { spanish } from "./idioma";
+import { spanish } from "./configs";
 import { InterfazDemo } from "./interfazDemo";
 import { demo, guardarSesion, continuarComoInvitado } from "./datosDemo";
 import { crearCampoTexto } from "./camposTexto";

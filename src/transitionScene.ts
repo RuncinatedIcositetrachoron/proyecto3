@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { volumensfx } from "./configs";
 
 export class TransitionScene extends Phaser.Scene {
 
@@ -8,7 +9,7 @@ export class TransitionScene extends Phaser.Scene {
     private oldDomZIndex = "";
     private oldCanvasPosition = "";
     private oldCanvasZIndex = "";
-    private volumenEfectos = 0.35;
+    private volumenEfectos = 0.35 * volumensfx;
 
     constructor() {
         super({

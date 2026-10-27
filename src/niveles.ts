@@ -1,6 +1,6 @@
 import { COLORES, colorTexto, oscurecerColor } from "./colores";
 import Phaser from "phaser";
-import { spanish } from "./idioma";
+import { spanish } from "./configs";
 import { MAX_NOMBRE_NIVEL } from "./camposTexto";
 import { demo } from "./datosDemo";
 import {

@@ -2,7 +2,7 @@ import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { InterfazDemo } from "./interfazDemo";
 import { crearBoton } from "./niveles";
-import { spanish } from "./idioma";
+import { spanish } from "./configs";
 
 export class CreditsScene extends InterfazDemo {
   textoOpciones: string[][] = [
