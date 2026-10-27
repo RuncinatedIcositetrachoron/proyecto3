@@ -2,8 +2,8 @@ import type Phaser from "phaser";
 import { obtenerConfiguracion, guardarConfiguracion } from "./api";
 import { spanish, establecerIdioma } from "./idioma";
 export const ajustes = { musica: 1, efectos: 1 };
-const PREFIJO = "LindseysLasersOptions1:";
 const CLAVE_INVITADO = "LindseysLasersOpcionesInvitado";
+let temaCargado = "Dark";
 let usuarioCargado = "";
 let numeroCarga = 0;
 export function aplicarVolumenMusica(escena: Phaser.Scene): void {
@@ -22,6 +22,7 @@ export async function cargarAjustes(nombre: string, invitado: boolean): Promise<
   const cargaActual = ++numeroCarga;
   ajustes.musica = 1;
   ajustes.efectos = 1;
+  temaCargado = "Dark";
   establecerIdioma(0);
   if (invitado) {
     const guardado = localStorage.getItem(CLAVE_INVITADO);
@@ -35,19 +36,14 @@ export async function cargarAjustes(nombre: string, invitado: boolean): Promise<
     try {
       const config = await obtenerConfiguracion(nombre);
       if (cargaActual !== numeroCarga) return;
-      if (typeof config.volume === "number") {
-        ajustes.efectos = config.volume > 1 ? config.volume / 100 : config.volume;
+      if (typeof config.volumeMusic === "number") {
+        ajustes.musica = config.volumeMusic / 100;
       }
-      if (typeof config.theme === "string") {
-        if (config.theme.startsWith(PREFIJO)) {
-          const datos = JSON.parse(config.theme.substring(PREFIJO.length));
-          if (typeof config.volume === "number") ajustes.efectos = config.volume / 100;
-          if (typeof datos.musica === "number") ajustes.musica = datos.musica;
-          if (datos.idioma === 0 || datos.idioma === 1) establecerIdioma(datos.idioma);
-        } else if (config.theme === "es") {
-          establecerIdioma(1);
-        }
+      if (typeof config.volumeSFX === "number") {
+        ajustes.efectos = config.volumeSFX / 100;
       }
+      if (typeof config.theme === "string") temaCargado = config.theme;
+      establecerIdioma(config.language === "spanish" ? 1 : 0);
     } catch (error) {
       console.error("Could not load settings:", error);
     }
@@ -66,16 +62,16 @@ export async function guardarAjustes(nombre: string, invitado: boolean): Promise
     }));
     return;
   }
-  const tema = PREFIJO + JSON.stringify({
-    idioma: spanish,
-    musica: ajustes.musica
-  });
-  await guardarConfiguracion(nombre, tema, Math.round(ajustes.efectos * 100), null);
+  await guardarConfiguracion(
+    nombre, temaCargado, Math.round(ajustes.musica * 100),
+    Math.round(ajustes.efectos * 100), spanish === 1 ? "spanish" : "english"
+  );
 }
 export function olvidarAjustes(): void {
   numeroCarga++;
   usuarioCargado = "";
   ajustes.musica = 1;
   ajustes.efectos = 1;
+  temaCargado = "Dark";
   establecerIdioma(0);
 }
