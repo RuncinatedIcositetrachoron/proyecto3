@@ -14,7 +14,7 @@ import {
   leerProgresoOriginalBackend
 } from "./api";
 import { spanish } from "./idioma";
-import { ajustesCargados, cargarAjustes, olvidarAjustes } from "./ajustes";
+import { ajustesCargados, cargarAjustes, olvidarAjustes, aplicarVolumenMusica } from "./ajustes";
 
 export class MenuScene extends Phaser.Scene {
   private menuMusic: any;
@@ -103,29 +103,6 @@ export class MenuScene extends Phaser.Scene {
       return;
     }
 
-    const existingMusic = this.sound.get("menuMusic");
-    if (existingMusic && existingMusic.isPlaying) {
-      this.menuMusic = existingMusic;
-    } else {
-      this.menuMusic = this.sound.add("menuMusic", {
-        volume: 0.4,
-        loop: true
-      });
-
-      this.menuMusic.play();
-    }
-    const existingMusic2 = this.sound.get("menuMusic2");
-    if (existingMusic2 && existingMusic2.isPlaying) {
-      this.menuMusic2 = existingMusic2;
-    } else {
-      this.menuMusic2 = this.sound.add("menuMusic2", {
-        volume: 0.2,
-        loop: true
-      });
-
-      this.menuMusic2.play();
-    }
-
     if (ajustesCargados(usuario.nombre, esInvitado()) === false) {
       this.add.text(400, 300, "Loading...", {
         fontFamily: "Fuente",
@@ -140,6 +117,7 @@ export class MenuScene extends Phaser.Scene {
       return;
     }
 
+    this.prepararMusica();
 
     const ancho = this.scale.width;
     const alto = this.scale.height;
@@ -186,6 +164,24 @@ export class MenuScene extends Phaser.Scene {
 
     this.crearUsuario(usuario.nombre, esInvitado());
     this.cargarProgreso();
+  }
+
+  private prepararMusica() {
+    this.menuMusic = this.sound.get("menuMusic");
+    if (this.menuMusic === null) {
+      this.menuMusic = this.sound.add("menuMusic", { volume: 0, loop: true });
+    }
+    this.menuMusic2 = this.sound.get("menuMusic2");
+    if (this.menuMusic2 === null) {
+      this.menuMusic2 = this.sound.add("menuMusic2", { volume: 0, loop: true });
+    }
+    aplicarVolumenMusica(this);
+    if (this.menuMusic.isPlaying === false) {
+      this.menuMusic.play();
+    }
+    if (this.menuMusic2.isPlaying === false) {
+      this.menuMusic2.play();
+    }
   }
 
   nivelCompletado(id: number) {

@@ -1,5 +1,6 @@
 import { COLORES, colorTexto as textoColor, oscurecerColor } from "./colores";
 import Phaser from "phaser";
+import { ajustes } from "./ajustes";
 import { spanish } from "./idioma";
 import { cargarPortales, crearAnimacionesPortales, configurarPortal, esParedExteriorPortal } from "./portales";
 
@@ -97,7 +98,9 @@ export class GameScene extends Phaser.Scene {
         ["Could not load the official level:\n\n", "No se pudo cargar el nivel oficial:\n\n"]
     ];
 
-    private volumenEfectos = 1.4; 
+    private get volumenEfectos(): number {
+        return 1.4 * ajustes.efectos;
+    }
     private sonidosPreparados = false;
     private reflejosSonido: string[] = [];
     private movimientoEmpujo = false;
@@ -3817,6 +3820,7 @@ export class GameScene extends Phaser.Scene {
         this.cargandoNivel = true;
         const cargaActual = ++this.numeroCarga;
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.stopDeadSound();
             this.stopPushSound(true);
             if (this.pushSound) {
                 this.pushSound.destroy();

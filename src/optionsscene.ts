@@ -3,7 +3,7 @@ import { COLORES, colorTexto } from "./colores";
 import { crearBoton } from "./niveles";
 import { spanish, establecerIdioma } from "./idioma";
 import { demo, esInvitado } from "./datosDemo";
-import { ajustes, guardarAjustes } from "./ajustes";
+import { ajustes, guardarAjustes, aplicarVolumenMusica } from "./ajustes";
 import { TransitionScene } from "./transitionScene";
 
 export class OptionsScene extends Phaser.Scene {
@@ -134,6 +134,9 @@ export class OptionsScene extends Phaser.Scene {
         return;
       }
       ajustes[tipo] = Math.round(Math.max(0, Math.min(1, valor)) * 100) / 100;
+      if (tipo === "musica") {
+        aplicarVolumenMusica(this);
+      }
       const anchoRelleno = Math.round(anchoBarra * ajustes[tipo]);
       const posicionTirador = inicioBarra + anchoRelleno;
       relleno.setSize(anchoRelleno, 16).setVisible(ajustes[tipo] > 0);
