@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { volumensfx } from "./configs";
+import { cargarMusica, fadeInMusica, fadeOutMusica, musicaEscena, stopMusica } from "./music"
 
 export class TransitionScene extends Phaser.Scene {
 
@@ -164,12 +165,18 @@ export class TransitionScene extends Phaser.Scene {
         });
     }
 
+    estaCambiando(): boolean {
+        return this.changing;
+    }
+
     async changeScene(
         oldScene: string,
         newScene: string,
         data: any = {},
         sleepOld: boolean = false
     ) {
+        const mismaEscena = musicaEscena(oldScene) === musicaEscena(newScene);
+        const musicaDestino = musicaEscena(newScene);
         if (this.changing) {
             return;
         }
@@ -182,11 +189,13 @@ export class TransitionScene extends Phaser.Scene {
 
         this.putDomBehindCanvas();
 
+        const fadeOut = mismaEscena ? Promise.resolve() : fadeOutMusica(this, 450);
         await Promise.all([
             this.playTransition("transitionclose"),
-            this.sound.play("open", {
+            this.sound.play("close", {
                 volume: this.volumenEfectos
-            })
+            }),
+            fadeOut
         ]);
         await this.wait(480);
 
@@ -231,16 +240,23 @@ export class TransitionScene extends Phaser.Scene {
 
             await sceneCreated;
         }
+        
+        if (!mismaEscena) {
+            stopMusica();
+        }
 
         this.scene.bringToTop("transition");
 
         await this.waitFrame();
 
-        this.sound.play("close", {
-            volume: this.volumenEfectos
-        });
-        
-        await this.playTransition("transitionopen");
+        const fadeIn = mismaEscena ? Promise.resolve() : fadeInMusica(this, musicaDestino, 450);
+        await Promise.all ([
+            this.sound.play("open", {
+                volume: this.volumenEfectos
+            }),
+            this.playTransition("transitionopen"),
+            fadeIn
+        ]);
 
         this.transition.setVisible(false);
         this.blocker.setVisible(false);

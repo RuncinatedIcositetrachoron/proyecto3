@@ -162,6 +162,14 @@ export class GameScene extends Phaser.Scene {
             espera: 0,
             ultimo: -1000
         },
+        // 3.1. TRANSITION
+        {
+            nombre: "salir",
+            archivo: "lindsey_sfx/enterdoor.wav",
+            volumen: 0.18,
+            espera: 0,
+            ultimo: -1000
+        },
         // 4. DEATH
         {
             nombre: "morir",
@@ -210,14 +218,6 @@ export class GameScene extends Phaser.Scene {
             espera: 100,
             ultimo: -1000
         },
-        // 8. LEVEL COMPLETE
-        {
-            nombre: "victoria",
-            archivo: "lindsey_sfx/nthoeunt.ogg",
-            volumen: 0.5,
-            espera: 1000,
-            ultimo: -1000
-        },
         // 9a. UI HOVER
         {
             nombre: "hover",
@@ -245,6 +245,7 @@ export class GameScene extends Phaser.Scene {
     ];
     private deadSound: Phaser.Sound.BaseSound | undefined;
     private pushSound: any;
+    private entrySound: Phaser.Sound.BaseSound | undefined;
     private pushsoundFade: Phaser.Tweens.Tween | undefined;
     private levelNumber = 1;
     private history: GameState[] = [];
@@ -3602,7 +3603,7 @@ export class GameScene extends Phaser.Scene {
     private animateEntrance() {
         const player = this.entities.find(entity => entity.type === "player");
         if (!player) return;
-        this.reproducirSonido("entrar");
+        this.entrySound.play();
         const finalX = this.offsetX + player.x * this.tilesize;
         const finalY = this.offsetY + player.y * this.tilesize;
         let startY: number;
@@ -3660,13 +3661,14 @@ export class GameScene extends Phaser.Scene {
                 }
                 this.playerMoving = false;
                 this.playerTween = undefined;
+                this.entrySound.stop();
             }
         });
     }
 
     private animateLindseyExit(player: Entity, flag: Entity) {
         if (this.finishinglevel) return;
-        this.reproducirSonido("victoria");
+        this.reproducirSonido("salir");
         player.sprite.setDepth(-0.01)
         this.finishinglevel = true;
         this.playerMoving = true;
@@ -3880,6 +3882,10 @@ export class GameScene extends Phaser.Scene {
         this.firedEmitters = [];
         this.finishinglevel = false;
         this.dead = false;
+        this.entrySound = this.sound.add("game-entrar", {
+            volume: 0.4 * this.volumenEfectos,
+            loop: false
+        });
 
         if (!this.anims.exists("lindsey-up")) {
             this.anims.create({

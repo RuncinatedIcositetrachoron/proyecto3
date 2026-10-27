@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { InterfazDemo } from "./interfazDemo";
 import { crearBoton } from "./niveles";
 import { spanish } from "./configs";
+import { TransitionScene } from "./transitionScene";
 
 export class CreditsScene extends InterfazDemo {
   textoOpciones: string[][] = [
@@ -102,10 +103,10 @@ export class CreditsScene extends InterfazDemo {
     );
 
     const creditos = [
-      { nombre: "Name 1", rol: this.textoOpciones[2][spanish] },
-      { nombre: "Name 2", rol: this.textoOpciones[3][spanish] },
-      { nombre: "Name 3", rol: this.textoOpciones[4][spanish] },
-      { nombre: "Name 4", rol: this.textoOpciones[5][spanish] }
+      { nombre: "Tomás Groppo", rol: this.textoOpciones[2][spanish] },
+      { nombre: "Bruno Fiszelew", rol: this.textoOpciones[3][spanish] },
+      { nombre: "Lucas Cerruti", rol: this.textoOpciones[4][spanish] },
+      { nombre: "Facundo Fogolin", rol: this.textoOpciones[5][spanish] }
     ];
 
     const anchoTarjeta = 316;
@@ -202,6 +203,11 @@ export class CreditsScene extends InterfazDemo {
   }
 
   volver() {
-    this.scene.start("menu");
+    const transition = this.scene.get("transition") as TransitionScene;
+    
+    transition.changeScene(
+      this.sys.settings.key,
+      "menu"
+    );
   }
 }

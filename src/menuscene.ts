@@ -13,11 +13,11 @@ import {
   leerNivelesOriginalesBackend,
   leerProgresoOriginalBackend
 } from "./api";
-import { spanish, cambiarIdioma, volumenmusica, volumensfx } from "./configs";
+import { spanish, cambiarIdioma, volumensfx } from "./configs";
+import { cargarMusica, fadeInMusica } from "./music";
 
 export class MenuScene extends Phaser.Scene {
   private menuMusic: any;
-  private menuMusic2: any;
   abriendoPartida = false;
   numeroCarga = 0;
   abajoLogo = 0;
@@ -69,11 +69,10 @@ export class MenuScene extends Phaser.Scene {
     );
     this.load.font("Fuente", "./font.ttf", "truetype");
 
+    cargarMusica(this);
+
     if (!this.cache.audio.exists("menuMusic")) {
       this.load.audio("menuMusic", "assets/music/mainmenucicadas.opus");
-    }
-    if (!this.cache.audio.exists("menuMusic2")) {
-      this.load.audio("menuMusic2", "assets/music/mainmenumusic.ogg");
     }
   }
 
@@ -91,6 +90,17 @@ export class MenuScene extends Phaser.Scene {
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.numeroCarga++;
+
+      this.sound.off(
+        Phaser.Sound.Events.UNLOCKED,
+        iniciarAmbiente
+      );
+
+      if (this.menuMusic) {
+        this.menuMusic.stop();
+        this.menuMusic.destroy();
+        this.menuMusic = undefined;
+      }
     });
 
     this.cameras.main.setBackgroundColor(textoColor(COLORES.fondoMenu));
@@ -101,28 +111,32 @@ export class MenuScene extends Phaser.Scene {
       this.scene.start("usuariosDemo");
       return;
     }
+    const transition = this.scene.get("transition") as TransitionScene;
 
-    const existingMusic = this.sound.get("menuMusic");
-    if (existingMusic && existingMusic.isPlaying) {
-      this.menuMusic = existingMusic;
-    } else {
+    if (!transition.estaCambiando()) {
+      fadeInMusica(this, "mainmenu", 500);
+    }
+
+    const iniciarAmbiente = () => {
+      if (this.menuMusic) {
+        return;
+      }
+
       this.menuMusic = this.sound.add("menuMusic", {
         volume: 0.4 * volumensfx,
         loop: true
       });
 
       this.menuMusic.play();
-    }
-    const existingMusic2 = this.sound.get("menuMusic2");
-    if (existingMusic2 && existingMusic2.isPlaying) {
-      this.menuMusic2 = existingMusic2;
-    } else {
-      this.menuMusic2 = this.sound.add("menuMusic2", {
-        volume: 0.3 * volumenmusica,
-        loop: true
-      });
+    };
 
-      this.menuMusic2.play();
+    if (this.sound.locked) {
+      this.sound.once(
+        Phaser.Sound.Events.UNLOCKED,
+        iniciarAmbiente
+      );
+    } else {
+      iniciarAmbiente();
     }
 
     const ancho = this.scale.width;

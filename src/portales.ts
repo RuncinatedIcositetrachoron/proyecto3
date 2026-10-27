@@ -76,7 +76,7 @@ export function crearAnimacionesPortales(escena: Phaser.Scene): void {
         escena.anims.create({
           key: normalopening,
           frames: frames,
-          frameRate: 12,
+          frameRate: 36,
           repeat: 0
         });
       }
