@@ -3606,7 +3606,7 @@ export class GameScene extends Phaser.Scene {
     private animateEntrance() {
         const player = this.entities.find(entity => entity.type === "player");
         if (!player) return;
-        this.entrySound.play();
+        if (this.entrySound) this.entrySound.play();
         const finalX = this.offsetX + player.x * this.tilesize;
         const finalY = this.offsetY + player.y * this.tilesize;
         let startY: number;
@@ -3664,7 +3664,7 @@ export class GameScene extends Phaser.Scene {
                 }
                 this.playerMoving = false;
                 this.playerTween = undefined;
-                this.entrySound.stop();
+                if (this.entrySound) this.entrySound.stop();
             }
         });
     }
