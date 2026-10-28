@@ -166,6 +166,32 @@ export class TransitionScene extends Phaser.Scene {
         });
     }
 
+    async finishLoading(loadingScene: string) {
+        if (this.changing) {
+          return;
+        }
+        this.changing = true;
+        this.blocker.setVisible(true);
+        this.scene.bringToTop("transition");
+        this.putDomBehindCanvas();  
+        this.sound.play("open", {
+          volume: this.volumenEfectos
+        });
+        await this.playTransition("transitionclose");
+        await this.wait(240);
+        this.scene.stop(loadingScene);
+        this.scene.bringToTop("transition");
+        await this.waitFrame();
+        this.sound.play("close", {
+          volume: this.volumenEfectos
+        });
+        await this.playTransition("transitionopen");
+        this.transition.setVisible(false);
+        this.blocker.setVisible(false);
+        this.restoreDom();
+        this.changing = false;
+      }
+
     async changeScene(
         oldScene: string,
         newScene: string,

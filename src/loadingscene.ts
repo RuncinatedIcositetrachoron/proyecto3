@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { COLORES } from "./colores";
+import { TransitionScene } from "./transitionScene";
 
 export class LoadingScene extends Phaser.Scene {
   private barra!: Phaser.GameObjects.Rectangle;
@@ -117,30 +118,23 @@ export class LoadingScene extends Phaser.Scene {
   }
 
   update(_tiempo: number, delta: number) {
+    if (this.saliendo) {
+      return;
+    }
     this.scene.bringToTop();
-
     const suavizado = 1 - Math.exp(-Math.min(delta, 50) / 100);
     this.progresoVisible += (this.progreso - this.progresoVisible) * suavizado;
-
     if (this.progreso - this.progresoVisible < 0.001) {
       this.progresoVisible = this.progreso;
     }
-
     this.barra.setScale(this.progresoVisible, 1);
-
-    if (this.cargaTerminada && this.progresoVisible === 1 && this.entradaTerminada && !this.saliendo) {
+    if (this.cargaTerminada && this.progresoVisible === 1 && this.entradaTerminada) {
+      if (!this.scene.isActive("transition")) {
+        return;
+      }
       this.saliendo = true;
-      this.cameras.main.setBackgroundColor("rgba(0, 0, 0, 0)");
-
-      this.tweens.add({
-        targets: this.children.list,
-        alpha: 0,
-        duration: 300,
-        ease: "Sine.easeIn",
-        onComplete: () => {
-          this.scene.stop();
-        }
-      });
+      const transition = this.scene.get("transition") as TransitionScene;
+      transition.finishLoading("loading");
     }
   }
 }
