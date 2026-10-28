@@ -62,8 +62,9 @@ export type PerfilBackend = {
 
 export type ConfiguracionBackend = {
   theme: string;
-  volume: number;
-  resolution: string;
+  volumeMusic: number;
+  volumeSFX: number;
+  language: string;
   user: string;
 };
 
@@ -96,11 +97,16 @@ export async function obtenerConfiguracion(nombre: string): Promise<Configuracio
 }
 
 export async function guardarConfiguracion(
-  nombre: string, tema: string, volumen: number, resolucion: string
+  nombre: string, tema: string, volumenMusica: number, volumenEfectos: number, idioma: string
 ): Promise<void> {
   await pedir("/" + encodeURIComponent(nombre) + "/saveConfigs", "POST", {
-    theme: tema, volume: volumen, resolution: resolucion
+    theme: tema, volumeMusic: volumenMusica, volumeSFX: volumenEfectos, language: idioma
   });
+  const config = await obtenerConfiguracion(nombre);
+  if (config.theme !== tema || config.volumeMusic !== volumenMusica ||
+      config.volumeSFX !== volumenEfectos || config.language !== idioma) {
+    throw new Error("The server did not save the requested settings.");
+  }
 }
 
 // PUBLICACIONES Y NIVELES CREADOS
