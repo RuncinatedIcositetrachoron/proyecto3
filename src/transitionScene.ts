@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { volumensfx } from "./configs";
+import { ajustes } from "./ajustes";
 import { cargarMusica, fadeInMusica, fadeOutMusica, musicaEscena, stopMusica } from "./music"
 
 export class TransitionScene extends Phaser.Scene {
@@ -10,7 +10,9 @@ export class TransitionScene extends Phaser.Scene {
     private oldDomZIndex = "";
     private oldCanvasPosition = "";
     private oldCanvasZIndex = "";
-    private volumenEfectos = 0.35 * volumensfx;
+    private get volumenEfectos(): number {
+        return 0.7 * ajustes.efectos;
+    }
 
     constructor() {
         super({
@@ -197,7 +199,7 @@ export class TransitionScene extends Phaser.Scene {
             }),
             fadeOut
         ]);
-        await this.wait(480);
+        await this.wait(240);
 
         const destinationSleeping = this.scene.isSleeping(newScene);
 
