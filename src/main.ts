@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import "./style.css";
 
+import { LoadingScene } from "./loadingscene";
 import { MenuScene } from "./menuscene";
 import { GameScene } from "./gamescene";
 import { OptionsScene } from "./optionsscene";
@@ -39,6 +40,7 @@ const config: Phaser.Types.Core.GameConfig = {
     pixelArt: true,
 
     scene: [
+        LoadingScene,
         MenuScene,
         GameScene,
         OptionsScene,

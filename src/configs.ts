@@ -1,11 +1,11 @@
 export let spanish = 0;
 
+export function establecerIdioma(idioma: number) {
+    spanish = idioma === 1 ? 1 : 0;
+}
+
 export function cambiarIdioma() {
-    if (spanish === 0) {
-        spanish = 1;
-    } else {
-        spanish = 0;
-    }
+    establecerIdioma(1 - spanish);
 }
 
 export let configvolumenmusica = 1;

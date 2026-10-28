@@ -13,8 +13,9 @@ import {
   leerNivelesOriginalesBackend,
   leerProgresoOriginalBackend
 } from "./api";
-import { spanish, cambiarIdioma, volumensfx } from "./configs";
+import { spanish } from "./configs";
 import { cargarMusica, fadeInMusica } from "./music";
+import { ajustes, ajustesCargados, cargarAjustes, olvidarAjustes, aplicarVolumenMusica } from "./ajustes";
 
 export class MenuScene extends Phaser.Scene {
   private menuMusic: any;
@@ -38,7 +39,7 @@ export class MenuScene extends Phaser.Scene {
     ["Level Editor", "Editor De Niveles"],
     ["Credits", "Créditos"],
     ["Exit", "Salir"],
-    ["Change Language", "Cambiar Idioma"],
+    ["Options", "Opciones"],
     ["Retry", "Reintentar"],
     ["Could not load progress", "No se logró cargar el progreso"],
     ["Loading progress...", "Cargando el progreso..."],
@@ -111,6 +112,24 @@ export class MenuScene extends Phaser.Scene {
       this.scene.start("usuariosDemo");
       return;
     }
+    if (ajustesCargados(usuario.nombre, esInvitado()) === false) {
+      this.add.text(400, 300, "Loading...", {
+        fontFamily: "Fuente",
+        fontSize: "24px",
+        color: textoColor(COLORES.blanco)
+      }).setOrigin(0.5);
+
+      cargarAjustes(usuario.nombre, esInvitado()).then(() => {
+        if (this.scene.isActive("menu") && demo.usuarioActual === usuario) {
+          this.scene.restart();
+        }
+      });
+
+      return;
+    }
+
+    aplicarVolumenMusica(this);
+
     const transition = this.scene.get("transition") as TransitionScene;
 
     if (!transition.estaCambiando()) {
@@ -123,7 +142,7 @@ export class MenuScene extends Phaser.Scene {
       }
 
       this.menuMusic = this.sound.add("menuMusic", {
-        volume: 0.4 * volumensfx,
+        volume: 0.4 * ajustes.efectos,
         loop: true
       });
 
@@ -313,8 +332,8 @@ export class MenuScene extends Phaser.Scene {
     acciones.push(2);
     acciones.push(3);
     acciones.push(4);
-    acciones.push(5);
     acciones.push(7);
+    acciones.push(5);
     acciones.push(6);
 
     const nombres = [
@@ -336,7 +355,7 @@ export class MenuScene extends Phaser.Scene {
       "Level Editor",
       "Credits",
       "Exit",
-      "Language"
+      "Options"
     ];
 
     const medida = this.add.text(0, 0, this.textoOpciones[4][spanish], {
@@ -488,6 +507,10 @@ export class MenuScene extends Phaser.Scene {
       textura.add("Language", 0, 16, 64, 16, 16);
     }
 
+    if (textura.has("Options") === false) {
+      textura.add("Options", 0, 16, 48, 16, 16);
+    }
+
     if (textura.has("Start New Game")) {
       return;
     }
@@ -628,12 +651,12 @@ export class MenuScene extends Phaser.Scene {
         transition.changeScene("menu", "credits");
         break;
       case 6:
+        olvidarAjustes();
         cerrarSesion();
         transition.changeScene("menu", "usuariosDemo");
         break;
-      case 7: 
-        cambiarIdioma();
-        transition.changeScene("menu", "menu");
+      case 7:
+        transition.changeScene("menu", "options");
         break;
     }
   }
