@@ -175,7 +175,7 @@ export class GameScene extends Phaser.Scene {
         {
             nombre: "morir",
             archivo: "lindsey_sfx/lindseydying.wav",
-            volumen: 0.45,
+            volumen: 0.2,
             espera: 150,
             ultimo: -1000
         },
@@ -183,7 +183,7 @@ export class GameScene extends Phaser.Scene {
         {
             nombre: "muerta",
             archivo: "lindsey_sfx/lindseydead.wav",
-            volumen: 0.02,
+            volumen: 0.01,
             espera: 150,
             ultimo: -1000
         },

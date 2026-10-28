@@ -9,7 +9,7 @@ export function cambiarIdioma() {
 }
 
 export let configvolumenmusica = 1;
-export let configvolumensfx = 1.5;
+export let configvolumensfx = 0.9;
 export let volumenmaster = 2;
 export let volumensfx = configvolumensfx * volumenmaster;
 export let volumenmusica = configvolumenmusica * volumenmaster;
