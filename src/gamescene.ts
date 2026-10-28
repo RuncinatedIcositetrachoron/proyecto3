@@ -14,7 +14,8 @@ import {
     leerNivelOriginalBackend
 } from "./api";
 import { apiAEditor } from "./parserApi";
-import { TransitionScene } from "./transitionScene.ts"
+import { TransitionScene } from "./transitionScene.ts";
+import { fadeOutMusica, fadeInMusica } from "./music.ts";
 
 
 interface Entity {
@@ -467,6 +468,7 @@ export class GameScene extends Phaser.Scene {
             volume: 0.3 * this.volumenEfectos,
             loop: true
         });
+        fadeOutMusica(this, 450);
         this.deadSound.play();
     }
 
@@ -476,6 +478,7 @@ export class GameScene extends Phaser.Scene {
             this.deadSound.destroy();
             this.deadSound = undefined;
         }
+        fadeInMusica(this, "game", 450);
     }
 
     private startPushSound() {
