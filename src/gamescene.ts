@@ -377,6 +377,9 @@ export class GameScene extends Phaser.Scene {
     private portalTweens: Phaser.Tweens.Tween[] = [];
     private shadowTweens: Phaser.Tweens.Tween[] = [];
     private playerPortalMask: any;
+    private playerPortalMask2: any;
+    private playerPortalMask3: any;
+    private playerPortalMask4: any;
     private maskFilter: any;
     private maskFilter2: any;
     private maskFilter3: any;
@@ -3357,7 +3360,7 @@ export class GameScene extends Phaser.Scene {
             shape: "rectangle",
             region: region
         });
-        const maskFilter = masks[0]
+        const maskFilter = masks[0];
 
         const tween = this.tweens.add({
             targets: copy,
@@ -3396,7 +3399,11 @@ export class GameScene extends Phaser.Scene {
             shape: "rectangle",
             region: region
         });
-        this.playerPortalMask = masks[0];
+        if (this.playerPortalMask && this.playerPortalMask2 && this.playerPortalMask3) this.playerPortalMask4 = masks[0];
+        else if (this.playerPortalMask && this.playerPortalMask2) this.playerPortalMask3 = masks[0];
+        else if (this.playerPortalMask) this.playerPortalMask2 = masks[0];
+        else this.playerPortalMask = masks[0];
+
         if (!this.finishinglevel) this.actualizarAlphaPortal(player, 0);
     }
 
@@ -3525,6 +3532,21 @@ export class GameScene extends Phaser.Scene {
                     const avance = Math.min(1, distancia / this.tilesize);
                     this.actualizarAlphaPortal(player, Math.min(1, avance / 0.5));
                 }
+                if (this.playerPortalMask2) {
+                    const distancia = Math.abs(player.sprite.x - inicioX) + Math.abs(player.sprite.y - inicioY);
+                    const avance = Math.min(1, distancia / this.tilesize);
+                    this.actualizarAlphaPortal(player, Math.min(1, avance / 0.5));
+                }
+                if (this.playerPortalMask3) {
+                    const distancia = Math.abs(player.sprite.x - inicioX) + Math.abs(player.sprite.y - inicioY);
+                    const avance = Math.min(1, distancia / this.tilesize);
+                    this.actualizarAlphaPortal(player, Math.min(1, avance / 0.5));
+                }
+                if (this.playerPortalMask4) {
+                    const distancia = Math.abs(player.sprite.x - inicioX) + Math.abs(player.sprite.y - inicioY);
+                    const avance = Math.min(1, distancia / this.tilesize);
+                    this.actualizarAlphaPortal(player, Math.min(1, avance / 0.5));
+                }
             },
             onComplete: () => {
                 this.actualizarAlphaPortal(player, 1);
@@ -3545,6 +3567,18 @@ export class GameScene extends Phaser.Scene {
                 if (this.playerPortalMask) {
                     if (player.sprite.filters) player.sprite.filters.external.remove(this.playerPortalMask);
                     this.playerPortalMask = undefined;
+                }
+                if (this.playerPortalMask2) {
+                    if (player.sprite.filters) player.sprite.filters.external.remove(this.playerPortalMask2);
+                    this.playerPortalMask2 = undefined;
+                }
+                if (this.playerPortalMask3) {
+                    if (player.sprite.filters) player.sprite.filters.external.remove(this.playerPortalMask3);
+                    this.playerPortalMask3 = undefined;
+                }
+                if (this.playerPortalMask4) {
+                    if (player.sprite.filters) player.sprite.filters.external.remove(this.playerPortalMask4);
+                    this.playerPortalMask4 = undefined;
                 }
 
                 if (this.maskFilter) {
@@ -3879,6 +3913,9 @@ export class GameScene extends Phaser.Scene {
         this.portalTweens = [];
         this.shadowTweens = [];
         this.playerPortalMask = undefined;
+        this.playerPortalMask2 = undefined;
+        this.playerPortalMask3 = undefined;
+        this.playerPortalMask4 = undefined;
         this.maskFilter = undefined;
         this.maskFilter2 = undefined;
         this.tempstorage = undefined;

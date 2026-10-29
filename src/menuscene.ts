@@ -88,6 +88,18 @@ export class MenuScene extends Phaser.Scene {
     this.idsNiveles = [];
     this.progreso = [];
     this.opcionesMenu = null;
+    const iniciarAmbiente = () => {
+      if (this.menuMusic) {
+        return;
+      }
+
+      this.menuMusic = this.sound.add("menuMusic", {
+        volume: 0.4 * ajustes.efectos,
+        loop: true
+      });
+
+      this.menuMusic.play();
+    };
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.numeroCarga++;
@@ -135,19 +147,6 @@ export class MenuScene extends Phaser.Scene {
     if (!transition.estaCambiando()) {
       fadeInMusica(this, "mainmenu", 500);
     }
-
-    const iniciarAmbiente = () => {
-      if (this.menuMusic) {
-        return;
-      }
-
-      this.menuMusic = this.sound.add("menuMusic", {
-        volume: 0.4 * ajustes.efectos,
-        loop: true
-      });
-
-      this.menuMusic.play();
-    };
 
     if (this.sound.locked) {
       this.sound.once(
