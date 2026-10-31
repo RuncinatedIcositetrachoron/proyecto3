@@ -18,7 +18,7 @@ import { cargarMusica, fadeInMusica } from "./music";
 import { ajustes, ajustesCargados, cargarAjustes, olvidarAjustes, aplicarVolumenMusica } from "./ajustes";
 
 export class MenuScene extends Phaser.Scene {
-  private menuMusic: any;
+  private menuMusic: HTMLAudioElement | undefined;
   abriendoPartida = false;
   numeroCarga = 0;
   abajoLogo = 0;
@@ -72,9 +72,6 @@ export class MenuScene extends Phaser.Scene {
 
     cargarMusica(this);
 
-    if (!this.cache.audio.exists("menuMusic")) {
-      this.load.audio("menuMusic", "assets/music/mainmenucicadas.opus");
-    }
   }
 
   create() {
@@ -88,18 +85,36 @@ export class MenuScene extends Phaser.Scene {
     this.idsNiveles = [];
     this.progreso = [];
     this.opcionesMenu = null;
+    let ambienteConFoco = true;
     const iniciarAmbiente = () => {
-      if (this.menuMusic) {
-        return;
+      if (!ambienteConFoco) return;
+      if (!this.menuMusic) {
+        this.menuMusic = new Audio();
+        this.menuMusic.preload = "metadata";
+        this.menuMusic.loop = true;
+        this.menuMusic.src = "assets/music/mainmenucicadas.opus";
       }
-
-      this.menuMusic = this.sound.add("menuMusic", {
-        volume: 0.4 * ajustes.efectos,
-        loop: true
+      const audio = this.menuMusic;
+      audio.volume = 0.4 * ajustes.efectos;
+      if (!audio.paused) return;
+      audio.play().catch((error: unknown) => {
+        if (this.menuMusic !== audio) return;
+        if (error instanceof DOMException &&
+            (error.name === "NotAllowedError" || error.name === "AbortError")) return;
+        console.warn("Could not play menu ambience:", error);
       });
-
-      this.menuMusic.play();
     };
+
+    const pausarAmbiente = () => {
+      ambienteConFoco = false;
+      if (this.menuMusic) this.menuMusic.pause();
+    };
+    const reanudarAmbiente = () => {
+      ambienteConFoco = true;
+      iniciarAmbiente();
+    };
+    this.game.events.on("blur", pausarAmbiente);
+    this.game.events.on("focus", reanudarAmbiente);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.numeroCarga++;
@@ -109,9 +124,15 @@ export class MenuScene extends Phaser.Scene {
         iniciarAmbiente
       );
 
+      this.input.off("pointerdown", iniciarAmbiente);
+      this.input.keyboard?.off("keydown", iniciarAmbiente);
+      this.game.events.off("blur", pausarAmbiente);
+      this.game.events.off("focus", reanudarAmbiente);
+
       if (this.menuMusic) {
-        this.menuMusic.stop();
-        this.menuMusic.destroy();
+        this.menuMusic.pause();
+        this.menuMusic.removeAttribute("src");
+        this.menuMusic.load();
         this.menuMusic = undefined;
       }
     });
@@ -147,6 +168,9 @@ export class MenuScene extends Phaser.Scene {
     if (!transition.estaCambiando()) {
       fadeInMusica(this, "mainmenu", 500);
     }
+
+    this.input.on("pointerdown", iniciarAmbiente);
+    this.input.keyboard?.on("keydown", iniciarAmbiente);
 
     if (this.sound.locked) {
       this.sound.once(
