@@ -88,7 +88,7 @@ export class LoadingScene extends Phaser.Scene {
         }
       }
 
-      this.progreso = Math.max(this.progreso, Math.min(progreso, 1) * 0.95);
+      this.progreso = Math.max(this.progreso, Math.min(progreso, 1) * 0.75);
     };
 
     const terminarCarga = () => {

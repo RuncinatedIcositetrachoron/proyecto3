@@ -193,7 +193,7 @@ export class GameScene extends Phaser.Scene {
         // 5. RECEIVER ACTIVATION
         {
             nombre: "receptor",
-            archivo: "lindsey_sfx/05_receptor_activar.ogg",
+            archivo: "",
             volumen: 0.45,
             espera: 80,
             ultimo: -1000
@@ -201,7 +201,7 @@ export class GameScene extends Phaser.Scene {
         // 6. PORTAL
         {
             nombre: "portal",
-            archivo: "lindsey_sfx/06_portal.ogg",
+            archivo: "",
             volumen: 0.35,
             espera: 100,
             ultimo: -1000
@@ -225,7 +225,7 @@ export class GameScene extends Phaser.Scene {
         // 9a. UI HOVER
         {
             nombre: "hover",
-            archivo: "lindsey_sfx/09a_ui_hover.ogg",
+            archivo: "",
             volumen: 0.12,
             espera: 60,
             ultimo: -1000
@@ -233,9 +233,30 @@ export class GameScene extends Phaser.Scene {
         // 9b. UI CLICK
         {
             nombre: "click",
-            archivo: "lindsey_sfx/09b_ui_click.ogg",
+            archivo: "",
             volumen: 0.12,
             espera: 70,
+            ultimo: -1000
+        },
+        {
+            nombre: "undo",
+            archivo: "lindsey_sfx/undo.wav",
+            volumen: 0.3,
+            espera: 50,
+            ultimo: -1000
+        },
+        {
+            nombre: "placaPisar",
+            archivo: "pressureplatepress.wav",
+            volumen: 0.3,
+            espera: 45,
+            ultimo: -1000
+        },
+        {
+            nombre: "placaSoltar",
+            archivo: "pressureplaterelease.wav",
+            volumen: 0.3,
+            espera: 45,
             ultimo: -1000
         },
         // 10. PARADOX EXPLOSION
@@ -469,7 +490,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     private startDeadSound() {
-        if (this.deadSound) return;
+        if (this.deadSound || !this.cache.audio.exists("game-muerta")) return;
         this.deadSound = this.sound.add("game-muerta", {
             volume: 0.3 * this.volumenEfectos,
             loop: true
@@ -478,13 +499,14 @@ export class GameScene extends Phaser.Scene {
         this.deadSound.play();
     }
 
-    private stopDeadSound() {
-        if (this.deadSound) {
-            this.deadSound.stop();
-            this.deadSound.destroy();
-            this.deadSound = undefined;
+    private stopDeadSound(restaurarMusica = true) {
+        if (!this.deadSound) return;
+        this.deadSound.stop();
+        this.deadSound.destroy();
+        this.deadSound = undefined;
+        if (restaurarMusica) {
+            fadeInMusica(this, "game", 450);
         }
-        fadeInMusica(this, "game", 450);
     }
 
     private startPushSound() {
@@ -539,6 +561,22 @@ export class GameScene extends Phaser.Scene {
                 this.pushsoundFade = undefined;
             }
         });
+    }
+
+    private actualizarSonidosPlacas() {
+        for (let i = 0; i < this.entities.length; i++) {
+            const placa = this.entities[i];
+            if (placa.type !== "goal") continue;
+
+            const presionada = this.isPlatePressed(placa);
+            const anterior = placa.sprite.getData("placaSonido");
+            placa.sprite.setData("placaSonido", presionada);
+
+            if (this.sonidosPreparados && typeof anterior === "boolean" && anterior !== presionada) {
+                if (presionada) this.reproducirSonido("placaPisar");
+                else this.reproducirSonido("placaSoltar");
+            }
+        }
     }
 
     private actualizarSonidosReflejos() {
@@ -1038,7 +1076,7 @@ export class GameScene extends Phaser.Scene {
         if (!state) {
             return;
         }
-        this.reproducirSonido("click");
+        this.reproducirSonido("undo");
         const sonidosAntes = this.sonidosPreparados;
         this.sonidosPreparados = false;
         for (let i = 0; i < this.entities.length; i++) {
@@ -1614,6 +1652,17 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    private obtenerAlphaPortal(entity: Entity): number {
+        const normal = entity.type === "wall" &&
+            entity.sprite.texture.key === "tileset-fogo" &&
+            esParedExteriorPortal(Number(entity.sprite.frame.name) + 1);
+
+        if (!normal && !this.isPortalActive(entity)) {
+            return 0.35;
+        }
+        return 1;
+    }
+
     private actualizarPortal(entity: Entity, mover: boolean = true, profundidad: boolean = true): void {
         if (entity.portal === undefined) return;
 
@@ -1628,6 +1677,7 @@ export class GameScene extends Phaser.Scene {
         let grupo = 0;
         if (entity.group !== undefined) grupo = entity.group;
         configurarPortal(entity.sprite2, grupo, entity.portal, normal);
+        entity.sprite2.setAlpha(entity.sprite.alpha * this.obtenerAlphaPortal(entity));
         entity.sprite2.setScale(this.pixelmultiplier);
         if (mover) entity.sprite2.setPosition(entity.sprite.x, entity.sprite.y);
         if (profundidad) entity.sprite2.setDepth(2 * entity.y + 1);
@@ -2396,13 +2446,14 @@ export class GameScene extends Phaser.Scene {
                         this.isPortalActive(portal)
                     );
 
-                    portal.sprite2.setAlpha(portal.sprite.alpha);
+                    portal.sprite2.setAlpha(portal.sprite.alpha * this.obtenerAlphaPortal(portal));
                 }
             }
         }
         this.raycast();
         this.winConditionsMet2();
         this.actualizarSonidosReflejos();
+        this.actualizarSonidosPlacas();
     }
 
     private hayLaserEn(x: number, y: number, dir: number): boolean {
@@ -2979,7 +3030,7 @@ export class GameScene extends Phaser.Scene {
     private actualizarAlphaPortal(entity: Entity, alpha: number): void {
         entity.sprite.setAlpha(alpha);
         if (entity.sprite2) {
-            entity.sprite2.setAlpha(alpha);
+            entity.sprite2.setAlpha(alpha * this.obtenerAlphaPortal(entity));
         }
         if (entity.shadow) {
             entity.shadow.setAlpha(alpha);
@@ -3866,13 +3917,6 @@ export class GameScene extends Phaser.Scene {
             frameWidth: 16,
             frameHeight: 32,
         });
-        if (this.modoTest === false && this.nivelId === "") {
-            this.load.text(
-                "level",
-                "assets/level" + this.levelNumber + ".txt"
-            );
-        }
-
         this.cargarSonidos();
     }
 
@@ -3882,15 +3926,23 @@ export class GameScene extends Phaser.Scene {
         this.cargandoNivel = true;
         const cargaActual = ++this.numeroCarga;
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-            this.stopDeadSound();
+            this.numeroCarga++;
+            this.cargandoNivel = true;
+            this.stopDeadSound(false);
             this.stopPushSound(true);
             if (this.pushSound) {
                 this.pushSound.destroy();
                 this.pushSound = undefined;
             }
+            if (this.entrySound) {
+                this.entrySound.stop();
+                this.entrySound.destroy();
+                this.entrySound = undefined;
+            }
             this.pushsoundFade = undefined;
-            this.numeroCarga++;
-            this.cargandoNivel = true;
+            for (let i = 0; i < this.sonidos.length; i++) {
+                this.sound.removeByKey("game-" + this.sonidos[i].nombre);
+            }
         });
 
         this.entities = [];
@@ -3926,10 +3978,12 @@ export class GameScene extends Phaser.Scene {
         this.firedEmitters = [];
         this.finishinglevel = false;
         this.dead = false;
-        this.entrySound = this.sound.add("game-entrar", {
-            volume: 0.4 * this.volumenEfectos,
-            loop: false
-        });
+        if (this.cache.audio.exists("game-entrar")) {
+            this.entrySound = this.sound.add("game-entrar", {
+                volume: 0.4 * this.volumenEfectos,
+                loop: false
+            });
+        }
 
         if (!this.anims.exists("lindsey-up")) {
             this.anims.create({
@@ -5361,10 +5415,12 @@ export class GameScene extends Phaser.Scene {
         this.crearAyudaMovimiento();
         this.laserFunction();
         this.crearBarraSuperior();
-        this.pushSound = this.sound.add("game-empujar", {
-            volume: 0,
-            loop: true
-        });
+        if (this.cache.audio.exists("game-empujar")) {
+            this.pushSound = this.sound.add("game-empujar", {
+                volume: 0,
+                loop: true
+            });
+        }
         this.cargandoNivel = false;
         this.flagCheck();
         this.sonidosPreparados = true;
