@@ -1,7 +1,7 @@
 import { COLORES, colorTexto, oscurecerColor } from "./colores";
 import Phaser from "phaser";
 import { spanish } from "./configs";
-import { obtenerNiveles, obtenerNivel, crearNivel, eliminarNivel, crearBoton, renombrarNivel, duplicarNivel } from "./niveles";
+import { obtenerNiveles, obtenerNivel, crearNivel, eliminarNivel, crearBoton, renombrarNivel, duplicarNivel, cargarNivelesServidor } from "./niveles";
 import { crearCampoTexto, filtrarTexto, MAX_BUSQUEDA, MAX_NOMBRE_NIVEL } from "./camposTexto";
 import { demo } from "./datosDemo";
 import { NORMAL, VERDE, ROJO } from "./interfazDemo";
@@ -32,7 +32,8 @@ export class LevelsScene extends Phaser.Scene {
     ["No levels to display.", "No hay niveles para mostrar."],
     ["Page ", "Página "],
     ["Could not rename the level: ", "No se pudo cambiar el nombre del nivel: "],
-    ["Import JSON", "Importar JSON"]
+    ["Import JSON", "Importar JSON"],
+    ["Could not load levels: ", "No se pudieron cargar los niveles: "]
   ];
 
   escenaAnterior = "menu";
@@ -284,13 +285,37 @@ export class LevelsScene extends Phaser.Scene {
       this.mostrarNiveles();
     }, NORMAL);
 
+    const alDespertar = () => {
+      this.mostrarNiveles();
+      this.cargarNiveles();
+    };
+    this.events.on(Phaser.Scenes.Events.WAKE, alDespertar);
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.events.off(Phaser.Scenes.Events.WAKE, alDespertar);
       this.cerrarNombre(false);
       this.paginaActual = 0;
       this.objetosLista = [];
     });
 
     this.mostrarNiveles();
+    this.cargarNiveles();
+  }
+
+  async cargarNiveles(): Promise<void> {
+    const usuario = demo.usuarioActual;
+    if (!usuario || usuario.id === 0) return;
+
+    try {
+      await cargarNivelesServidor();
+      if (demo.usuarioActual === usuario && this.scene.isActive()) {
+        this.mostrarNiveles();
+      }
+    } catch (error) {
+      if (demo.usuarioActual === usuario && this.scene.isActive()) {
+        window.alert(this.textoOpciones[21][spanish] + String(error));
+      }
+    }
   }
 
   normalizarBusqueda(texto: string) {

@@ -39,6 +39,7 @@ interface Entity {
 
 interface TutorialNivel {
     nivel: number;
+    nombre: string;
     partes: string[][];
     movimientos: number;
 }
@@ -281,13 +282,57 @@ export class GameScene extends Phaser.Scene {
     private tutoriales: TutorialNivel[] = [
         {
             nivel: 1,
+            nombre: "Footwork",
             partes: [["Use", "arrows", "or", "WASD", "to move"], ["Usá", "arrows", "o", "WASD", "para moverte"]],
             movimientos: 3
         },
         {
             nivel: 2,
+            nombre: "Umbrella",
             partes: [["Push boxes to block lasers."], ["Empujá cajas para bloquear los láseres."]],
             movimientos: 6
+        },
+        {
+            nivel: 3,
+            nombre: "Deflect",
+            partes: [["Mirrors reflect lasers."], ["Los espejos reflejan láseres."]],
+            movimientos: 5
+        },
+        {
+            nivel: 5,
+            nombre: "Glint",
+            partes: [["Activate all receivers at once to open the door."], ["Activá todos los receptores a la vez para abrir la puerta."]],
+            movimientos: 8
+        },
+        {
+            nivel: 18,
+            nombre: "Contact",
+            partes: [["Pressure plates need weight to activate their linked emitter."], ["Las placas de presión necesitan peso para activar el emisor conectado."]],
+            movimientos: 8
+        },
+        {
+            nivel: 28,
+            nombre: "Cover",
+            partes: [["Some emitters and receivers can be pushed."], ["Algunos emisores y receptores se pueden empujar."]],
+            movimientos: 7
+        },
+        {
+            nivel: 34,
+            nombre: "Transit",
+            partes: [["Enter a portal from the front to emerge from the other one."], ["Entrá por el frente de un portal para salir por el otro."]],
+            movimientos: 8
+        },
+        {
+            nivel: 52,
+            nombre: "Breach",
+            partes: [["Some portals need pressure plates to activate."], ["Algunos portales necesitan placas de presión para activarse."]],
+            movimientos: 8
+        },
+        {
+            nivel: 67,
+            nombre: "Slide",
+            partes: [["Portals on boxes can be moved."], ["Los portales sobre cajas se pueden mover."]],
+            movimientos: 8
         }
     ];
     private izquierdaPresionada = false;
@@ -1228,9 +1273,15 @@ export class GameScene extends Phaser.Scene {
 
         this.tutorialActual = null;
         if (this.community === false && !this.testeando && !this.modoTest) {
+            const nombreNivel = this.nombreNivelOficial.trim().toLowerCase();
             for (let i = 0; i < this.tutoriales.length; i++) {
-                if (this.tutoriales[i].nivel === this.levelNumber) {
-                    this.tutorialActual = this.tutoriales[i];
+                const tutorial = this.tutoriales[i];
+                // Match the puzzle name even if its backend ID changes.
+                const coincide = nombreNivel !== ""
+                    ? tutorial.nombre.toLowerCase() === nombreNivel
+                    : tutorial.nivel === this.levelNumber;
+                if (coincide) {
+                    this.tutorialActual = tutorial;
                     break;
                 }
             }

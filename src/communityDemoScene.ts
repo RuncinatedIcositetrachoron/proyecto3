@@ -311,7 +311,7 @@ export class CommunityDemoScene extends InterfazDemo {
     }
     const alDespertar = () => {
       this.dibujarFilas();
-      this.operar(async () => { await this.cargarPublicaciones(); }, this.textoOpciones[10][spanish]);
+      this.operar(async () => { await this.actualizarNiveles(); }, this.textoOpciones[10][spanish]);
     };
     this.events.on(Phaser.Scenes.Events.WAKE, alDespertar);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -319,9 +319,20 @@ export class CommunityDemoScene extends InterfazDemo {
     });
     this.dibujar();
     this.operar(async () => {
-      await Promise.all([cargarNivelesServidor(), this.cargarPublicaciones()]);
-      if (this.scene.isActive()) this.dibujarFilas();
+      await this.actualizarNiveles();
     }, this.textoOpciones[0][spanish]);
+  }
+
+  async actualizarNiveles(): Promise<void> {
+    const usuario = demo.usuarioActual;
+    if (!usuario || usuario.id === 0) return;
+
+    await Promise.all([
+      cargarNivelesServidor(), this.cargarPublicaciones()
+    ]);
+    if (demo.usuarioActual !== usuario) return;
+    if (this.scene.isActive()) this.dibujarFilas();
+
   }
 
   crearTab(x: number, y: number, ancho: number, alto: number, texto: string,
