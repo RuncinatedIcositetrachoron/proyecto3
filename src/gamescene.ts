@@ -267,6 +267,14 @@ export class GameScene extends Phaser.Scene {
             volumen: 0.5,
             espera: 70,
             ultimo: -1000
+        },
+        // 11. UNDO
+        {
+            nombre: "undo",
+            archivo: "lindsey_sfx/undo.wav",
+            volumen: 0.5,
+            espera: 70,
+            ultimo: -1000
         }
     ];
     private deadSound: Phaser.Sound.BaseSound | undefined;
