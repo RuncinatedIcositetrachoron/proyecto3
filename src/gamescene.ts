@@ -5746,7 +5746,7 @@ export class GameScene extends Phaser.Scene {
             }
             this.lasers = [];
             this.menuup = 0;
-            this.scene.start("game", {level: this.levelNumber+1});
+            this.ganarNivel();
         }
         if (Phaser.Input.Keyboard.JustDown(this.zKey) && this.menuup !== 1) {
             this.undoMove();
