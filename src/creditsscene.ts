@@ -103,10 +103,10 @@ export class CreditsScene extends InterfazDemo {
     );
 
     const creditos = [
-      { nombre: "Tomás Groppo", rol: this.textoOpciones[2][spanish] },
-      { nombre: "Lucas Cerruti", rol: this.textoOpciones[4][spanish] },
-      { nombre: "Facundo Fogolín", rol: this.textoOpciones[5][spanish] },
-      { nombre: "Bruno Fiszelew", rol: this.textoOpciones[3][spanish] }
+      { nombre: "Tomás Ezequiel Groppo", rol: this.textoOpciones[2][spanish] },
+      { nombre: "Lucas Simón Cerruti", rol: this.textoOpciones[4][spanish] },
+      { nombre: "Facundo Fogolín Lagares", rol: this.textoOpciones[5][spanish] },
+      { nombre: "Bruno Hernesto Fiszelew", rol: this.textoOpciones[3][spanish] }
     ];
 
     const anchoTarjeta = 316;
