@@ -1751,7 +1751,7 @@ export class GameScene extends Phaser.Scene {
             case 2: frame = 0.5*Math.PI; origina = 1; break;
             case 3: frame = Math.PI; break;
         }
-        const tail = this.add.sprite(body.x, body.y, "lasertail", 1).setRotation(frame);
+        const tail = this.add.sprite(body.x, body.y, "lasertails", 1).setRotation(frame);
 
         tail.setOrigin(origina, originb);
         tail.setScale(this.pixelmultiplier);
@@ -3926,8 +3926,8 @@ export class GameScene extends Phaser.Scene {
             frameHeight: 56,
         });
         this.load.spritesheet("boxshadow", "assets/crateshadow.png", {
-            frameWidth: 36,
-            frameHeight: 56,
+            frameWidth: 20,
+            frameHeight: 23,
         });
         this.load.spritesheet("wallshadow", "assets/wallshadow.png", {
             frameWidth: 20,
@@ -3938,8 +3938,8 @@ export class GameScene extends Phaser.Scene {
             frameHeight: 24,
         });
         this.load.spritesheet("sewingshadow", "assets/sewingshadow.png", {
-            frameWidth: 36,
-            frameHeight: 56,
+            frameWidth: 33,
+            frameHeight: 18,
         });
         this.load.image("dario", "assets/dariojumpscare.jpg");
         this.load.image("white", "assets/white.jpg");
@@ -4843,7 +4843,7 @@ export class GameScene extends Phaser.Scene {
                         dir: dir,
                         groups: groups,
                         pushable: false,
-                        secret: "door",
+                        secret: "flag",
                         sprite: this.add.sprite(px, py, "door", 0).setOrigin(1, 1.04).setScale(this.pixelmultiplier).setDepth(2 * y)
                     };
                     break;
@@ -4900,6 +4900,7 @@ export class GameScene extends Phaser.Scene {
                         pushable: true,
                         sprite: this.add.sprite(px, py, "tileset-fogo", emitterFrame).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(2 * y)
                     };
+                    break;
 
                 case "laserReciever":
                     let recieverFrame = 27;
@@ -4917,12 +4918,10 @@ export class GameScene extends Phaser.Scene {
                         x: x,
                         y: y,
                         dir: dir,
-                        emitting: dir,
                         groups: group2,
                         pushable: true,
                         sprite: this.add.sprite(px, py, "tileset-fogo", recieverFrame).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(2 * y)
                     };
-                    break;
                     break;
 
                 case "goal":
@@ -4961,7 +4960,6 @@ export class GameScene extends Phaser.Scene {
                             y: y,
                             groups: groups,
                             pushable: false,
-
                             sprite: this.add.sprite( px, py, "spritestall", 1).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(2 * y),
                             shadow: this.add.sprite(px - this.tilesize, py - this.tilesize, "wallshadow", 0).setOrigin(0, 0).setScale(this.pixelmultiplier).setDepth(1)
                         };
