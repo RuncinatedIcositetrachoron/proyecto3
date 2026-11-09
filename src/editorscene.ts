@@ -254,7 +254,7 @@ export class EditorScene extends Phaser.Scene {
   private subHotbarAbierta: number = -1;
 
   //CUSTOMIZAR HOTBAR
-  
+
   private tilesHotbar = [37, 3, 11, 27, 41, 66, 2, 17, 21];
 
   private variantesTiles = [
@@ -1147,10 +1147,10 @@ export class EditorScene extends Phaser.Scene {
       0, 0, 1, 1, COLORES.panel
     );
 
-this.bordeTooltipTile.setOrigin(0, 0);
-this.bordeTooltipTile.setStrokeStyle(2, COLORES.normal);
-this.bordeTooltipTile.setDepth(999);
-this.bordeTooltipTile.setVisible(false);
+    this.bordeTooltipTile.setOrigin(0, 0);
+    this.bordeTooltipTile.setStrokeStyle(2, COLORES.normal);
+    this.bordeTooltipTile.setDepth(999);
+    this.bordeTooltipTile.setVisible(false);
 
     this.events.on(Phaser.Scenes.Events.SLEEP, this.ocultarTooltipTile, this);
     this.input.on("gameout", this.ocultarTooltipTile, this);
@@ -2055,7 +2055,7 @@ this.bordeTooltipTile.setVisible(false);
       const transition = this.scene.get("transition") as TransitionScene;
 
       transition.changeScene(
-      this.sys.settings.key,
+        this.sys.settings.key,
         "LevelsScene"
       );
       return;
@@ -2799,6 +2799,227 @@ this.bordeTooltipTile.setVisible(false);
     return this.portalIzquierda;
   }
 
+  private buscarParejaPortal(x: number, y: number): number[] | undefined {
+
+    for (let i = 0; i < this.links.length; i++) {
+      const link = this.links[i];
+
+      if (
+        !this.hayPortalEn(link[0], link[1]) ||
+        !this.hayPortalEn(link[2], link[3])
+      ) {
+        continue;
+      }
+
+      if (
+        link[0] === x &&
+        link[1] === y
+      ) {
+        return [link[2], link[3]];
+      }
+
+      if (
+        link[2] === x &&
+        link[3] === y
+      ) {
+        return [link[0], link[1]];
+      }
+    }
+
+    return undefined;
+  }
+
+  private existeLink(x1: number, y1: number, x2: number, y2: number): boolean {
+
+    return this.links.some(link =>
+      (
+        link[0] === x1 &&
+        link[1] === y1 &&
+        link[2] === x2 &&
+        link[3] === y2
+      ) ||
+      (
+        link[0] === x2 &&
+        link[1] === y2 &&
+        link[2] === x1 &&
+        link[3] === y1
+      )
+    );
+  }
+
+  private duplicarLinkPlacaPortal(x1: number, y1: number, x2: number, y2: number): void {
+
+    let placaX: number;
+    let placaY: number;
+    let portalX: number;
+    let portalY: number;
+
+    if (
+      this.hayPlacaEn(x1, y1) &&
+      this.hayPortalEn(x2, y2)
+    ) {
+      placaX = x1;
+      placaY = y1;
+      portalX = x2;
+      portalY = y2;
+    }
+    else if (
+      this.hayPortalEn(x1, y1) &&
+      this.hayPlacaEn(x2, y2)
+    ) {
+      placaX = x2;
+      placaY = y2;
+      portalX = x1;
+      portalY = y1;
+    }
+    else {
+      return;
+    }
+
+    const pareja = this.buscarParejaPortal(
+      portalX,
+      portalY
+    );
+
+    if (!pareja) {
+      return;
+    }
+
+    const parejaX = pareja[0];
+    const parejaY = pareja[1];
+
+    if (
+      !this.existeLink(
+        placaX,
+        placaY,
+        parejaX,
+        parejaY
+      )
+    ) {
+      this.links.push([
+        placaX,
+        placaY,
+        parejaX,
+        parejaY
+      ]);
+    }
+  }
+
+  private borrarLinksPlacaPortal(placaX: number, placaY: number, portalX: number, portalY: number): void {
+
+    const pareja = this.buscarParejaPortal(
+      portalX,
+      portalY
+    );
+
+    for (let i = this.links.length - 1; i >= 0; i--) {
+      const link = this.links[i];
+
+      const conectaPlacaConPortal =
+        (
+          link[0] === placaX &&
+          link[1] === placaY &&
+          link[2] === portalX &&
+          link[3] === portalY
+        ) ||
+        (
+          link[2] === placaX &&
+          link[3] === placaY &&
+          link[0] === portalX &&
+          link[1] === portalY
+        );
+
+      let conectaPlacaConPareja = false;
+
+      if (pareja) {
+        conectaPlacaConPareja =
+          (
+            link[0] === placaX &&
+            link[1] === placaY &&
+            link[2] === pareja[0] &&
+            link[3] === pareja[1]
+          ) ||
+          (
+            link[2] === placaX &&
+            link[3] === placaY &&
+            link[0] === pareja[0] &&
+            link[1] === pareja[1]
+          );
+      }
+
+      if (
+        conectaPlacaConPortal ||
+        conectaPlacaConPareja
+      ) {
+        this.links.splice(i, 1);
+      }
+    }
+  }
+
+  private duplicarPlacasDePareja(portalAX: number, portalAY: number, portalBX: number, portalBY: number): void {
+
+    const placas: number[][] = [];
+
+    for (let i = 0; i < this.links.length; i++) {
+      const link = this.links[i];
+
+      let placaX = -1;
+      let placaY = -1;
+
+      if (
+        this.hayPlacaEn(link[0], link[1]) &&
+        (
+          (link[2] === portalAX && link[3] === portalAY) ||
+          (link[2] === portalBX && link[3] === portalBY)
+        )
+      ) {
+        placaX = link[0];
+        placaY = link[1];
+      }
+
+      if (placaX !== -1) {
+        placas.push([placaX, placaY]);
+      }
+    }
+
+    for (let i = 0; i < placas.length; i++) {
+      const placaX = placas[i][0];
+      const placaY = placas[i][1];
+
+      if (
+        !this.existeLink(
+          placaX,
+          placaY,
+          portalAX,
+          portalAY
+        )
+      ) {
+        this.links.push([
+          placaX,
+          placaY,
+          portalAX,
+          portalAY
+        ]);
+      }
+
+      if (
+        !this.existeLink(
+          placaX,
+          placaY,
+          portalBX,
+          portalBY
+        )
+      ) {
+        this.links.push([
+          placaX,
+          placaY,
+          portalBX,
+          portalBY
+        ]);
+      }
+    }
+  }
+
   private usarPortal(
     pointerX: number,
     pointerY: number
@@ -3234,9 +3455,9 @@ this.bordeTooltipTile.setVisible(false);
       this.hayPlacaEn(link[0], link[1]) &&
       this.hayPortalEn(link[2], link[3])
     ) || (
-      this.hayPortalEn(link[0], link[1]) &&
-      this.hayPlacaEn(link[2], link[3])
-    );
+        this.hayPortalEn(link[0], link[1]) &&
+        this.hayPlacaEn(link[2], link[3])
+      );
   }
 
   private buscarLinkDePortal(columna: number, fila: number): number {
@@ -3262,13 +3483,13 @@ this.bordeTooltipTile.setVisible(false);
         continue;
       }
       if (link[0] === columna && link[1] === fila &&
-          this.hayPlacaEn(link[0], link[1])) {
+        this.hayPlacaEn(link[0], link[1])) {
         return i;
       }
       if (!this.esLinkDeEmisor(link) &&
-          this.hayPortalEn(link[0], link[1]) &&
-          link[2] === columna && link[3] === fila &&
-          this.hayPlacaEn(link[2], link[3])) {
+        this.hayPortalEn(link[0], link[1]) &&
+        link[2] === columna && link[3] === fila &&
+        this.hayPlacaEn(link[2], link[3])) {
         return i;
       }
     }
@@ -3279,7 +3500,7 @@ this.bordeTooltipTile.setVisible(false);
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
       if (this.esLinkDeEmisor(link) &&
-          link[2] === columna && link[3] === fila) {
+        link[2] === columna && link[3] === fila) {
         return i;
       }
     }
@@ -3563,8 +3784,8 @@ this.bordeTooltipTile.setVisible(false);
       const placaFinal = this.hayPlacaEn(this.mouseX, this.mouseY);
 
       if (!placaInicio && !placaFinal &&
-          this.hayPortalEn(inicioX, inicioY) &&
-          this.hayPortalEn(this.mouseX, this.mouseY)) {
+        this.hayPortalEn(inicioX, inicioY) &&
+        this.hayPortalEn(this.mouseX, this.mouseY)) {
         const linkInicio = this.buscarLinkDePortal(inicioX, inicioY);
         const linkFinal = this.buscarLinkDePortal(this.mouseX, this.mouseY);
 
@@ -3579,6 +3800,12 @@ this.bordeTooltipTile.setVisible(false);
           this.links.splice(linkFinal, 1);
         }
         this.links.push([inicioX, inicioY, this.mouseX, this.mouseY]);
+        this.duplicarPlacasDePareja(
+          inicioX,
+          inicioY,
+          this.mouseX,
+          this.mouseY
+        );
       } else {
         let placaX = inicioX;
         let placaY = inicioY;
@@ -3592,12 +3819,28 @@ this.bordeTooltipTile.setVisible(false);
           destinoY = inicioY;
         }
 
-        const anterior = this.buscarLinkDePlaca(placaX, placaY);
-        if (anterior !== -1) {
-          this.links.splice(anterior, 1);
+        if (!this.existeLink(
+          placaX,
+          placaY,
+          destinoX,
+          destinoY
+        )) {
+          this.links.push([
+            placaX,
+            placaY,
+            destinoX,
+            destinoY
+          ]);
         }
 
-        this.links.push([placaX, placaY, destinoX, destinoY]);
+        if (this.hayPortalEn(destinoX, destinoY)) {
+          this.duplicarLinkPlacaPortal(
+            placaX,
+            placaY,
+            destinoX,
+            destinoY
+          );
+        }
       }
     } else {
       const anterior = this.buscarLinkDeCasilla(inicioX, inicioY);
@@ -3613,11 +3856,14 @@ this.bordeTooltipTile.setVisible(false);
   private actualizarLinks(): void {
     const pares: number[][] = [];
     const linksValidos: number[][] = [];
-    const placasUsadas: number[][] = [];
 
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
-      if (this.esParDePortales(link) && pares.length < 5) {
+
+      if (
+        this.esParDePortales(link) &&
+        pares.length < 5
+      ) {
         pares.push(link);
         linksValidos.push(link);
       }
@@ -3625,6 +3871,7 @@ this.bordeTooltipTile.setVisible(false);
 
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
+
       if (!this.esLinkDePlaca(link)) {
         continue;
       }
@@ -3634,8 +3881,10 @@ this.bordeTooltipTile.setVisible(false);
       let destinoX = link[2];
       let destinoY = link[3];
 
-      if (!this.esLinkDeEmisor(link) &&
-          this.hayPortalEn(link[0], link[1])) {
+      if (
+        !this.esLinkDeEmisor(link) &&
+        this.hayPortalEn(link[0], link[1])
+      ) {
         placaX = link[2];
         placaY = link[3];
         destinoX = link[0];
@@ -3643,35 +3892,35 @@ this.bordeTooltipTile.setVisible(false);
       }
 
       let valido = this.esLinkDeEmisor(link);
+
       if (!valido) {
         for (let j = 0; j < pares.length; j++) {
           const par = pares[j];
+
           if (
-            (par[0] === destinoX && par[1] === destinoY) ||
-            (par[2] === destinoX && par[3] === destinoY)
+            (
+              par[0] === destinoX &&
+              par[1] === destinoY
+            ) ||
+            (
+              par[2] === destinoX &&
+              par[3] === destinoY
+            )
           ) {
             valido = true;
             break;
           }
         }
       }
-      if (!valido) {
-        continue;
-      }
 
-      let repetida = false;
-      for (let j = 0; j < placasUsadas.length; j++) {
-        if (placasUsadas[j][0] === placaX && placasUsadas[j][1] === placaY) {
-          repetida = true;
-          break;
-        }
+      if (valido) {
+        linksValidos.push([
+          placaX,
+          placaY,
+          destinoX,
+          destinoY
+        ]);
       }
-      if (repetida) {
-        continue;
-      }
-
-      placasUsadas.push([placaX, placaY]);
-      linksValidos.push([placaX, placaY, destinoX, destinoY]);
     }
 
     this.links = linksValidos;
@@ -3956,7 +4205,7 @@ this.bordeTooltipTile.setVisible(false);
       }
 
       if (conservarPlaca && this.hayPlacaEn(columna, fila) &&
-          this.esLinkDePlaca(link)) {
+        this.esLinkDePlaca(link)) {
         const placaInicio = esInicio && this.hayPlacaEn(link[0], link[1]);
         const placaFinal = esFinal && !this.esLinkDeEmisor(link) &&
           this.hayPortalEn(link[0], link[1]) &&
@@ -4127,35 +4376,35 @@ this.bordeTooltipTile.setVisible(false);
     const nombre = "icono-hotbar-" + tile;
 
     if (this.textures.exists(nombre)) {
-        return { textura: nombre, frame: 0 };
+      return { textura: nombre, frame: 0 };
     }
 
     let forma = this.obtenerFormaTile(tile);
 
     if (forma === undefined) {
-        forma = [[0, 0, tile]];
+      forma = [[0, 0, tile]];
     }
 
     const partes: number[][] = [];
 
     for (let i = 0; i < forma.length; i++) {
-        const columna = forma[i][0];
-        const fila = forma[i][1];
-        const indice = forma[i][2];
+      const columna = forma[i][0];
+      const fila = forma[i][1];
+      const indice = forma[i][2];
 
-        if (indice !== this.portalArriba) {
-            partes.push([columna, fila, indice]);
-        }
+      if (indice !== this.portalArriba) {
+        partes.push([columna, fila, indice]);
+      }
 
-        const relieve = this.obtenerRelieve(indice);
+      const relieve = this.obtenerRelieve(indice);
 
-        if (relieve !== -1) {
-            partes.push([columna, fila - 1, relieve]);
-        }
+      if (relieve !== -1) {
+        partes.push([columna, fila - 1, relieve]);
+      }
     }
 
     if (partes.length === 0) {
-        return { textura: "editorTiles", frame: tile - 1 };
+      return { textura: "editorTiles", frame: tile - 1 };
     }
 
     let izquierda = partes[0][0];
@@ -4164,13 +4413,13 @@ this.bordeTooltipTile.setVisible(false);
     let abajo = partes[0][1];
 
     for (let i = 1; i < partes.length; i++) {
-        const columna = partes[i][0];
-        const fila = partes[i][1];
+      const columna = partes[i][0];
+      const fila = partes[i][1];
 
-        izquierda = Math.min(izquierda, columna);
-        derecha = Math.max(derecha, columna);
-        arriba = Math.min(arriba, fila);
-        abajo = Math.max(abajo, fila);
+      izquierda = Math.min(izquierda, columna);
+      derecha = Math.max(derecha, columna);
+      arriba = Math.min(arriba, fila);
+      abajo = Math.max(abajo, fila);
     }
 
     const lado = this.tileGraphicSize;
@@ -4180,18 +4429,18 @@ this.bordeTooltipTile.setVisible(false);
     const textura = this.textures.createCanvas(nombre, ancho, alto);
 
     if (textura === null) {
-        return { textura: "editorTiles", frame: tile - 1 };
+      return { textura: "editorTiles", frame: tile - 1 };
     }
 
     for (let i = 0; i < partes.length; i++) {
-        const columna = partes[i][0];
-        const fila = partes[i][1];
-        const indice = partes[i][2];
+      const columna = partes[i][0];
+      const fila = partes[i][1];
+      const indice = partes[i][2];
 
-        const x = (columna - izquierda) * lado;
-        const y = (fila - arriba) * lado;
+      const x = (columna - izquierda) * lado;
+      const y = (fila - arriba) * lado;
 
-        textura.drawFrame("editorTiles", indice - 1, x, y, false);
+      textura.drawFrame("editorTiles", indice - 1, x, y, false);
     }
 
     const contexto = textura.getContext();
@@ -4205,33 +4454,33 @@ this.bordeTooltipTile.setVisible(false);
     let posicionAlpha = 3;
 
     for (let y = 0; y < alto; y++) {
-        for (let x = 0; x < ancho; x++) {
-            const alpha = pixeles[posicionAlpha];
-            posicionAlpha += 4;
+      for (let x = 0; x < ancho; x++) {
+        const alpha = pixeles[posicionAlpha];
+        posicionAlpha += 4;
 
-            if (alpha > 0) {
-                minX = Math.min(minX, x);
-                minY = Math.min(minY, y);
-                maxX = Math.max(maxX, x);
-                maxY = Math.max(maxY, y);
-            }
+        if (alpha > 0) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
         }
+      }
     }
 
     if (maxX === -1) {
-        textura.add(0, 0, 0, 0, ancho, alto);
+      textura.add(0, 0, 0, 0, ancho, alto);
     } else {
-        const anchoVisible = maxX - minX + 1;
-        const altoVisible = maxY - minY + 1;
+      const anchoVisible = maxX - minX + 1;
+      const altoVisible = maxY - minY + 1;
 
-        textura.add(0, 0, minX, minY, anchoVisible, altoVisible);
+      textura.add(0, 0, minX, minY, anchoVisible, altoVisible);
     }
 
     textura.setFilter(Phaser.Textures.FilterMode.NEAREST);
     textura.refresh();
 
     return { textura: nombre, frame: 0 };
-}
+  }
 
   private actualizarImagenHotbar(indice: number): void {
     const tile = this.tilesHotbar[indice];
@@ -4522,22 +4771,22 @@ this.bordeTooltipTile.setVisible(false);
 
       this.zonaTooltipTile = zona;
       this.textoTile.setPosition(
-          Math.round(x),
-          Math.round(y)
+        Math.round(x),
+        Math.round(y)
       );
 
       if (this.bordeTooltipTile !== null) {
-          this.bordeTooltipTile.setSize(
-              this.textoTile.width + 2,
-              this.textoTile.height + 2
-          );
+        this.bordeTooltipTile.setSize(
+          this.textoTile.width + 2,
+          this.textoTile.height + 2
+        );
 
-          this.bordeTooltipTile.setPosition(
-              this.textoTile.x - 1,
-              this.textoTile.y - 1
-          );
+        this.bordeTooltipTile.setPosition(
+          this.textoTile.x - 1,
+          this.textoTile.y - 1
+        );
 
-          this.bordeTooltipTile.setVisible(true);
+        this.bordeTooltipTile.setVisible(true);
       }
 
       this.textoTile.setVisible(true);
@@ -5081,7 +5330,7 @@ this.bordeTooltipTile.setVisible(false);
       grupo++;
 
       if ((link[0] === columna && link[1] === fila) ||
-          (link[2] === columna && link[3] === fila)) {
+        (link[2] === columna && link[3] === fila)) {
         return grupo;
       }
     }
