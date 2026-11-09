@@ -3836,14 +3836,14 @@ export class GameScene extends Phaser.Scene {
     private animateLindseyExit(player: Entity, flag: Entity) {
         if (this.finishinglevel) return;
         this.reproducirSonido("salir");
-        player.sprite.setDepth(-0.01)
+        player.sprite.setDepth(0.99)
         this.finishinglevel = true;
         this.playerMoving = true;
         this.inputBuffer = "";
         player.sprite.play("lindsey-up");
         const finalX = flag.sprite.x;
         const finalY = flag.sprite.y - this.tilesize * 3;
-        const maskY = flag.sprite.getTopLeft().y + this.tilesize;
+        const maskY = flag.sprite.getTopLeft().y;
         const region = new Phaser.Geom.Rectangle(
             0, maskY, this.scale.width, this.scale.height - maskY
         );
