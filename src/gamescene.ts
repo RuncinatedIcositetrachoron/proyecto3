@@ -623,7 +623,7 @@ export class GameScene extends Phaser.Scene {
             const placa = this.entities[i];
             if (placa.type !== "goal") continue;
 
-            const presionada = this.isPlatePressed(placa);
+            const presionada = this.isPlatePressed(placa, false);
             const anterior = placa.sprite.getData("placaSonido");
             placa.sprite.setData("placaSonido", presionada);
 
@@ -1598,23 +1598,25 @@ export class GameScene extends Phaser.Scene {
         if (portal.links.length === 1) return true;
         for (let i = 0; i < portal.links.length; i++) {
             let plate = this.findNonPair(portal.links[i]);
+            let inverse = false;
+            if (portal.links[i][2] === 1) inverse = true;
             if (plate === undefined) continue;
-            if (this.isPlatePressed(plate)) {
+            if (this.isPlatePressed(plate, inverse)) {
                 return true;
             }
         }
         return false;
     }
 
-    private isPlatePressed(plate: Entity): boolean {
+    private isPlatePressed(plate: Entity, NOT: boolean): boolean {
         for (let i = 0; i < this.entities.length; i++) {
             const entity = this.entities[i];
             if ((entity.type === "player" || entity.pushable) &&
                 entity.x === plate.x && entity.y === plate.y) {
-                return true;
+                return !NOT;
             }
         }
-        return false;
+        return NOT;
     }
 
     private isEmitterActive(emitter: Entity): boolean {
@@ -1622,8 +1624,10 @@ export class GameScene extends Phaser.Scene {
             return true;
         }
         for (let i = 0; i < emitter.links.length; i++) {
+            let inverse = false;
+            if (emitter.links[i][2] === 1) inverse = true;
             let plate = this.findPair2(emitter.links[i]);
-            if (this.isPlatePressed(plate)) {
+            if (this.isPlatePressed(plate, inverse)) {
                 return true;
             }
         }

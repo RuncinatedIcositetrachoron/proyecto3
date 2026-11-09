@@ -69,8 +69,8 @@ function copiarLinks(links: number[][], filas: number, columnas: number): number
   const copia: number[][] = [];
   for (let i = 0; i < links.length; i++) {
     const link = links[i];
-    if (!Array.isArray(link) || link.length !== 4) {
-      throw new Error("Cada link debe contener [x1, y1, x2, y2].");
+    if (!Array.isArray(link) || link.length < 4 || link.length > 5) {
+      throw new Error("Cada link debe contener [x1, y1, x2, y2, not].");
     }
     for (let j = 0; j < 4; j++) {
       if (!Number.isInteger(link[j]) || link[j] < 0) {
@@ -80,7 +80,11 @@ function copiarLinks(links: number[][], filas: number, columnas: number): number
     if (link[0] >= columnas || link[2] >= columnas || link[1] >= filas || link[3] >= filas) {
       throw new Error("Hay un link fuera del tablero.");
     }
-    copia.push([link[0], link[1], link[2], link[3]]);
+    const not = link[4] ?? 0;
+    if (not !== 0 && not !== 1) {
+      throw new Error("El tipo de link debe ser 0 o 1.");
+    }
+    copia.push([link[0], link[1], link[2], link[3], not]);
   }
   return copia;
 }

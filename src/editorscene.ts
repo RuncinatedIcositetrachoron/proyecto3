@@ -831,7 +831,7 @@ export class EditorScene extends Phaser.Scene {
             const link = nivel.links[i];
 
             if (link.length >= 4) {
-              this.links.push([link[0], link[1], link[2], link[3]]);
+              this.links.push([link[0], link[1], link[2], link[3], link[4] ?? 0]);
             }
           }
         }
@@ -858,6 +858,19 @@ export class EditorScene extends Phaser.Scene {
 
       this.cerrarSubHotbar();
       this.clickEnHotbar = false;
+
+      if (mouse.button === 2 && this.herramienta === this.linkTool) {
+        const indice = this.buscarLinkEnPunto(mouse.worldX, mouse.worldY);
+
+        if (indice !== -1) {
+          this.alternarNotLink(indice);
+          this.dibujarLinks();
+          this.saveIfChanged();
+          this.actualizarInterfaz();
+        }
+
+        return;
+      }
 
       if (mouse.button !== 0) {
         return;
@@ -2900,58 +2913,70 @@ export class EditorScene extends Phaser.Scene {
         placaX,
         placaY,
         parejaX,
-        parejaY
+        parejaY,
+        0
       ]);
     }
   }
+  
+  private alternarNotLink(indice: number): void {
+    const link = this.links[indice];
+    const nuevoValor = link[4] === 1 ? 0 : 1;
 
-  private borrarLinksPlacaPortal(placaX: number, placaY: number, portalX: number, portalY: number): void {
+    link[4] = nuevoValor;
 
-    const pareja = this.buscarParejaPortal(
-      portalX,
-      portalY
-    );
+    if (!this.esLinkDePlaca(link)) {
+      return;
+    }
 
-    for (let i = this.links.length - 1; i >= 0; i--) {
-      const link = this.links[i];
+    let placaX = link[0];
+    let placaY = link[1];
+    let destinoX = link[2];
+    let destinoY = link[3];
 
-      const conectaPlacaConPortal =
+    if (
+      this.hayPortalEn(link[0], link[1]) &&
+      this.hayPlacaEn(link[2], link[3])
+    ) {
+      placaX = link[2];
+      placaY = link[3];
+      destinoX = link[0];
+      destinoY = link[1];
+    }
+
+    if (!this.hayPortalEn(destinoX, destinoY)) {
+      return;
+    }
+
+    const pareja =
+      this.buscarParejaPortal(
+        destinoX,
+        destinoY
+      );
+
+    if (!pareja) {
+      return;
+    }
+
+    for (let i = 0; i < this.links.length; i++) {
+      const otro = this.links[i];
+
+      const esDuplicado =
         (
-          link[0] === placaX &&
-          link[1] === placaY &&
-          link[2] === portalX &&
-          link[3] === portalY
+          otro[0] === placaX &&
+          otro[1] === placaY &&
+          otro[2] === pareja[0] &&
+          otro[3] === pareja[1]
         ) ||
         (
-          link[2] === placaX &&
-          link[3] === placaY &&
-          link[0] === portalX &&
-          link[1] === portalY
+          otro[2] === placaX &&
+          otro[3] === placaY &&
+          otro[0] === pareja[0] &&
+          otro[1] === pareja[1]
         );
 
-      let conectaPlacaConPareja = false;
-
-      if (pareja) {
-        conectaPlacaConPareja =
-          (
-            link[0] === placaX &&
-            link[1] === placaY &&
-            link[2] === pareja[0] &&
-            link[3] === pareja[1]
-          ) ||
-          (
-            link[2] === placaX &&
-            link[3] === placaY &&
-            link[0] === pareja[0] &&
-            link[1] === pareja[1]
-          );
-      }
-
-      if (
-        conectaPlacaConPortal ||
-        conectaPlacaConPareja
-      ) {
-        this.links.splice(i, 1);
+      if (esDuplicado) {
+        otro[4] = nuevoValor;
       }
     }
   }
@@ -2998,7 +3023,8 @@ export class EditorScene extends Phaser.Scene {
           placaX,
           placaY,
           portalAX,
-          portalAY
+          portalAY,
+          0
         ]);
       }
 
@@ -3014,7 +3040,8 @@ export class EditorScene extends Phaser.Scene {
           placaX,
           placaY,
           portalBX,
-          portalBY
+          portalBY,
+          0
         ]);
       }
     }
@@ -3336,7 +3363,7 @@ export class EditorScene extends Phaser.Scene {
       const link = state.links[i];
 
       if (link.length >= 4) {
-        this.links.push([link[0], link[1], link[2], link[3]]);
+        this.links.push([link[0], link[1], link[2], link[3], link[4] ?? 0]);
       }
     }
 
@@ -3433,13 +3460,13 @@ export class EditorScene extends Phaser.Scene {
   }
 
   private esParDePortales(link: number[]): boolean {
-    return link.length === 4 &&
+    return link.length >= 4 &&
       this.hayPortalEn(link[0], link[1]) &&
       this.hayPortalEn(link[2], link[3]);
   }
 
   private esLinkDeEmisor(link: number[]): boolean {
-    return link.length === 4 &&
+    return link.length >= 4 &&
       this.hayPlacaEn(link[0], link[1]) &&
       this.hayEmisorEn(link[2], link[3]);
   }
@@ -3448,7 +3475,7 @@ export class EditorScene extends Phaser.Scene {
     if (this.esLinkDeEmisor(link)) {
       return true;
     }
-    if (link.length !== 4 || this.esParDePortales(link)) {
+    if (link.length < 4 || this.esParDePortales(link)) {
       return false;
     }
     return (
@@ -3647,6 +3674,33 @@ export class EditorScene extends Phaser.Scene {
         final.y,
         color
       );
+
+      if (link[4] === 1) {
+        const x = (inicio.x + final.x) / 2;
+        const y = (inicio.y + final.y) / 2;
+
+        const tamaño = 5;
+
+        this.graficosLinks.lineStyle(
+          3,
+          COLORES.rojo,
+          1
+        );
+
+        this.graficosLinks.lineBetween(
+          x - tamaño,
+          y - tamaño,
+          x + tamaño,
+          y + tamaño
+        );
+
+        this.graficosLinks.lineBetween(
+          x - tamaño,
+          y + tamaño,
+          x + tamaño,
+          y - tamaño
+        );
+      }
     }
   }
 
@@ -3799,7 +3853,7 @@ export class EditorScene extends Phaser.Scene {
         } else if (linkFinal !== -1) {
           this.links.splice(linkFinal, 1);
         }
-        this.links.push([inicioX, inicioY, this.mouseX, this.mouseY]);
+        this.links.push([inicioX, inicioY, this.mouseX, this.mouseY, 0]);
         this.duplicarPlacasDePareja(
           inicioX,
           inicioY,
@@ -3829,7 +3883,8 @@ export class EditorScene extends Phaser.Scene {
             placaX,
             placaY,
             destinoX,
-            destinoY
+            destinoY,
+            0
           ]);
         }
 
@@ -3918,7 +3973,8 @@ export class EditorScene extends Phaser.Scene {
           placaX,
           placaY,
           destinoX,
-          destinoY
+          destinoY,
+          link[4] ?? 0
         ]);
       }
     }
@@ -3953,12 +4009,63 @@ export class EditorScene extends Phaser.Scene {
 
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
-      if (link.length === 4) {
-        copia.push([link[0], link[1], link[2], link[3]]);
+      if (link.length >= 4) {
+        copia.push([link[0], link[1], link[2], link[3], link[4] ?? 0]);
       }
     }
 
     return copia;
+  }
+
+  private buscarLinkEnPunto(x: number, y: number): number {
+
+    let indice = -1;
+    let mejorDistancia = 8;
+
+    for (let i = 0; i < this.links.length; i++) {
+      const link = this.links[i];
+
+      const inicio = this.centroCasilla(
+        link[0],
+        link[1]
+      );
+
+      const final = this.centroCasilla(
+        link[2],
+        link[3]
+      );
+
+      const dx = final.x - inicio.x;
+      const dy = final.y - inicio.y;
+
+      const largo2 = dx * dx + dy * dy;
+
+      if (largo2 === 0) {
+        continue;
+      }
+
+      let t =
+        ((x - inicio.x) * dx +
+          (y - inicio.y) * dy) /
+        largo2;
+
+      t = Math.max(0, Math.min(1, t));
+
+      const puntoX = inicio.x + t * dx;
+      const puntoY = inicio.y + t * dy;
+
+      const distancia = Math.hypot(
+        x - puntoX,
+        y - puntoY
+      );
+
+      if (distancia < mejorDistancia) {
+        mejorDistancia = distancia;
+        indice = i;
+      }
+    }
+
+    return indice;
   }
 
   private esDobleClickLink(): boolean {
@@ -5438,7 +5545,7 @@ export class EditorScene extends Phaser.Scene {
         for (let i = 0; i < nivel.links.length; i++) {
           const link = nivel.links[i];
 
-          if (link.length !== 4) {
+          if (link.length < 4) {
             continue;
           }
 

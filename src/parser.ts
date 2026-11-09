@@ -31,8 +31,8 @@ function assignLinks(levelin: NivelParseable, levelin2: GameTypeLevel): void {
   for (let i = 0; i < levelin.links.length; i++) {
     let entitya = levelin2.find(entity => entity[1] === levelin.links[i][0] && entity[2] === levelin.links[i][1]);
     let entityb = levelin2.find(entity => entity[1] === levelin.links[i][2] && entity[2] === levelin.links[i][3]);
-    if (entitya) entitya[5].push([levelin.links[i][2], levelin.links[i][3]]);
-    if (entityb) entityb[5].push([levelin.links[i][0], levelin.links[i][1]]);
+    if (entitya) entitya[5].push([levelin.links[i][2], levelin.links[i][3], levelin.links[i][4]]);
+    if (entityb) entityb[5].push([levelin.links[i][0], levelin.links[i][1], levelin.links[i][4]]);
   }
 }
 
