@@ -24,6 +24,7 @@ interface Entity {
     type: string;
     x: number;
     y: number;
+    id: number;
     dir?: number;
     emitting?: number;
     portal?: number;
@@ -106,7 +107,6 @@ export class GameScene extends Phaser.Scene {
     }
     private sonidosPreparados = false;
     private reflejosSonido: string[] = [];
-    private movimientoEmpujo = false;
     private movimientoConPortal = false;
     private sonidos = [
         // 1. WALKING:
@@ -352,7 +352,6 @@ export class GameScene extends Phaser.Scene {
     init(data: any) {
         this.sonidosPreparados = false;
         this.reflejosSonido = [];
-        this.movimientoEmpujo = false;
         this.movimientoConPortal = false;
         for (let i = 0; i < this.sonidos.length; i++) {
             this.sonidos[i].ultimo = -1000;
@@ -1536,6 +1535,16 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    private assignlink(link: number[][], id: number): void {
+        const entity = this.entities.find(entity => (entity.id === id));
+        if (!entity) {console.log ("ERROR in assignlink"); return;}
+        for (let i = 0; i<link.length; i++) {
+            const linkedEntity = this.entities.find(entity => (entity.x === link[i][0] && entity.y === link[i][1]));
+            if (!linkedEntity) {console.log("ERROR 2 in assignlink"); return;}
+            entity.links.push([linkedEntity.id, link[i][2]]);
+        }       
+    }
+
     //////////////////////////
     //LUCAS HELPERS DEL GAME//
     //////////////////////////
@@ -1549,6 +1558,7 @@ export class GameScene extends Phaser.Scene {
         }
         return 4;
     }
+
     private isDoor(x: number, y: number): boolean {
         for (let i = 0; i < this.entities.length; i++) {
             const entity = this.entities[i];
@@ -1559,6 +1569,7 @@ export class GameScene extends Phaser.Scene {
         }
         return false;
     }
+
     private isWall(x: number, y: number): boolean {
         if (y < 0 || y >= this.boardRows || x < 0 || x >= this.boardColumns) {
             return true;
@@ -1572,6 +1583,7 @@ export class GameScene extends Phaser.Scene {
     private getEntityAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.pushable === true && entity.x === x && entity.y === y);
     }
+
     private getMirrorAt(x: number, y: number): Entity | undefined {
         return this.entities.find(entity => entity.x === x && entity.y === y && entity.type === "mirror");
     }
@@ -1579,17 +1591,13 @@ export class GameScene extends Phaser.Scene {
     private findPair(links: number[][]): Entity | undefined { //for portals only, finds its linked portal.
         let entity;
         for (let i = 0; i < links.length; i++) {
-            if (!entity) entity = this.entities.find(entity => entity.portal !== undefined && entity.x === links[i][0] && entity.y === links[i][1]);
+            if (!entity) entity = this.entities.find(entity => entity.portal !== undefined && entity.id === links[i][0]);
         }
         return entity;
     }
 
     private findNonPair(link: number[]): Entity | undefined { //for portals with activators, finds linked activator.
-        return this.entities.find(entity => entity.portal === undefined && entity.x === link[0] && entity.y === link[1]);
-    }
-
-    private findPair2(link: number[]): Entity | undefined { //works for 1 link, returns linked pair regardless of type.
-        return this.entities.find(entity => entity.x === link[0] && entity.y === link[1]);
+        return this.entities.find(entity => entity.portal === undefined && entity.id === link[0]);
     }
 
     //PORTAL WITH PRESSURE PLATES
@@ -1599,7 +1607,7 @@ export class GameScene extends Phaser.Scene {
         for (let i = 0; i < portal.links.length; i++) {
             let plate = this.findNonPair(portal.links[i]);
             let inverse = false;
-            if (portal.links[i][2] === 1) inverse = true;
+            if (portal.links[i][1] === 1) inverse = true;
             if (plate === undefined) continue;
             if (this.isPlatePressed(plate, inverse)) {
                 return true;
@@ -1625,8 +1633,8 @@ export class GameScene extends Phaser.Scene {
         }
         for (let i = 0; i < emitter.links.length; i++) {
             let inverse = false;
-            if (emitter.links[i][2] === 1) inverse = true;
-            let plate = this.findPair2(emitter.links[i]);
+            if (emitter.links[i][1] === 1) inverse = true;
+            let plate = this.entities.find(entity => entity.id === emitter.links[i][0]);
             if (this.isPlatePressed(plate, inverse)) {
                 return true;
             }
@@ -2743,7 +2751,6 @@ export class GameScene extends Phaser.Scene {
                 if (this.isDoor(newEntityX, newEntityY)) {
                     return this.pushwall(player, this.opposite(origDir));
                 }
-                this.movimientoEmpujo = true;
                 let portalHandled = false;
                 let paradox: boolean = false;
                 if (this.getPortalAt(newEntityX, newEntityY, dir)) {
@@ -4831,7 +4838,6 @@ export class GameScene extends Phaser.Scene {
             const y = data[2];
             const dir = data[3];
             const portal = data[4];
-            const groups = data[5];
             const variant = data[6];
 
             const px = this.offsetX + x * this.tilesize;
@@ -4846,8 +4852,9 @@ export class GameScene extends Phaser.Scene {
                         type: "player",
                         x: x,
                         y: y,
+                        id: i,
                         dir: dir,
-                        links: groups,
+                        links: [],
                         pushable: false,
                         sprite: this.add.sprite(px, py, "lindsey", 0).setOrigin(1, 1.04).setScale(this.pixelmultiplier).setDepth(2 * y)
                     };
@@ -4858,8 +4865,9 @@ export class GameScene extends Phaser.Scene {
                         type: "wall",
                         x: x,
                         y: y,
+                        id: i,
                         dir: dir,
-                        links: groups,
+                        links: [],
                         pushable: false,
                         secret: "flag",
                         sprite: this.add.sprite(px, py, "door", 0).setOrigin(1, 1.04).setScale(this.pixelmultiplier).setDepth(2 * y)
@@ -4871,8 +4879,9 @@ export class GameScene extends Phaser.Scene {
                         type: "box",
                         x: x,
                         y: y,
+                        id: i,
                         dir: dir,
-                        links: groups,
+                        links: [],
                         pushable: true,
                         sprite: this.add.sprite(px, py, "spritestall", 0).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(2 * y),
                         shadow: this.add.sprite(px - this.tilesize, py - this.tilesize, "boxshadow", 0).setOrigin(0, 0).setScale(this.pixelmultiplier).setDepth(1)
@@ -4890,8 +4899,9 @@ export class GameScene extends Phaser.Scene {
                         type: "mirror",
                         x: x,
                         y: y,
+                        id: i,
                         dir: dir,
-                        links: groups,
+                        links: [],
                         pushable: true,
                         sprite: this.add.sprite(px, py, "tileset-fogo", mirrorFrame).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(2 * y)
                     };
@@ -4908,9 +4918,10 @@ export class GameScene extends Phaser.Scene {
                         type: "laserEmissor",
                         x: x,
                         y: y,
+                        id: i,
                         dir: dir,
                         emitting: dir,
-                        links: groups,
+                        links: [],
                         pushable: true,
                         sprite: this.add.sprite(px, py, "tileset-fogo", emitterFrame).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(2 * y)
                     };
@@ -4927,8 +4938,9 @@ export class GameScene extends Phaser.Scene {
                         type: "laserReciever",
                         x: x,
                         y: y,
+                        id: i,
                         dir: dir,
-                        links: groups,
+                        links: [],
                         pushable: true,
                         sprite: this.add.sprite(px, py, "tileset-fogo", recieverFrame).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(2 * y)
                     };
@@ -4939,7 +4951,8 @@ export class GameScene extends Phaser.Scene {
                         type: "goal",
                         x: x,
                         y: y,
-                        links: groups,
+                        id: i,
+                        links: [],
                         pushable: false,
                         sprite: this.add.sprite(px, py, "tileset-fogo", 1).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(-0.5)
                     };
@@ -4957,7 +4970,8 @@ export class GameScene extends Phaser.Scene {
                             type: "wall",
                             x: x,
                             y: y,
-                            links: groups,
+                            id: i,
+                            links: [],
                             pushable: false,
                             sprite: this.add.sprite(px, py, "tileset-fogo", variant - 1).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(depth)
                         };
@@ -4968,7 +4982,8 @@ export class GameScene extends Phaser.Scene {
                             type: "wall",
                             x: x,
                             y: y,
-                            links: groups,
+                            id: i,
+                            links: [],
                             pushable: false,
                             sprite: this.add.sprite(px, py, "spritestall", 1).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(2 * y),
                             shadow: this.add.sprite(px - this.tilesize, py - this.tilesize, "wallshadow", 0).setOrigin(0, 0).setScale(this.pixelmultiplier).setDepth(1)
@@ -4980,7 +4995,8 @@ export class GameScene extends Phaser.Scene {
                             type: "wall",
                             x: x,
                             y: y,
-                            links: groups,
+                            id: i,
+                            links: [],
                             pushable: false,
                             sprite: this.add.sprite(px, py, "spritestall", 3).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(2 * y),
                             shadow: this.add.sprite(px - this.tilesize, py - this.tilesize, "wallshadow2", 0).setOrigin(0, 0).setScale(this.pixelmultiplier).setDepth(1)
@@ -5029,7 +5045,8 @@ export class GameScene extends Phaser.Scene {
                         type: "wall",
                         x: x,
                         y: y,
-                        links: groups,
+                        id: i,
+                        links: [],
                         pushable: false,
                         sprite: this.add.sprite(px, py, "spritestall", machineFrame).setOrigin(1, 1).setScale(this.pixelmultiplier).setDepth(2 * y)
                     };
@@ -5053,6 +5070,11 @@ export class GameScene extends Phaser.Scene {
                 entity.portal = portal;
             }
             this.entities.push(entity);
+        }
+
+        for (let i = 0; i < level.length; i++) {
+            const link = level[i][5]
+            this.assignlink(link, i);
         }
 
         this.assignportalcolors();
@@ -5103,7 +5125,6 @@ export class GameScene extends Phaser.Scene {
 
     private doMovement(direction: string) {
         this.currentMoveDirection = direction;
-        this.movimientoEmpujo = false;
         this.movimientoConPortal = false;
         this.pushTweens = [];
         this.portalTweens = [];

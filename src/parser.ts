@@ -11,7 +11,7 @@ export type GameTypeEntity = [
   number, // y
   number, // dir (-1 if none)
   number, // portal (-1 if none)
-  number[][], // links ([[linked object 1 x, linked object 1 y], [linked object 2 x, linked object 2 y], ...]) (empty if none)
+  number[][], // links ([[linked object 1 x, linked object 1 y, NOT?], [linked object 2 x, linked object 2 y, NOT?], ...]) (empty if none)
   number  // variant
 ];
 
