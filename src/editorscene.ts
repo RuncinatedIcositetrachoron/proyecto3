@@ -13,6 +13,14 @@ interface EstadoEditor {
   links: number[][];
 }
 
+interface RotacionSeleccion extends EstadoEditor {
+  x: number;
+  y: number;
+  centro: { x: number; y: number };
+}
+
+type TransformacionSeleccion = "horario" | "antihorario" | "voltear" | "voltearVertical";
+
 export class EditorScene extends Phaser.Scene {
   textoOpciones: string[][] = [
     ["Level Editor", "Editor de niveles"],
@@ -60,7 +68,9 @@ export class EditorScene extends Phaser.Scene {
     ["Player", "Jugador"],
     ["Exit", "Salida"],
     ["Unknown tile", "Casilla desconocida"],
-    ["\nRight-click to see variants", "\nClic derecho para ver variantes"]
+    ["\nRight-click to see variants", "\nClic derecho para ver variantes"],
+    ["Rotate", "Rotar"],
+    ["Flip", "Voltear"]
   ];
   init(data: { nivelId?: string } = {}): void {
     if (data.nivelId !== undefined) {
@@ -80,6 +90,9 @@ export class EditorScene extends Phaser.Scene {
     this.undoHistory = [];
     this.redoHistory = [];
     this.links = [];
+    this.textoLink = null;
+    this.ayudaLink = null;
+    this.bordeTooltipLink = null;
     this.botonesInterfaz = [];
     this.imagenesProfundidad = [];
     this.spritesPortales = [];
@@ -95,6 +108,15 @@ export class EditorScene extends Phaser.Scene {
     this.seleccionando = false;
     this.arrastrandoSeleccion = false;
     this.posibleArrastreSeleccion = false;
+    this.arrastreOffsetX = 0;
+    this.arrastreOffsetY = 0;
+    this.transformacionesArrastre = [];
+    this.centroSeleccion = null;
+    this.centroAntesArrastre = null;
+    this.controlesSeleccion = null;
+    this.botonesTransformacion = [];
+    this.controlSeleccionPulsado = null;
+    this.punteroArrastre = null;
     this.portapapelesArrastre = null;
     this.portapapelesPortalesArrastre = null;
 
@@ -106,6 +128,8 @@ export class EditorScene extends Phaser.Scene {
 
     this.linkInicioX = -1;
     this.linkInicioY = -1;
+    this.linkSeArrastro = false;
+    this.reiniciarClickLink();
     this.mouseX = -1;
     this.mouseY = -1;
 
@@ -149,6 +173,15 @@ export class EditorScene extends Phaser.Scene {
   private posibleArrastreSeleccion: boolean = false;
   private arrastreInicioX: number = -1;
   private arrastreInicioY: number = -1;
+  private arrastreOffsetX: number = 0;
+  private arrastreOffsetY: number = 0;
+  private transformacionesArrastre: TransformacionSeleccion[] = [];
+  private centroSeleccion: { x: number; y: number } | null = null;
+  private centroAntesArrastre: { x: number; y: number } | null = null;
+  private controlesSeleccion: Phaser.GameObjects.Container | null = null;
+  private botonesTransformacion: Phaser.GameObjects.Rectangle[] = [];
+  private controlSeleccionPulsado: number | null = null;
+  private punteroArrastre: number | null = null;
 
   private tileInvisible: number = 1;
   private sinHerramienta: number = -1;
@@ -203,15 +236,19 @@ export class EditorScene extends Phaser.Scene {
   ];
 
   private links: number[][] = [];
+  private textoLink: Phaser.GameObjects.Text | null = null;
+  private ayudaLink: Phaser.GameObjects.Text | null = null;
+  private bordeTooltipLink: Phaser.GameObjects.Rectangle | null = null;
   private linkInicioX: number = -1;
   private linkInicioY: number = -1;
-  private graficosLinks!: Phaser.GameObjects.Graphics;
-  private graficosLinkTemporal!: Phaser.GameObjects.Graphics;
-  private botonLink!: Phaser.GameObjects.Rectangle;
-
+  private linkSeArrastro: boolean = false;
   private ultimoClickLinkX: number = -1;
   private ultimoClickLinkY: number = -1;
   private tiempoUltimoClickLink: number = 0;
+  private graficosLinks!: Phaser.GameObjects.Graphics;
+  private graficosNotLinks!: Phaser.GameObjects.Graphics;
+  private graficosLinkTemporal!: Phaser.GameObjects.Graphics;
+  private botonLink!: Phaser.GameObjects.Rectangle;
 
   private portalTool: number = 102;
   private portalArriba = 50;
@@ -312,6 +349,7 @@ export class EditorScene extends Phaser.Scene {
 
   preload(): void {
     cargarPortales(this);
+    this.load.spritesheet("iconosTransformacion", "./assets/iconos-transformacion.png", { frameWidth: 20, frameHeight: 20 });
     this.load.spritesheet("editorTiles", "./tileset.png", {
       frameWidth: this.tileGraphicSize,
       frameHeight: this.tileGraphicSize
@@ -320,6 +358,7 @@ export class EditorScene extends Phaser.Scene {
 
   create(): void {
     crearAnimacionesPortales(this);
+    this.textures.get("iconosTransformacion").setFilter(Phaser.Textures.FilterMode.NEAREST);
     this.cameras.main.setBackgroundColor(colorTexto(COLORES.fondo));
     this.columns = 17;
     this.rows = 11;
@@ -445,7 +484,10 @@ export class EditorScene extends Phaser.Scene {
     this.botonGuardar.setData("atajo", "Ctrl/Cmd + S");
 
     this.input.on("pointermove", (mouse: Phaser.Input.Pointer) => {
-      if (this.popupSalida !== null || this.bloquearMouseHastaSoltar) {
+      if (this.popupSalida !== null || this.bloquearMouseHastaSoltar || this.controlSeleccionPulsado === mouse.id) {
+        return;
+      }
+      if (this.punteroArrastre !== null && this.punteroArrastre !== mouse.id) {
         return;
       }
 
@@ -461,6 +503,9 @@ export class EditorScene extends Phaser.Scene {
         this.herramienta === this.linkTool &&
         this.linkInicioX !== -1
       ) {
+        if (this.mouseX !== this.linkInicioX || this.mouseY !== this.linkInicioY) {
+          this.linkSeArrastro = true;
+        }
         this.actualizarVistaLink();
       }
 
@@ -479,8 +524,10 @@ export class EditorScene extends Phaser.Scene {
         this.seleccionando = false;
         this.portapapelesArrastre = this.seleccionCopiada;
         this.portapapelesPortalesArrastre = this.portalesCopiados;
+        this.centroAntesArrastre = this.centroSeleccion;
         this.haySeleccion = false;
-
+        this.transformacionesArrastre = [];
+        this.rectanguloSeleccion.setVisible(false);
         this.copiarSeleccion();
         this.actualizarInterfaz();
       }
@@ -506,6 +553,13 @@ export class EditorScene extends Phaser.Scene {
     });
 
     this.input.on("pointerup", (mouse: Phaser.Input.Pointer) => {
+      if (this.controlSeleccionPulsado === mouse.id) {
+        this.controlSeleccionPulsado = null;
+        return;
+      }
+      if (this.punteroArrastre !== null && this.punteroArrastre !== mouse.id) {
+        return;
+      }
       if (this.popupSalida !== null) {
         return;
       }
@@ -523,6 +577,9 @@ export class EditorScene extends Phaser.Scene {
       this.updateHoveredCell(mouse.worldX, mouse.worldY);
 
       if (this.herramienta === this.linkTool) {
+        if (mouse.button !== 0) {
+          return;
+        }
         this.terminarLink();
         this.saveIfChanged();
         this.actualizarInterfaz();
@@ -538,23 +595,26 @@ export class EditorScene extends Phaser.Scene {
           const altoSeleccion = this.seleccionCopiada.length;
           const anchoSeleccion = this.seleccionCopiada[0].length;
 
-          const inicioX =
-            this.mouseX - Math.floor((anchoSeleccion - 1) / 2);
-
-          const inicioY =
-            this.mouseY - Math.floor((altoSeleccion - 1) / 2);
+          const { x: inicioX, y: inicioY } = this.obtenerInicioPegado();
+          const centro = this.centroSeleccion;
+          const links = this.obtenerLinksTransformados(inicioX, inicioY, this.transformacionesArrastre, true);
 
           this.borrarSeleccion();
           this.pegarSeleccion(true);
+          this.links.push(...links);
+          this.actualizarLinks();
 
           this.ubicarSeleccion(
             inicioX,
             inicioY,
             anchoSeleccion,
-            altoSeleccion
+            altoSeleccion,
+            centro
           );
 
           this.saveIfChanged();
+        } else {
+          this.centroSeleccion = this.centroAntesArrastre;
         }
 
         if (this.portapapelesArrastre !== null) {
@@ -571,6 +631,11 @@ export class EditorScene extends Phaser.Scene {
         this.posibleArrastreSeleccion = false;
         this.arrastreInicioX = -1;
         this.arrastreInicioY = -1;
+        this.arrastreOffsetX = 0;
+        this.arrastreOffsetY = 0;
+        this.transformacionesArrastre = [];
+        this.centroAntesArrastre = null;
+        this.punteroArrastre = null;
 
         this.vistaPegado.setVisible(false);
         this.capaVistaPegado.setVisible(false);
@@ -579,6 +644,7 @@ export class EditorScene extends Phaser.Scene {
         this.restaurarTilesVistaPegado();
 
         this.haySeleccion = true;
+        this.rectanguloSeleccion.setVisible(true);
         this.actualizarInterfaz();
         return;
       }
@@ -590,6 +656,7 @@ export class EditorScene extends Phaser.Scene {
         this.posibleArrastreSeleccion = false;
         this.arrastreInicioX = -1;
         this.arrastreInicioY = -1;
+        this.punteroArrastre = null;
 
         this.quitarSeleccion();
         this.ubicarSeleccion(columna, fila, 1, 1);
@@ -790,9 +857,18 @@ export class EditorScene extends Phaser.Scene {
 
     this.graficosLinks = this.add.graphics();
     this.graficosLinks.setDepth(7);
+    this.graficosNotLinks = this.add.graphics().setDepth(11);
 
     this.graficosLinkTemporal = this.add.graphics();
     this.graficosLinkTemporal.setDepth(8);
+    this.bordeTooltipLink = this.add.rectangle(0, 0, 1, 1, COLORES.panel);
+    this.bordeTooltipLink.setOrigin(0, 0).setStrokeStyle(2, COLORES.normal).setDepth(1000).setVisible(false);
+    this.textoLink = this.add.text(0, 0, "", {
+      fontFamily: "Fuente", fontSize: "12px", color: colorTexto(COLORES.amarillo)
+    }).setDepth(1001).setVisible(false);
+    this.ayudaLink = this.add.text(0, 0, "", {
+      fontFamily: "Fuente", fontSize: "12px", color: colorTexto(COLORES.blanco)
+    }).setDepth(1001).setVisible(false);
 
     this.restaurarTilesVistaPegado();
 
@@ -849,10 +925,14 @@ export class EditorScene extends Phaser.Scene {
     this.input.on("pointerupoutside", () => {
       this.bloquearMouseHastaSoltar = false;
       this.clickEnHotbar = false;
+      this.controlSeleccionPulsado = null;
     });
 
     this.input.on("pointerdown", (mouse: Phaser.Input.Pointer) => {
       if (this.popupSalida !== null || this.bloquearMouseHastaSoltar) {
+        return;
+      }
+      if (this.punteroArrastre !== null && this.punteroArrastre !== mouse.id) {
         return;
       }
 
@@ -860,13 +940,11 @@ export class EditorScene extends Phaser.Scene {
       this.clickEnHotbar = false;
 
       if (mouse.button === 2 && this.herramienta === this.linkTool) {
-        const indice = this.buscarLinkEnPunto(mouse.worldX, mouse.worldY);
+        this.reiniciarClickLink();
+        const indice = this.buscarLinkEnPunto(mouse.worldX, mouse.worldY, true);
 
         if (indice !== -1) {
           this.alternarNotLink(indice);
-          this.dibujarLinks();
-          this.saveIfChanged();
-          this.actualizarInterfaz();
         }
 
         return;
@@ -885,23 +963,11 @@ export class EditorScene extends Phaser.Scene {
 
       if (this.herramienta === this.linkTool) {
         this.quitarSeleccion();
-
-        if (this.esDobleClickLink()) {
-          this.cancelarLinkTemporal();
-
-          const indiceLink = this.buscarLinkDeCasilla(
-            this.mouseX,
-            this.mouseY
-          );
-
-          if (indiceLink !== -1) {
-            this.links.splice(indiceLink, 1);
-            this.dibujarLinks();
-          }
-
+        const indice = this.buscarLinkEnPunto(mouse.worldX, mouse.worldY);
+        if (indice !== -1) {
+          this.borrarLink(indice);
           return;
         }
-
         this.iniciarLink(mouse);
         return;
       }
@@ -923,6 +989,9 @@ export class EditorScene extends Phaser.Scene {
         this.posibleArrastreSeleccion = true;
         this.arrastreInicioX = this.mouseX;
         this.arrastreInicioY = this.mouseY;
+        this.arrastreOffsetX = this.mouseX - this.seleccionIzquierda;
+        this.arrastreOffsetY = this.mouseY - this.seleccionArriba;
+        this.punteroArrastre = mouse.id;
         this.seleccionando = false;
         return;
       }
@@ -971,6 +1040,16 @@ export class EditorScene extends Phaser.Scene {
 
       const tecla = evento.key.toLowerCase();
       const control = evento.ctrlKey || evento.metaKey;
+
+      if (!control && !evento.altKey && (tecla === "r" || tecla === "f")) {
+        evento.preventDefault();
+        if (!evento.repeat) {
+          const transformacion = tecla === "f" ? (evento.shiftKey ? "voltearVertical" : "voltear") :
+            (evento.shiftKey ? "antihorario" : "horario");
+          this.rotarSeleccion(transformacion);
+        }
+        return;
+      }
 
       if (control && evento.altKey === false && tecla === "s") {
         evento.preventDefault();
@@ -1143,6 +1222,7 @@ export class EditorScene extends Phaser.Scene {
     this.crearInterfaz();
     this.crearTexturasParedes();
     this.crearHotbar();
+    this.crearControlesSeleccion();
 
     this.textoTile = this.add.text(0, 0, "", {
       fontFamily: "Fuente",
@@ -1503,6 +1583,7 @@ export class EditorScene extends Phaser.Scene {
   private quitarSeleccion(): void {
     this.seleccionando = false;
     this.haySeleccion = false;
+    this.centroSeleccion = null;
 
     this.rectanguloSeleccion.setVisible(false);
 
@@ -1530,6 +1611,341 @@ export class EditorScene extends Phaser.Scene {
     this.actualizarInterfaz();
   }
 
+  private obtenerInicioPegado(): { x: number; y: number } {
+    const offsetX = this.arrastrandoSeleccion ? this.arrastreOffsetX : Math.floor((this.seleccionCopiada[0].length - 1) / 2);
+    const offsetY = this.arrastrandoSeleccion ? this.arrastreOffsetY : Math.floor((this.seleccionCopiada.length - 1) / 2);
+    return { x: this.mouseX - offsetX, y: this.mouseY - offsetY };
+  }
+
+  private transformarPunto(x: number, y: number, ancho: number, alto: number, transformacion: TransformacionSeleccion): { x: number; y: number } {
+    if (transformacion === "voltear") {
+      return { x: ancho - 1 - x, y };
+    }
+    if (transformacion === "voltearVertical") {
+      return { x, y: alto - 1 - y };
+    }
+    return transformacion === "horario" ? { x: alto - 1 - y, y: x } : { x: y, y: ancho - 1 - x };
+  }
+
+  private puedeUbicarRotacion(rotacion: EstadoEditor, inicioX: number, inicioY: number): boolean {
+    const alto = rotacion.tablero.length, ancho = rotacion.tablero[0].length;
+    if (inicioX < 0 || inicioY < 0 || inicioX + ancho > this.columns || inicioY + alto > this.rows) {
+      return false;
+    }
+    for (let y = 0; y < alto; y++) {
+      for (let x = 0; x < ancho; x++) {
+        const columna = inicioX + x, fila = inicioY + y;
+        const objeto = this.objetoDeTileCodificado(rotacion.tablero[y][x]);
+        const portal = rotacion.portales[y][x];
+        if (fila === 0 && (this.obtenerRelieve(objeto) !== -1 ||
+            (this.obtenerRelieve(portal) !== -1 && !esParedExteriorPortal(objeto)))) {
+          return false;
+        }
+        if (objeto === this.tileBandera && (fila !== 1 || columna <= 0 || columna >= this.columns - 1)) {
+          return false;
+        }
+        const dentro = columna >= this.seleccionIzquierda && columna <= this.seleccionDerecha &&
+          fila >= this.seleccionArriba && fila <= this.seleccionAbajo;
+        if (!dentro && (![-1, 0, this.tileInvisible].includes(this.obtenerTileCodificado(columna, fila)) || this.hayPortalEn(columna, fila))) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  private rotarTile(tile: number, transformacion: TransformacionSeleccion): number | null {
+    const objeto = this.objetoDeTileCodificado(tile);
+    const orientaciones = [
+      [3, 4, 5, 6],
+      [11, 14, 12, 13],
+      [27, 30, 28, 29],
+      [17, 18, 20, 19],
+      [21, 22, 23, 24]
+    ];
+    let rotado: number | null = null;
+    for (const variantes of orientaciones) {
+      const indice = variantes.indexOf(objeto);
+      if (indice !== -1) {
+        let siguiente = (indice + (transformacion === "horario" ? 1 : 3)) % 4;
+        if (transformacion === "voltear" || transformacion === "voltearVertical") {
+          siguiente = ((objeto >= 3 && objeto <= 6) || (objeto >= 21 && objeto <= 24) ? 5 - indice : 4 - indice) % 4;
+          if (transformacion === "voltearVertical") {
+            siguiente = (siguiente + 2) % 4;
+          }
+        }
+        rotado = variantes[siguiente];
+        break;
+      }
+    }
+    if ([-1, 0, this.tileInvisible, 16, 37, 39, 41, this.tileJugador].includes(objeto)) {
+      rotado = objeto;
+    } else if (objeto === 64) {
+      rotado = 39;
+    }
+    if (transformacion === "voltear" && (objeto === this.tileBandera || objeto === this.tileSalidaArriba)) {
+      rotado = objeto;
+    }
+    if (rotado === null) {
+      return null;
+    }
+    if (this.tienePlacaCodificada(tile)) {
+      return rotado === this.tileInvisible ? this.tilePlaca : this.tilePlacaConObjeto + rotado;
+    }
+    return rotado;
+  }
+
+  private obtenerLinksTransformados(inicioX: number, inicioY: number, transformaciones: TransformacionSeleccion[], soloSeleccion: boolean = false): number[][] {
+    const resultado: number[][] = [];
+    for (const link of this.copiarLinks()) {
+      let seleccionado = false;
+      for (let extremo = 0; extremo < 4; extremo += 2) {
+        let x = link[extremo] - this.seleccionIzquierda;
+        let y = link[extremo + 1] - this.seleccionArriba;
+        let ancho = this.seleccionDerecha - this.seleccionIzquierda + 1;
+        let alto = this.seleccionAbajo - this.seleccionArriba + 1;
+        if (x < 0 || x >= ancho || y < 0 || y >= alto) {
+          continue;
+        }
+        seleccionado = true;
+        for (const transformacion of transformaciones) {
+          const punto = this.transformarPunto(x, y, ancho, alto, transformacion);
+          x = punto.x;
+          y = punto.y;
+          if (transformacion === "horario" || transformacion === "antihorario") {
+            [ancho, alto] = [alto, ancho];
+          }
+        }
+        link[extremo] = inicioX + x;
+        link[extremo + 1] = inicioY + y;
+      }
+      if (!soloSeleccion || seleccionado) {
+        resultado.push(link);
+      }
+    }
+    return resultado;
+  }
+
+  private obtenerRotacionSeleccion(transformacion: TransformacionSeleccion = "horario"): RotacionSeleccion | null {
+    if ((!this.haySeleccion && !this.arrastrandoSeleccion) || this.seleccionando ||
+        this.posibleArrastreSeleccion || this.bloquearMouseHastaSoltar ||
+        this.herramienta !== this.selectTool || !this.seleccionCompleta() ||
+        (this.arrastrandoSeleccion && (this.mouseX === -1 || this.mouseY === -1))) {
+      return null;
+    }
+    const contenido = this.arrastrandoSeleccion ? this.seleccionCopiada : this.obtenerContenidoSeleccion();
+    const portales = this.arrastrandoSeleccion ? this.portalesCopiados : this.obtenerPortalesSeleccion();
+    if (contenido.length === 0 || contenido[0].length === 0) {
+      return null;
+    }
+    const ancho = contenido[0].length, alto = contenido.length;
+    const esVolteo = transformacion === "voltear" || transformacion === "voltearVertical";
+    const nuevoAncho = esVolteo ? ancho : alto;
+    const nuevoAlto = esVolteo ? alto : ancho;
+    const centro = this.centroSeleccion ?? { x: ancho / 2, y: alto / 2 };
+    const inicio = this.arrastrandoSeleccion ? this.obtenerInicioPegado() : { x: this.seleccionIzquierda, y: this.seleccionArriba };
+    const centroX = inicio.x + centro.x, centroY = inicio.y + centro.y;
+    const baseX = esVolteo ? inicio.x : Math.floor(centroX - nuevoAncho / 2 + 0.5);
+    const baseY = esVolteo ? inicio.y : Math.floor(centroY - nuevoAlto / 2 + 0.5);
+    const rotacion: RotacionSeleccion = {
+      x: baseX, y: baseY, centro: { x: centroX - baseX, y: centroY - baseY },
+      tablero: Array.from({ length: nuevoAlto }, () => Array(nuevoAncho).fill(this.tileInvisible)),
+      portales: Array.from({ length: nuevoAlto }, () => Array(nuevoAncho).fill(-1)), links: []
+    };
+    const orientacionesPortal = [this.portalArriba, this.portalDerecha, this.portalAbajo, this.portalIzquierda];
+    for (let y = 0; y < alto; y++) {
+      for (let x = 0; x < ancho; x++) {
+        const tile = this.rotarTile(contenido[y][x], transformacion);
+        if (tile === null) {
+          return null;
+        }
+        const objeto = this.objetoDeTileCodificado(tile);
+        const portal = portales[y][x];
+        let portalRotado = -1;
+        if (portal !== -1) {
+          const indice = orientacionesPortal.indexOf(portal);
+          if (indice === -1 || objeto <= this.tileInvisible || this.tilesSinPortal.includes(objeto) || this.tienePlacaCodificada(tile)) {
+            return null;
+          }
+          const siguiente = esVolteo ? ((transformacion === "voltear" ? 4 : 6) - indice) % 4 :
+            (indice + (transformacion === "horario" ? 1 : 3)) % 4;
+          portalRotado = this.orientarPortalEnTile(objeto, orientacionesPortal[siguiente]);
+          if (portalRotado === -1) {
+            return null;
+          }
+        }
+        const punto = this.transformarPunto(x, y, ancho, alto, transformacion);
+        rotacion.tablero[punto.y][punto.x] = tile;
+        rotacion.portales[punto.y][punto.x] = portalRotado;
+      }
+    }
+    if (!this.puedeUbicarRotacion(rotacion, baseX, baseY)) {
+      return null;
+    }
+    if (!this.arrastrandoSeleccion) {
+      rotacion.links = this.obtenerLinksTransformados(baseX, baseY, [transformacion]);
+    }
+    return rotacion;
+  }
+
+  private crearControlesSeleccion(): void {
+    const controles = this.add.container(0, 0).setDepth(20).setVisible(false);
+    this.controlesSeleccion = controles;
+    const transformaciones: TransformacionSeleccion[][] = [["horario", "antihorario"], ["voltear", "voltearVertical"]];
+    const atajos = ["R", "F"];
+    const bordeTooltip = this.add.rectangle(0, 0, 1, 1, COLORES.panel)
+      .setOrigin(0).setStrokeStyle(2, COLORES.normal).setVisible(false);
+    const tooltip = this.add.text(0, 0, "", {
+      fontFamily: "Fuente", fontSize: "16px", color: colorTexto(COLORES.blanco),
+      backgroundColor: colorTexto(COLORES.panel), padding: { left: 8, right: 8, top: 6, bottom: 6 }, resolution: 1
+    }).setVisible(false);
+    const ocultarTooltip = () => {
+      tooltip.setVisible(false);
+      bordeTooltip.setVisible(false);
+    };
+    controles.setData("tooltip", tooltip);
+    controles.setData("ocultarTooltip", ocultarTooltip);
+    for (let i = 0; i < transformaciones.length; i++) {
+      const boton = this.add.rectangle(14, 14 + i * 32, 28, 28, COLORES.panel);
+      boton.setStrokeStyle(2, COLORES.normal).setInteractive({ useHandCursor: true });
+      const icono = this.add.image(14, 14 + i * 32, "iconosTransformacion", i);
+      boton.setData("icono", icono);
+      boton.on("pointerover", () => {
+        boton.setData("hover", true);
+        tooltip.setText(this.textoOpciones[46 + i][spanish] + " (" + atajos[i] + ")");
+        const x = Math.max(8, Math.min(controles.x + 14 - tooltip.width / 2, this.scale.width - tooltip.width - 8));
+        const arriba = controles.y + i * 32;
+        const y = arriba - tooltip.height - 8 < 8 ? arriba + 36 : arriba - tooltip.height - 8;
+        tooltip.setPosition(Math.round(x - controles.x), Math.round(y - controles.y));
+        bordeTooltip.setSize(tooltip.width + 2, tooltip.height + 2).setPosition(tooltip.x - 1, tooltip.y - 1).setVisible(true);
+        tooltip.setVisible(true);
+      });
+      boton.on("pointerout", () => {
+        boton.setData("hover", false);
+        ocultarTooltip();
+      });
+      boton.on("pointerdown", (mouse: Phaser.Input.Pointer, _x: number, _y: number, evento: Phaser.Types.Input.EventData) => {
+        evento.stopPropagation();
+        if (mouse.button !== 0 && mouse.button !== 2) {
+          return;
+        }
+        this.controlSeleccionPulsado = mouse.id;
+        ocultarTooltip();
+        this.rotarSeleccion(transformaciones[i][mouse.button === 2 ? 1 : 0]);
+      });
+      boton.on("pointerup", (mouse: Phaser.Input.Pointer, _x: number, _y: number, evento: Phaser.Types.Input.EventData) => {
+        if (this.controlSeleccionPulsado === mouse.id) {
+          evento.stopPropagation();
+          this.controlSeleccionPulsado = null;
+        }
+      });
+      this.botonesTransformacion.push(boton);
+      controles.add([boton, icono]);
+    }
+    controles.add([bordeTooltip, tooltip]);
+  }
+
+  private actualizarControlesSeleccion(): void {
+    if (this.controlesSeleccion === null) {
+      return;
+    }
+    const visible = this.haySeleccion && !this.arrastrandoSeleccion && !this.seleccionando &&
+      this.herramienta === this.selectTool && this.popupSalida === null && !this.bloquearMouseHastaSoltar;
+    this.controlesSeleccion.setVisible(visible);
+    if (!visible) {
+      this.controlesSeleccion.getData("ocultarTooltip")();
+      for (const boton of this.botonesTransformacion) {
+        boton.setData("hover", false);
+        boton.disableInteractive();
+      }
+      return;
+    }
+    const inicio = this.arrastrandoSeleccion ? this.obtenerInicioPegado() : { x: this.seleccionIzquierda, y: this.seleccionArriba };
+    const ancho = this.arrastrandoSeleccion ? this.seleccionCopiada[0].length : this.seleccionDerecha - inicio.x + 1;
+    const izquierda = this.board_offset_x + inicio.x * this.cellsize;
+    const arriba = this.board_offset_y + inicio.y * this.cellsize;
+    const derecha = izquierda + ancho * this.cellsize;
+    const limiteDerecho = this.scale.width - this.margenPanel - this.anchoPanelHerramientas - 6;
+    let x = derecha + 6;
+    if (x + 28 > limiteDerecho) {
+      x = izquierda - 34;
+    }
+    this.controlesSeleccion.setPosition(Math.round(Math.max(4, x)), Math.round(Math.max(4, Math.min(arriba, this.scale.height - 64))));
+    const transformaciones: TransformacionSeleccion[][] = [["horario", "antihorario"], ["voltear", "voltearVertical"]];
+    for (let i = 0; i < this.botonesTransformacion.length; i++) {
+      const boton = this.botonesTransformacion[i];
+      const habilitado = transformaciones[i].some(transformacion => this.obtenerRotacionSeleccion(transformacion) !== null);
+      const hover = habilitado && boton.getData("hover");
+      boton.setFillStyle(hover ? 0x41425b : COLORES.panel);
+      boton.setStrokeStyle(2, habilitado ? COLORES.normal : COLORES.borde);
+      boton.getData("icono").setAlpha(habilitado ? 1 : 0.4);
+      if (habilitado) {
+        boton.setInteractive({ useHandCursor: true });
+      } else {
+        boton.disableInteractive();
+        if (boton.getData("hover")) {
+          boton.setData("hover", false);
+          this.controlesSeleccion.getData("ocultarTooltip")();
+        }
+      }
+    }
+    const mouse = this.input.activePointer;
+    if (this.botonesTransformacion.some(boton => boton.getBounds().contains(mouse.worldX, mouse.worldY))) {
+      this.restaurarTileHover();
+      this.hoverCell.setVisible(false);
+      this.hoverTile.setVisible(false);
+    }
+  }
+
+  //ROTAR
+  private rotarSeleccion(transformacion: TransformacionSeleccion = "horario"): void {
+    const rotacion = this.obtenerRotacionSeleccion(transformacion);
+    if (rotacion === null) {
+      return;
+    }
+    if (this.arrastrandoSeleccion) {
+      this.arrastreOffsetX = this.mouseX - rotacion.x;
+      this.arrastreOffsetY = this.mouseY - rotacion.y;
+      this.centroSeleccion = rotacion.centro;
+      this.seleccionCopiada = rotacion.tablero;
+      this.portalesCopiados = rotacion.portales;
+      this.transformacionesArrastre.push(transformacion);
+      this.actualizarVistaPegado();
+      this.actualizarControlesSeleccion();
+      this.actualizarRelieves();
+      this.actualizarProfundidad();
+      return;
+    }
+    const inicioX = rotacion.x;
+    const inicioY = rotacion.y;
+    const alto = rotacion.tablero.length;
+    const ancho = rotacion.tablero[0].length;
+    this.restaurarTileHover();
+    this.restaurarTilesVistaPegado();
+    this.saveIfChanged();
+    this.borrarSeleccion(false);
+    for (let y = 0; y < alto; y++) {
+      for (let x = 0; x < ancho; x++) {
+        this.colocarTileCodificado(rotacion.tablero[y][x], inicioX + x, inicioY + y);
+        if (rotacion.portales[y][x] !== -1) {
+          this.capaPortales.putTileAt(rotacion.portales[y][x], inicioX + x, inicioY + y);
+        }
+      }
+    }
+    for (let y = 0; y < alto; y++) {
+      for (let x = 0; x < ancho; x++) {
+        this.actualizarParedesConexas(inicioX + x, inicioY + y);
+      }
+    }
+    this.links = rotacion.links;
+    this.actualizarLinks();
+    this.ubicarSeleccion(inicioX, inicioY, ancho, alto, rotacion.centro);
+    this.saveIfChanged();
+    this.actualizarRelieves();
+    this.actualizarProfundidad();
+    this.actualizarControlesSeleccion();
+  }
+
   private pegarSeleccion(posicionValidada: boolean = false) {
     const pegando =
       this.herramienta === this.pasteTool ||
@@ -1545,8 +1961,7 @@ export class EditorScene extends Phaser.Scene {
     const alto = this.seleccionCopiada.length;
     const ancho = this.seleccionCopiada[0].length;
 
-    const inicioX = this.mouseX - Math.floor((ancho - 1) / 2);
-    const inicioY = this.mouseY - Math.floor((alto - 1) / 2);
+    const { x: inicioX, y: inicioY } = this.obtenerInicioPegado();
 
     this.restaurarTileHover();
     this.restaurarTilesVistaPegado();
@@ -1617,11 +2032,7 @@ export class EditorScene extends Phaser.Scene {
     const altoSeleccion = this.seleccionCopiada.length;
     const anchoSeleccion = this.seleccionCopiada[0].length;
 
-    const inicioX =
-      this.mouseX - Math.floor((anchoSeleccion - 1) / 2);
-
-    const inicioY =
-      this.mouseY - Math.floor((altoSeleccion - 1) / 2);
+    const { x: inicioX, y: inicioY } = this.obtenerInicioPegado();
 
     this.ocultarTilesDebajoVistaPegado(inicioX, inicioY);
     this.actualizarTilesVistaPegado(inicioX, inicioY);
@@ -1714,9 +2125,11 @@ export class EditorScene extends Phaser.Scene {
     inicioX: number,
     inicioY: number,
     ancho: number,
-    alto: number
+    alto: number,
+    centro: { x: number; y: number } | null = null
   ): void {
     this.seleccionando = false;
+    this.centroSeleccion = centro;
     this.seleccionInicioX = inicioX;
     this.seleccionInicioY = inicioY;
 
@@ -1767,11 +2180,7 @@ export class EditorScene extends Phaser.Scene {
       return false;
     }
 
-    const inicioX =
-      this.mouseX - Math.floor((anchoSeleccion - 1) / 2);
-
-    const inicioY =
-      this.mouseY - Math.floor((altoSeleccion - 1) / 2);
+    const { x: inicioX, y: inicioY } = this.obtenerInicioPegado();
 
     if (
       inicioX < 0 || inicioY < 0 ||
@@ -1995,7 +2404,9 @@ export class EditorScene extends Phaser.Scene {
   }
 
   update(): void {
+    this.actualizarControlesSeleccion();
     if (this.popupSalida !== null) {
+      this.ocultarTooltipLink();
       if (this.popupSalida.scene !== undefined) {
         return;
       }
@@ -2046,6 +2457,7 @@ export class EditorScene extends Phaser.Scene {
     }
 
     this.actualizarVistaLink();
+    this.actualizarTooltipLink();
   }
 
   private hayCambiosSinGuardar(): boolean {
@@ -2860,191 +3272,31 @@ export class EditorScene extends Phaser.Scene {
     );
   }
 
-  private duplicarLinkPlacaPortal(x1: number, y1: number, x2: number, y2: number): void {
-
-    let placaX: number;
-    let placaY: number;
-    let portalX: number;
-    let portalY: number;
-
-    if (
-      this.hayPlacaEn(x1, y1) &&
-      this.hayPortalEn(x2, y2)
-    ) {
-      placaX = x1;
-      placaY = y1;
-      portalX = x2;
-      portalY = y2;
-    }
-    else if (
-      this.hayPortalEn(x1, y1) &&
-      this.hayPlacaEn(x2, y2)
-    ) {
-      placaX = x2;
-      placaY = y2;
-      portalX = x1;
-      portalY = y1;
-    }
-    else {
-      return;
-    }
-
-    const pareja = this.buscarParejaPortal(
-      portalX,
-      portalY
-    );
-
-    if (!pareja) {
-      return;
-    }
-
-    const parejaX = pareja[0];
-    const parejaY = pareja[1];
-
-    if (
-      !this.existeLink(
-        placaX,
-        placaY,
-        parejaX,
-        parejaY
-      )
-    ) {
-      this.links.push([
-        placaX,
-        placaY,
-        parejaX,
-        parejaY,
-        0
-      ]);
-    }
-  }
-  
   private alternarNotLink(indice: number): void {
     const link = this.links[indice];
+    if (!link || !this.esLinkDePlaca(link)) {
+      return;
+    }
+    this.saveIfChanged();
     const nuevoValor = link[4] === 1 ? 0 : 1;
-
     link[4] = nuevoValor;
-
-    if (!this.esLinkDePlaca(link)) {
-      return;
+    let placaX = link[0], placaY = link[1];
+    let destinoX = link[2], destinoY = link[3];
+    if (!this.esLinkDeEmisor(link) && this.hayPortalEn(placaX, placaY)) {
+      [placaX, placaY, destinoX, destinoY] = [destinoX, destinoY, placaX, placaY];
     }
-
-    let placaX = link[0];
-    let placaY = link[1];
-    let destinoX = link[2];
-    let destinoY = link[3];
-
-    if (
-      this.hayPortalEn(link[0], link[1]) &&
-      this.hayPlacaEn(link[2], link[3])
-    ) {
-      placaX = link[2];
-      placaY = link[3];
-      destinoX = link[0];
-      destinoY = link[1];
-    }
-
-    if (!this.hayPortalEn(destinoX, destinoY)) {
-      return;
-    }
-
-    const pareja =
-      this.buscarParejaPortal(
-        destinoX,
-        destinoY
-      );
-
-    if (!pareja) {
-      return;
-    }
-
-    for (let i = 0; i < this.links.length; i++) {
-      const otro = this.links[i];
-
-      const esDuplicado =
-        (
-          otro[0] === placaX &&
-          otro[1] === placaY &&
-          otro[2] === pareja[0] &&
-          otro[3] === pareja[1]
-        ) ||
-        (
-          otro[2] === placaX &&
-          otro[3] === placaY &&
-          otro[0] === pareja[0] &&
-          otro[1] === pareja[1]
-        );
-
-      if (esDuplicado) {
-        otro[4] = nuevoValor;
+    const pareja = this.hayPortalEn(destinoX, destinoY) ? this.buscarParejaPortal(destinoX, destinoY) : undefined;
+    if (pareja) {
+      for (const otro of this.links) {
+        if ((otro[0] === placaX && otro[1] === placaY && otro[2] === pareja[0] && otro[3] === pareja[1]) ||
+            (otro[2] === placaX && otro[3] === placaY && otro[0] === pareja[0] && otro[1] === pareja[1])) {
+          otro[4] = nuevoValor;
+        }
       }
     }
-  }
-
-  private duplicarPlacasDePareja(portalAX: number, portalAY: number, portalBX: number, portalBY: number): void {
-
-    const placas: number[][] = [];
-
-    for (let i = 0; i < this.links.length; i++) {
-      const link = this.links[i];
-
-      let placaX = -1;
-      let placaY = -1;
-
-      if (
-        this.hayPlacaEn(link[0], link[1]) &&
-        (
-          (link[2] === portalAX && link[3] === portalAY) ||
-          (link[2] === portalBX && link[3] === portalBY)
-        )
-      ) {
-        placaX = link[0];
-        placaY = link[1];
-      }
-
-      if (placaX !== -1) {
-        placas.push([placaX, placaY]);
-      }
-    }
-
-    for (let i = 0; i < placas.length; i++) {
-      const placaX = placas[i][0];
-      const placaY = placas[i][1];
-
-      if (
-        !this.existeLink(
-          placaX,
-          placaY,
-          portalAX,
-          portalAY
-        )
-      ) {
-        this.links.push([
-          placaX,
-          placaY,
-          portalAX,
-          portalAY,
-          0
-        ]);
-      }
-
-      if (
-        !this.existeLink(
-          placaX,
-          placaY,
-          portalBX,
-          portalBY
-        )
-      ) {
-        this.links.push([
-          placaX,
-          placaY,
-          portalBX,
-          portalBY,
-          0
-        ]);
-      }
-    }
+    this.dibujarLinks();
+    this.saveIfChanged();
+    this.actualizarInterfaz();
   }
 
   private usarPortal(
@@ -3503,56 +3755,6 @@ export class EditorScene extends Phaser.Scene {
     return -1;
   }
 
-  private buscarLinkDePlaca(columna: number, fila: number): number {
-    for (let i = 0; i < this.links.length; i++) {
-      const link = this.links[i];
-      if (!this.esLinkDePlaca(link)) {
-        continue;
-      }
-      if (link[0] === columna && link[1] === fila &&
-        this.hayPlacaEn(link[0], link[1])) {
-        return i;
-      }
-      if (!this.esLinkDeEmisor(link) &&
-        this.hayPortalEn(link[0], link[1]) &&
-        link[2] === columna && link[3] === fila &&
-        this.hayPlacaEn(link[2], link[3])) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  private buscarLinkDeEmisor(columna: number, fila: number): number {
-    for (let i = 0; i < this.links.length; i++) {
-      const link = this.links[i];
-      if (this.esLinkDeEmisor(link) &&
-        link[2] === columna && link[3] === fila) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  private buscarLinkDeCasilla(columna: number, fila: number): number {
-    if (this.hayPlacaEn(columna, fila)) {
-      const placa = this.buscarLinkDePlaca(columna, fila);
-      if (placa !== -1) {
-        return placa;
-      }
-    }
-    if (this.hayPortalEn(columna, fila)) {
-      const portal = this.buscarLinkDePortal(columna, fila);
-      if (portal !== -1) {
-        return portal;
-      }
-    }
-    if (this.hayEmisorEn(columna, fila)) {
-      return this.buscarLinkDeEmisor(columna, fila);
-    }
-    return -1;
-  }
-
   private puedeCrearLink(
     x1: number, y1: number, x2: number, y2: number
   ): boolean {
@@ -3575,20 +3777,10 @@ export class EditorScene extends Phaser.Scene {
     if (portalInicio && portalFinal) {
       const linkInicio = this.buscarLinkDePortal(x1, y1);
       const linkFinal = this.buscarLinkDePortal(x2, y2);
-      let cantidadPares = 0;
-
-      for (let i = 0; i < this.links.length; i++) {
-        if (this.esParDePortales(this.links[i])) {
-          cantidadPares++;
-        }
+      if (linkInicio !== -1 || linkFinal !== -1) {
+        return linkInicio !== -1 && linkInicio === linkFinal;
       }
-      if (linkInicio !== -1) {
-        cantidadPares--;
-      }
-      if (linkFinal !== -1 && linkFinal !== linkInicio) {
-        cantidadPares--;
-      }
-      return cantidadPares + 1 <= 5;
+      return this.links.filter(link => this.esParDePortales(link)).length < 5;
     }
 
     if (placaInicio && portalFinal) {
@@ -3642,66 +3834,75 @@ export class EditorScene extends Phaser.Scene {
     }
   }
 
+  private posicionNotLink(link: number[]): { x: number; y: number } {
+    const inicio = this.centroCasilla(link[0], link[1]);
+    const final = this.centroCasilla(link[2], link[3]);
+    return { x: (inicio.x + final.x) / 2, y: (inicio.y + final.y) / 2 };
+  }
+
   private dibujarLinks(): void {
     this.graficosLinks.clear();
-
+    this.graficosNotLinks.clear();
+    let linksVista = this.links;
+    if (this.arrastrandoSeleccion && this.mouseX !== -1 && this.mouseY !== -1) {
+      const inicio = this.obtenerInicioPegado();
+      linksVista = this.obtenerLinksTransformados(inicio.x, inicio.y, this.transformacionesArrastre);
+    }
+    const mouse = this.input.activePointer;
+    const resaltado = this.herramienta === this.linkTool && this.popupSalida === null
+      ? this.buscarLinkEnPunto(mouse.worldX, mouse.worldY) : -1;
     for (let i = 0; i < this.links.length; i++) {
-      const link = this.links[i];
-
-      const inicio = this.centroCasilla(
-        link[0],
-        link[1]
-      );
-
-      const final = this.centroCasilla(
-        link[2],
-        link[3]
-      );
-
-      let color = this.colorLinkPortales;
-
-      if (this.esLinkDeEmisor(link)) {
-        color = this.colorLinkEmisor;
-      } else if (this.esLinkDePlaca(link)) {
-        color = this.colorLinkPlaca;
+      const original = this.links[i];
+      const link = linksVista[i];
+      const inicio = this.centroCasilla(link[0], link[1]);
+      const final = this.centroCasilla(link[2], link[3]);
+      const control = this.esLinkDePlaca(original);
+      const color = this.esLinkDeEmisor(original) ? this.colorLinkEmisor : control ? this.colorLinkPlaca : this.colorLinkPortales;
+      if (i === resaltado) {
+        this.graficosLinks.lineStyle(5, color, 0.4);
+        this.graficosLinks.lineBetween(inicio.x, inicio.y, final.x, final.y);
       }
-
-      this.dibujarLink(
-        this.graficosLinks,
-        inicio.x,
-        inicio.y,
-        final.x,
-        final.y,
-        color
-      );
-
-      if (link[4] === 1) {
-        const x = (inicio.x + final.x) / 2;
-        const y = (inicio.y + final.y) / 2;
-
-        const tamaño = 5;
-
-        this.graficosLinks.lineStyle(
-          3,
-          COLORES.rojo,
-          1
-        );
-
-        this.graficosLinks.lineBetween(
-          x - tamaño,
-          y - tamaño,
-          x + tamaño,
-          y + tamaño
-        );
-
-        this.graficosLinks.lineBetween(
-          x - tamaño,
-          y + tamaño,
-          x + tamaño,
-          y - tamaño
-        );
+      this.dibujarLink(this.graficosLinks, inicio.x, inicio.y, final.x, final.y, color);
+      if (original[4] === 1 && control) {
+        const posicion = this.posicionNotLink(link);
+        this.graficosNotLinks.fillStyle(COLORES.negro, 1);
+        this.graficosNotLinks.fillRect(Math.round(posicion.x) - 6, Math.round(posicion.y) - 6, 12, 12);
+        this.graficosNotLinks.lineStyle(2, color, 1);
+        this.graficosNotLinks.strokeRect(Math.round(posicion.x) - 6, Math.round(posicion.y) - 6, 12, 12);
       }
     }
+  }
+
+  private ocultarTooltipLink(): void {
+    this.textoLink?.setVisible(false);
+    this.ayudaLink?.setVisible(false);
+    this.bordeTooltipLink?.setVisible(false);
+  }
+
+  private actualizarTooltipLink(): void {
+    if (this.textoLink === null || this.ayudaLink === null || this.bordeTooltipLink === null) {
+      return;
+    }
+    const mouse = this.input.activePointer;
+    const indice = this.herramienta === this.linkTool && this.popupSalida === null && this.linkInicioX === -1
+      ? this.buscarLinkEnPunto(mouse.worldX, mouse.worldY) : -1;
+    if (indice === -1 || !this.esLinkDePlaca(this.links[indice])) {
+      this.ocultarTooltipLink();
+      return;
+    }
+    const link = this.links[indice];
+    const titulo = link[4] === 1
+      ? ["Inverted signal", "Señal invertida"] : ["Normal signal", "Señal normal"];
+    const invertir = ["Right-click: change signal", "Clic derecho: cambiar señal"];
+    this.textoLink.setText(titulo[spanish]);
+    this.ayudaLink.setText(invertir[spanish]);
+    const ancho = Math.max(this.textoLink.width, this.ayudaLink.width) + 16;
+    const alto = this.textoLink.height + this.ayudaLink.height + 16;
+    const x = Math.max(4, Math.min(mouse.worldX + 12, this.scale.width - ancho - 4));
+    const y = Math.max(4, Math.min(mouse.worldY + 12, this.scale.height - alto - 4));
+    this.bordeTooltipLink.setPosition(Math.round(x), Math.round(y)).setSize(ancho, alto).setVisible(true);
+    this.textoLink.setPosition(Math.round(x + 8), Math.round(y + 6)).setVisible(true);
+    this.ayudaLink.setPosition(Math.round(x + 8), Math.round(y + 10 + this.textoLink.height)).setVisible(true);
   }
 
   private iniciarLink(_mouse: Phaser.Input.Pointer): void {
@@ -3710,11 +3911,13 @@ export class EditorScene extends Phaser.Scene {
       !this.hayPlacaEn(this.mouseX, this.mouseY) &&
       !this.hayEmisorEn(this.mouseX, this.mouseY)
     ) {
+      this.reiniciarClickLink();
       return;
     }
 
     this.linkInicioX = this.mouseX;
     this.linkInicioY = this.mouseY;
+    this.linkSeArrastro = false;
 
     this.actualizarVistaLink();
   }
@@ -3728,6 +3931,11 @@ export class EditorScene extends Phaser.Scene {
       this.mouseX === -1 ||
       this.mouseY === -1
     ) {
+      return;
+    }
+    if (this.linkInicioX === -1 && this.buscarLinkEnPunto(this.input.activePointer.worldX, this.input.activePointer.worldY) !== -1) {
+      this.hoverCell.setVisible(false);
+      this.hoverTile.setVisible(false);
       return;
     }
 
@@ -3814,172 +4022,137 @@ export class EditorScene extends Phaser.Scene {
   private cancelarLinkTemporal(): void {
     this.linkInicioX = -1;
     this.linkInicioY = -1;
+    this.linkSeArrastro = false;
     this.graficosLinkTemporal.clear();
+  }
+
+  private reiniciarClickLink(): void {
+    this.ultimoClickLinkX = -1;
+    this.ultimoClickLinkY = -1;
+    this.tiempoUltimoClickLink = 0;
+  }
+
+  private borrarLinksDelExtremo(x: number, y: number): void {
+    this.saveIfChanged();
+    this.cancelarLinkTemporal();
+    this.reiniciarClickLink();
+    this.links = this.links.filter(link => !((link[0] === x && link[1] === y) || (link[2] === x && link[3] === y)));
+    this.actualizarLinks();
+    this.saveIfChanged();
+    this.actualizarInterfaz();
+    this.ocultarTooltipLink();
+  }
+
+  private borrarLink(indice: number): void {
+    const link = this.links[indice];
+    if (!link) {
+      return;
+    }
+    this.saveIfChanged();
+    this.cancelarLinkTemporal();
+    this.reiniciarClickLink();
+    let pareja: number[] | undefined;
+    if (this.esLinkDePlaca(link) && !this.esLinkDeEmisor(link)) {
+      pareja = this.buscarParejaPortal(link[2], link[3]);
+    }
+    this.links = this.links.filter((otro, i) => {
+      if (i === indice) {
+        return false;
+      }
+      return !pareja || otro[0] !== link[0] || otro[1] !== link[1] ||
+        !((otro[2] === link[2] && otro[3] === link[3]) || (otro[2] === pareja[0] && otro[3] === pareja[1]));
+    });
+    this.actualizarLinks();
+    this.saveIfChanged();
+    this.actualizarInterfaz();
+    this.ocultarTooltipLink();
   }
 
   private terminarLink(): void {
     if (this.linkInicioX === -1 || this.linkInicioY === -1) {
       return;
     }
-
-    const inicioX = this.linkInicioX;
-    const inicioY = this.linkInicioY;
-
+    const inicioX = this.linkInicioX, inicioY = this.linkInicioY;
     if (this.mouseX === inicioX && this.mouseY === inicioY) {
+      const arrastrado = this.linkSeArrastro;
       this.cancelarLinkTemporal();
+      if (arrastrado) {
+        this.reiniciarClickLink();
+        return;
+      }
+      const ahora = this.time.now;
+      if (this.ultimoClickLinkX === inicioX && this.ultimoClickLinkY === inicioY && ahora - this.tiempoUltimoClickLink < 300) {
+        this.borrarLinksDelExtremo(inicioX, inicioY);
+      } else {
+        this.ultimoClickLinkX = inicioX;
+        this.ultimoClickLinkY = inicioY;
+        this.tiempoUltimoClickLink = ahora;
+      }
       return;
     }
-
-    if (
-      this.mouseX !== -1 && this.mouseY !== -1 &&
-      this.puedeCrearLink(inicioX, inicioY, this.mouseX, this.mouseY)
-    ) {
-      const placaInicio = this.hayPlacaEn(inicioX, inicioY);
-      const placaFinal = this.hayPlacaEn(this.mouseX, this.mouseY);
-
-      if (!placaInicio && !placaFinal &&
-        this.hayPortalEn(inicioX, inicioY) &&
-        this.hayPortalEn(this.mouseX, this.mouseY)) {
-        const linkInicio = this.buscarLinkDePortal(inicioX, inicioY);
-        const linkFinal = this.buscarLinkDePortal(this.mouseX, this.mouseY);
-
-        if (linkInicio !== -1 && linkFinal !== -1 && linkInicio !== linkFinal) {
-          const mayor = Math.max(linkInicio, linkFinal);
-          const menor = Math.min(linkInicio, linkFinal);
-          this.links.splice(mayor, 1);
-          this.links.splice(menor, 1);
-        } else if (linkInicio !== -1) {
-          this.links.splice(linkInicio, 1);
-        } else if (linkFinal !== -1) {
-          this.links.splice(linkFinal, 1);
+    this.reiniciarClickLink();
+    if (this.mouseX !== -1 && this.mouseY !== -1 && this.puedeCrearLink(inicioX, inicioY, this.mouseX, this.mouseY)) {
+      if (this.hayPortalEn(inicioX, inicioY) && this.hayPortalEn(this.mouseX, this.mouseY)) {
+        if (!this.existeLink(inicioX, inicioY, this.mouseX, this.mouseY)) {
+          this.links.push([inicioX, inicioY, this.mouseX, this.mouseY, 0]);
         }
-        this.links.push([inicioX, inicioY, this.mouseX, this.mouseY, 0]);
-        this.duplicarPlacasDePareja(
-          inicioX,
-          inicioY,
-          this.mouseX,
-          this.mouseY
-        );
       } else {
-        let placaX = inicioX;
-        let placaY = inicioY;
-        let destinoX = this.mouseX;
-        let destinoY = this.mouseY;
-
-        if (!placaInicio && placaFinal) {
-          placaX = this.mouseX;
-          placaY = this.mouseY;
-          destinoX = inicioX;
-          destinoY = inicioY;
+        let placaX = inicioX, placaY = inicioY;
+        let destinoX = this.mouseX, destinoY = this.mouseY;
+        if (!this.hayPlacaEn(placaX, placaY) || (!this.hayEmisorEn(destinoX, destinoY) && !this.hayPortalEn(destinoX, destinoY))) {
+          [placaX, placaY, destinoX, destinoY] = [destinoX, destinoY, placaX, placaY];
         }
-
-        if (!this.existeLink(
-          placaX,
-          placaY,
-          destinoX,
-          destinoY
-        )) {
-          this.links.push([
-            placaX,
-            placaY,
-            destinoX,
-            destinoY,
-            0
-          ]);
+        if (!this.existeLink(placaX, placaY, destinoX, destinoY)) {
+          this.links.push([placaX, placaY, destinoX, destinoY, 0]);
         }
-
-        if (this.hayPortalEn(destinoX, destinoY)) {
-          this.duplicarLinkPlacaPortal(
-            placaX,
-            placaY,
-            destinoX,
-            destinoY
-          );
-        }
-      }
-    } else {
-      const anterior = this.buscarLinkDeCasilla(inicioX, inicioY);
-      if (anterior !== -1) {
-        this.links.splice(anterior, 1);
       }
     }
-
     this.cancelarLinkTemporal();
     this.actualizarLinks();
   }
 
   private actualizarLinks(): void {
     const pares: number[][] = [];
-    const linksValidos: number[][] = [];
-
-    for (let i = 0; i < this.links.length; i++) {
-      const link = this.links[i];
-
-      if (
-        this.esParDePortales(link) &&
-        pares.length < 5
-      ) {
-        pares.push(link);
-        linksValidos.push(link);
-      }
-    }
-
-    for (let i = 0; i < this.links.length; i++) {
-      const link = this.links[i];
-
-      if (!this.esLinkDePlaca(link)) {
+    const controles: number[][] = [];
+    for (const link of this.links) {
+      if (!this.esParDePortales(link) || pares.length >= 5 || (link[0] === link[2] && link[1] === link[3])) {
         continue;
       }
-
-      let placaX = link[0];
-      let placaY = link[1];
-      let destinoX = link[2];
-      let destinoY = link[3];
-
-      if (
-        !this.esLinkDeEmisor(link) &&
-        this.hayPortalEn(link[0], link[1])
-      ) {
-        placaX = link[2];
-        placaY = link[3];
-        destinoX = link[0];
-        destinoY = link[1];
+      if (pares.some(par => (par[0] === link[0] && par[1] === link[1]) || (par[2] === link[0] && par[3] === link[1]) ||
+          (par[0] === link[2] && par[1] === link[3]) || (par[2] === link[2] && par[3] === link[3]))) {
+        continue;
       }
-
-      let valido = this.esLinkDeEmisor(link);
-
-      if (!valido) {
-        for (let j = 0; j < pares.length; j++) {
-          const par = pares[j];
-
-          if (
-            (
-              par[0] === destinoX &&
-              par[1] === destinoY
-            ) ||
-            (
-              par[2] === destinoX &&
-              par[3] === destinoY
-            )
-          ) {
-            valido = true;
-            break;
-          }
+      pares.push([link[0], link[1], link[2], link[3], 0]);
+    }
+    const agregar = (placaX: number, placaY: number, destinoX: number, destinoY: number, not: number) => {
+      if (!controles.some(link => link[0] === placaX && link[1] === placaY && link[2] === destinoX && link[3] === destinoY)) {
+        controles.push([placaX, placaY, destinoX, destinoY, not]);
+      }
+    };
+    for (const link of this.links) {
+      if (link.length < 4 || this.esParDePortales(link) || (link[0] === link[2] && link[1] === link[3])) {
+        continue;
+      }
+      let placaX = link[0], placaY = link[1];
+      let destinoX = link[2], destinoY = link[3];
+      if (!this.hayPlacaEn(placaX, placaY) || (!this.hayEmisorEn(destinoX, destinoY) && !this.hayPortalEn(destinoX, destinoY))) {
+        [placaX, placaY, destinoX, destinoY] = [destinoX, destinoY, placaX, placaY];
+      }
+      if (!this.hayPlacaEn(placaX, placaY)) {
+        continue;
+      }
+      const not = link[4] === 1 ? 1 : 0;
+      if (this.hayEmisorEn(destinoX, destinoY)) {
+        agregar(placaX, placaY, destinoX, destinoY, not);
+      } else {
+        const par = pares.find(par => (par[0] === destinoX && par[1] === destinoY) || (par[2] === destinoX && par[3] === destinoY));
+        if (par) {
+          agregar(placaX, placaY, par[0], par[1], not);
+          agregar(placaX, placaY, par[2], par[3], not);
         }
       }
-
-      if (valido) {
-        linksValidos.push([
-          placaX,
-          placaY,
-          destinoX,
-          destinoY,
-          link[4] ?? 0
-        ]);
-      }
     }
-
-    this.links = linksValidos;
+    this.links = [...pares, ...controles];
     this.dibujarLinks();
   }
 
@@ -4017,76 +4190,57 @@ export class EditorScene extends Phaser.Scene {
     return copia;
   }
 
-  private buscarLinkEnPunto(x: number, y: number): number {
+  private buscarExtremoLink(x: number, y: number): boolean {
+    for (const link of this.links) {
+      for (let extremo = 0; extremo < 4; extremo += 2) {
+        const centro = this.centroCasilla(link[extremo], link[extremo + 1]);
+        if (Math.abs(x - centro.x) <= 8 && Math.abs(y - centro.y) <= 8) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
-    let indice = -1;
-    let mejorDistancia = 8;
-
+  private buscarLinkEnPunto(x: number, y: number, soloControl: boolean = false): number {
+    if (this.buscarExtremoLink(x, y)) {
+      return -1;
+    }
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
-
-      const inicio = this.centroCasilla(
-        link[0],
-        link[1]
-      );
-
-      const final = this.centroCasilla(
-        link[2],
-        link[3]
-      );
-
-      const dx = final.x - inicio.x;
-      const dy = final.y - inicio.y;
-
+      if (link[4] !== 1 || !this.esLinkDePlaca(link)) {
+        continue;
+      }
+      const posicion = this.posicionNotLink(link);
+      if (Math.abs(x - posicion.x) <= 6 && Math.abs(y - posicion.y) <= 6) {
+        return i;
+      }
+    }
+    let indice = -1;
+    let mejorDistancia = 7;
+    for (let i = 0; i < this.links.length; i++) {
+      const link = this.links[i];
+      if (soloControl && !this.esLinkDePlaca(link)) {
+        continue;
+      }
+      const inicio = this.centroCasilla(link[0], link[1]);
+      const final = this.centroCasilla(link[2], link[3]);
+      const dx = final.x - inicio.x, dy = final.y - inicio.y;
       const largo2 = dx * dx + dy * dy;
-
       if (largo2 === 0) {
         continue;
       }
-
-      let t =
-        ((x - inicio.x) * dx +
-          (y - inicio.y) * dy) /
-        largo2;
-
-      t = Math.max(0, Math.min(1, t));
-
-      const puntoX = inicio.x + t * dx;
-      const puntoY = inicio.y + t * dy;
-
-      const distancia = Math.hypot(
-        x - puntoX,
-        y - puntoY
-      );
-
+      const t = ((x - inicio.x) * dx + (y - inicio.y) * dy) / largo2;
+      if (t <= 0 || t >= 1) {
+        continue;
+      }
+      const distancia = Math.hypot(x - inicio.x - t * dx, y - inicio.y - t * dy);
       if (distancia < mejorDistancia) {
         mejorDistancia = distancia;
         indice = i;
       }
     }
-
     return indice;
-  }
-
-  private esDobleClickLink(): boolean {
-    const ahora = this.time.now;
-
-    const dobleClick =
-      this.mouseX === this.ultimoClickLinkX &&
-      this.mouseY === this.ultimoClickLinkY &&
-      ahora - this.tiempoUltimoClickLink < 300;
-
-    this.ultimoClickLinkX = this.mouseX;
-    this.ultimoClickLinkY = this.mouseY;
-    this.tiempoUltimoClickLink = ahora;
-
-    if (dobleClick) {
-      this.ultimoClickLinkX = -1;
-      this.ultimoClickLinkY = -1;
-      this.tiempoUltimoClickLink = 0;
-    }
-
-    return dobleClick;
   }
 
   private actualizarHoverTile() {
@@ -4810,6 +4964,7 @@ export class EditorScene extends Phaser.Scene {
   }
 
   private ocultarTooltipTile(): void {
+    this.ocultarTooltipLink();
     if (this.textoTile !== null) {
       this.textoTile.setVisible(false);
     }
