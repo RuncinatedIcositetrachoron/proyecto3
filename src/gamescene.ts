@@ -24,11 +24,11 @@ interface Entity {
     type: string;
     x: number;
     y: number;
-    id: number;
+    id: number; // unique identifier assigned at birth
     dir?: number;
     emitting?: number;
     portal?: number;
-    links: number[][];
+    links: number[][]; // [[linked object 1 id, NOT?], [linked object 2 id, NOT?]...] // used for portal links and plate => emitter/portals links inside all the findPair functions
     pushable: boolean;
     secret?: string;
     laserPhase?: number;
@@ -73,6 +73,14 @@ interface LaserVisual {
     visualOffsetX: number;
     visualOffsetY: number;
     startLength?: number;
+}
+
+interface LogicState { // serves to save a snapshot of the logic state of the game (what's on, what isn't) mid-turn, lists of each type [id, on/off]
+    emitters: [number, boolean][];
+    recievers: [number, boolean][];
+    plates: [number, boolean][];
+    portals: [number, boolean][];
+    tick: number;
 }
 
 /////////////////////
@@ -284,6 +292,7 @@ export class GameScene extends Phaser.Scene {
     private pushsoundFade: Phaser.Tweens.Tween | undefined;
     private levelNumber = 1;
     private history: GameState[] = [];
+    private tickhistory: LogicState[] = [];
     private community: boolean = true;
 
     private movimientosAyuda = 0;
@@ -1535,14 +1544,14 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    private assignlink(link: number[][], id: number): void {
+    private assignlink(link: number[][], id: number): void { // converts parser links to id-based links
         const entity = this.entities.find(entity => (entity.id === id));
-        if (!entity) {console.log ("ERROR in assignlink"); return;}
-        for (let i = 0; i<link.length; i++) {
+        if (!entity) { console.log("ERROR in assignlink"); return; }
+        for (let i = 0; i < link.length; i++) {
             const linkedEntity = this.entities.find(entity => (entity.x === link[i][0] && entity.y === link[i][1]));
-            if (!linkedEntity) {console.log("ERROR 2 in assignlink"); return;}
+            if (!linkedEntity) { console.log("ERROR 2 in assignlink"); return; }
             entity.links.push([linkedEntity.id, link[i][2]]);
-        }       
+        }
     }
 
     //////////////////////////
@@ -1609,7 +1618,7 @@ export class GameScene extends Phaser.Scene {
             let inverse = false;
             if (portal.links[i][1] === 1) inverse = true;
             if (plate === undefined) continue;
-            if (this.isPlatePressed(plate, inverse)) {
+            if (this.isPlatePressed(plate, inverse) || this.isRecieverRecieving(plate, inverse)) {
                 return true;
             }
         }
@@ -1617,6 +1626,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     private isPlatePressed(plate: Entity, NOT: boolean): boolean {
+        if (plate.type !== "goal") return false;
         for (let i = 0; i < this.entities.length; i++) {
             const entity = this.entities[i];
             if ((entity.type === "player" || entity.pushable) &&
@@ -1627,6 +1637,12 @@ export class GameScene extends Phaser.Scene {
         return NOT;
     }
 
+    private isRecieverRecieving(reciever: Entity, NOT: boolean): boolean {
+        if (reciever.type !== "laserReciever") return false;
+        const active = reciever.sprite.getData("receptorActivo") === true;
+        return NOT ? !active : active;
+    }
+
     private isEmitterActive(emitter: Entity): boolean {
         if (emitter.links.length === 0 || emitter.links === undefined || !emitter.links) {
             return true;
@@ -1635,7 +1651,7 @@ export class GameScene extends Phaser.Scene {
             let inverse = false;
             if (emitter.links[i][1] === 1) inverse = true;
             let plate = this.entities.find(entity => entity.id === emitter.links[i][0]);
-            if (this.isPlatePressed(plate, inverse)) {
+            if (this.isPlatePressed(plate, inverse) || this.isRecieverRecieving(plate, inverse)) {
                 return true;
             }
         }
@@ -1648,6 +1664,26 @@ export class GameScene extends Phaser.Scene {
         } else {
             return this.entities.find(entity => entity.portal !== undefined && entity.x === x && entity.y === y && this.isPortalActive(entity));
         }
+    }
+
+    private checkLogicStates(): void { //checks all states given current lasers, writes them to tickhistory
+        const state: LogicState = {plates: [], recievers: [], emitters: [], portals: [], tick: this.tickhistory.length};
+        this.winConditionsMet2();
+        for (const entity of this.entities) {
+            if (entity.type === "goal") state.plates.push([entity.id, this.isPlatePressed(entity, false)]);
+            if (entity.type === "laserReciever") state.recievers.push([entity.id, this.isRecieverRecieving(entity, false)]);
+            if (entity.type === "laserEmissor") state.emitters.push([entity.id, this.isEmitterActive(entity)]);
+            if (entity.portal !== undefined) state.portals.push([entity.id, this.isPortalActive(entity)]);
+        }
+        this.tickhistory.push(state);
+    }
+
+    private checkTickLooping(): number { // checks if a tick is the same as one before to see if logic is looping, stable or running 
+        const comparison = this.tickhistory[this.tickhistory.length-1];
+        const same = this.tickhistory.find(tick => (JSON.stringify(tick.plates) === JSON.stringify(comparison.plates) && JSON.stringify(tick.emitters) === JSON.stringify(comparison.emitters) && JSON.stringify(tick.recievers) === JSON.stringify(comparison.recievers) && JSON.stringify(tick.portals) === JSON.stringify(comparison.portals) && tick.tick !== comparison.tick));
+        if (!same) return 0; // new state
+        if (same.tick === comparison.tick - 1) return 1; // stable
+        return 2; // looping
     }
 
     /////////////////////
@@ -1987,7 +2023,6 @@ export class GameScene extends Phaser.Scene {
             let sourceY = source.sprite.y;
             if (ray.x !== undefined) sourceX = ray.x;
             if (ray.y !== undefined) sourceY = ray.y;
-            const row = Math.max(0, Math.min(this.boardRows - 1, Math.round((sourceY - this.offsetY) / this.tilesize)));
             let distance = 0;
             if (dx === 1) distance = this.offsetX + (this.boardColumns - 1) * this.tilesize - sourceX;
             else if (dx === -1) distance = sourceX - this.offsetX;
@@ -3074,6 +3109,11 @@ export class GameScene extends Phaser.Scene {
         this.maskBoxPortal(this.tempstorage, this.tempstorage.x - dx, this.tempstorage.y - dy, this.opposite(dir));
         this.actualizarPortal(this.tempstorage, false, false);
         return true;
+    }
+
+    private burnEmitter() {
+        console.log("burnt!");
+        return;
     }
 
     /////////////////////////
@@ -5197,14 +5237,26 @@ export class GameScene extends Phaser.Scene {
         if (this.saliendoDelNivel || this.cargandoNivel) {
             return;
         }
+
         for (const laser of this.lasers) {
             this.destroyLaser(laser);
         }
 
         this.lasers = [];
         this.laserFunction();
+        this.checkLogicStates();
+        while (this.checkTickLooping() === 0) {
+            this.laserFunction();
+            this.checkLogicStates();
+            if (this.checkTickLooping() === 2) {
+                this.burnEmitter();
+                break;
+            }
+        }
+        this.laserFunction();
         this.flagCheck();
         this.updateLaserPositions();
+        this.tickhistory = [];
     }
 
     update() {

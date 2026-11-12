@@ -3699,6 +3699,17 @@ export class EditorScene extends Phaser.Scene {
     const placa = this.capaPlacas.getTileAt(columna, fila);
     return placa !== null && placa.index === this.tilePlaca;
   }
+  
+  private hayReceptorEn(columna: number, fila: number): boolean {
+    if (
+      columna < 0 || fila < 0 ||
+      columna >= this.columns || fila >= this.rows
+    ) {
+      return false;
+    }
+    const tile = this.tablero.getTileAt(columna, fila);
+    return tile!== null && tile.index >= 27 && tile.index <= 30;
+  }
 
   private hayEmisorEn(columna: number, fila: number): boolean {
     if (
@@ -3711,6 +3722,13 @@ export class EditorScene extends Phaser.Scene {
     return tile !== null && tile.index >= 11 && tile.index <= 14;
   }
 
+  private hayActivadorEn(x: number, y: number): boolean {
+    return (
+        this.hayPlacaEn(x, y) ||
+        this.hayReceptorEn(x, y)
+    );
+}
+
   private esParDePortales(link: number[]): boolean {
     return link.length >= 4 &&
       this.hayPortalEn(link[0], link[1]) &&
@@ -3719,7 +3737,7 @@ export class EditorScene extends Phaser.Scene {
 
   private esLinkDeEmisor(link: number[]): boolean {
     return link.length >= 4 &&
-      this.hayPlacaEn(link[0], link[1]) &&
+      this.hayActivadorEn(link[0], link[1]) &&
       this.hayEmisorEn(link[2], link[3]);
   }
 
@@ -3731,11 +3749,11 @@ export class EditorScene extends Phaser.Scene {
       return false;
     }
     return (
-      this.hayPlacaEn(link[0], link[1]) &&
+      this.hayActivadorEn(link[0], link[1]) &&
       this.hayPortalEn(link[2], link[3])
     ) || (
         this.hayPortalEn(link[0], link[1]) &&
-        this.hayPlacaEn(link[2], link[3])
+        this.hayActivadorEn(link[2], link[3])
       );
   }
 
@@ -3764,8 +3782,8 @@ export class EditorScene extends Phaser.Scene {
 
     const portalInicio = this.hayPortalEn(x1, y1);
     const portalFinal = this.hayPortalEn(x2, y2);
-    const placaInicio = this.hayPlacaEn(x1, y1);
-    const placaFinal = this.hayPlacaEn(x2, y2);
+    const placaInicio = this.hayActivadorEn(x1, y1);
+    const placaFinal = this.hayActivadorEn(x2, y2);
 
     if (placaInicio && this.hayEmisorEn(x2, y2)) {
       return true;
@@ -3909,6 +3927,7 @@ export class EditorScene extends Phaser.Scene {
     if (
       !this.hayPortalEn(this.mouseX, this.mouseY) &&
       !this.hayPlacaEn(this.mouseX, this.mouseY) &&
+      !this.hayReceptorEn(this.mouseX, this.mouseY) &&
       !this.hayEmisorEn(this.mouseX, this.mouseY)
     ) {
       this.reiniciarClickLink();
@@ -4095,6 +4114,29 @@ export class EditorScene extends Phaser.Scene {
       if (this.hayPortalEn(inicioX, inicioY) && this.hayPortalEn(this.mouseX, this.mouseY)) {
         if (!this.existeLink(inicioX, inicioY, this.mouseX, this.mouseY)) {
           this.links.push([inicioX, inicioY, this.mouseX, this.mouseY, 0]);
+
+    if (
+      this.mouseX !== -1 && this.mouseY !== -1 &&
+      this.puedeCrearLink(inicioX, inicioY, this.mouseX, this.mouseY)
+    ) {
+      const placaInicio = this.hayActivadorEn(inicioX, inicioY);
+      const placaFinal = this.hayActivadorEn(this.mouseX, this.mouseY);
+
+      if (!placaInicio && !placaFinal &&
+        this.hayPortalEn(inicioX, inicioY) &&
+        this.hayPortalEn(this.mouseX, this.mouseY)) {
+        const linkInicio = this.buscarLinkDePortal(inicioX, inicioY);
+        const linkFinal = this.buscarLinkDePortal(this.mouseX, this.mouseY);
+
+        if (linkInicio !== -1 && linkFinal !== -1 && linkInicio !== linkFinal) {
+          const mayor = Math.max(linkInicio, linkFinal);
+          const menor = Math.min(linkInicio, linkFinal);
+          this.links.splice(mayor, 1);
+          this.links.splice(menor, 1);
+        } else if (linkInicio !== -1) {
+          this.links.splice(linkInicio, 1);
+        } else if (linkFinal !== -1) {
+          this.links.splice(linkFinal, 1);
         }
       } else {
         let placaX = inicioX, placaY = inicioY;
