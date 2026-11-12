@@ -1176,6 +1176,16 @@ export class GameScene extends Phaser.Scene {
                 this.ayudaPendiente()
             );
         }
+        this.checkLogicStates();
+        while (this.checkTickLooping() === 0) {
+            this.laserFunction();
+            this.checkLogicStates();
+            if (this.checkTickLooping() === 2) {
+                this.burnEmitter();
+                break;
+            }
+        }
+        this.laserFunction();
         this.flagCheck();
         this.sonidosPreparados = sonidosAntes;
     }
@@ -1667,7 +1677,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     private checkLogicStates(): void { //checks all states given current lasers, writes them to tickhistory
-        const state: LogicState = {plates: [], recievers: [], emitters: [], portals: [], tick: this.tickhistory.length};
+        const state: LogicState = { plates: [], recievers: [], emitters: [], portals: [], tick: this.tickhistory.length };
         this.winConditionsMet2();
         for (const entity of this.entities) {
             if (entity.type === "goal") state.plates.push([entity.id, this.isPlatePressed(entity, false)]);
@@ -1679,7 +1689,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     private checkTickLooping(): number { // checks if a tick is the same as one before to see if logic is looping, stable or running 
-        const comparison = this.tickhistory[this.tickhistory.length-1];
+        const comparison = this.tickhistory[this.tickhistory.length - 1];
         const same = this.tickhistory.find(tick => (JSON.stringify(tick.plates) === JSON.stringify(comparison.plates) && JSON.stringify(tick.emitters) === JSON.stringify(comparison.emitters) && JSON.stringify(tick.recievers) === JSON.stringify(comparison.recievers) && JSON.stringify(tick.portals) === JSON.stringify(comparison.portals) && tick.tick !== comparison.tick));
         if (!same) return 0; // new state
         if (same.tick === comparison.tick - 1) return 1; // stable
@@ -5154,9 +5164,30 @@ export class GameScene extends Phaser.Scene {
             });
         }
         this.cargandoNivel = false;
+        this.checkLogicStates();
+        while (this.checkTickLooping() === 0) {
+            this.laserFunction();
+            this.checkLogicStates();
+            if (this.checkTickLooping() === 2) {
+                this.burnEmitter();
+                break;
+            }
+        }
+        this.laserFunction();
         this.flagCheck();
         this.sonidosPreparados = true;
         this.animateEntrance();
+        if (this.lindseyDeath()) {
+            this.menuup = 2;
+            this.inputBuffer = "";
+            this.holdBufferOpen = false;
+            this.ayudaMovimiento.setVisible(false);
+            this.dead = true;
+            this.time.delayedCall(40, () => {
+                this.reproducirSonido("morir");
+                this.startDeadSound();
+            });
+        }
     }
 
     //////////////////////////////
