@@ -3966,7 +3966,7 @@ export class EditorScene extends Phaser.Scene {
         color = this.colorLinkPortales;
       }
 
-      if (this.hayPlacaEn(this.mouseX, this.mouseY)) {
+      if (this.hayActivadorEn(this.mouseX, this.mouseY)) {
         color = this.colorLinkPlaca;
       } else if (this.hayEmisorEn(this.mouseX, this.mouseY)) {
         color = this.colorLinkEmisor;
@@ -3985,15 +3985,15 @@ export class EditorScene extends Phaser.Scene {
         )
       ) {
         if (
-          (this.hayPlacaEn(this.linkInicioX, this.linkInicioY) &&
+          (this.hayActivadorEn(this.linkInicioX, this.linkInicioY) &&
             this.hayEmisorEn(this.mouseX, this.mouseY)) ||
-          (this.hayPlacaEn(this.mouseX, this.mouseY) &&
+          (this.hayActivadorEn(this.mouseX, this.mouseY) &&
             this.hayEmisorEn(this.linkInicioX, this.linkInicioY))
         ) {
           color = this.colorLinkEmisor;
         } else if (
-          this.hayPlacaEn(this.linkInicioX, this.linkInicioY) ||
-          this.hayPlacaEn(this.mouseX, this.mouseY)
+          this.hayActivadorEn(this.linkInicioX, this.linkInicioY) ||
+          this.hayActivadorEn(this.mouseX, this.mouseY)
         ) {
           color = this.colorLinkPlaca;
         } else {
@@ -4110,11 +4110,6 @@ export class EditorScene extends Phaser.Scene {
       return;
     }
     this.reiniciarClickLink();
-    if (this.mouseX !== -1 && this.mouseY !== -1 && this.puedeCrearLink(inicioX, inicioY, this.mouseX, this.mouseY)) {
-      if (this.hayPortalEn(inicioX, inicioY) && this.hayPortalEn(this.mouseX, this.mouseY)) {
-        if (!this.existeLink(inicioX, inicioY, this.mouseX, this.mouseY)) {
-          this.links.push([inicioX, inicioY, this.mouseX, this.mouseY, 0]);
-
     if (
       this.mouseX !== -1 && this.mouseY !== -1 &&
       this.puedeCrearLink(inicioX, inicioY, this.mouseX, this.mouseY)
@@ -4138,10 +4133,13 @@ export class EditorScene extends Phaser.Scene {
         } else if (linkFinal !== -1) {
           this.links.splice(linkFinal, 1);
         }
+        if (!this.existeLink(inicioX, inicioY, this.mouseX, this.mouseY)) {
+          this.links.push([inicioX, inicioY, this.mouseX, this.mouseY, 0]);
+        }
       } else {
         let placaX = inicioX, placaY = inicioY;
         let destinoX = this.mouseX, destinoY = this.mouseY;
-        if (!this.hayPlacaEn(placaX, placaY) || (!this.hayEmisorEn(destinoX, destinoY) && !this.hayPortalEn(destinoX, destinoY))) {
+        if (!this.hayActivadorEn(placaX, placaY) || (!this.hayEmisorEn(destinoX, destinoY) && !this.hayPortalEn(destinoX, destinoY))) {
           [placaX, placaY, destinoX, destinoY] = [destinoX, destinoY, placaX, placaY];
         }
         if (!this.existeLink(placaX, placaY, destinoX, destinoY)) {
@@ -4177,10 +4175,10 @@ export class EditorScene extends Phaser.Scene {
       }
       let placaX = link[0], placaY = link[1];
       let destinoX = link[2], destinoY = link[3];
-      if (!this.hayPlacaEn(placaX, placaY) || (!this.hayEmisorEn(destinoX, destinoY) && !this.hayPortalEn(destinoX, destinoY))) {
+      if (!this.hayActivadorEn(placaX, placaY) || (!this.hayEmisorEn(destinoX, destinoY) && !this.hayPortalEn(destinoX, destinoY))) {
         [placaX, placaY, destinoX, destinoY] = [destinoX, destinoY, placaX, placaY];
       }
-      if (!this.hayPlacaEn(placaX, placaY)) {
+      if (!this.hayActivadorEn(placaX, placaY)) {
         continue;
       }
       const not = link[4] === 1 ? 1 : 0;
