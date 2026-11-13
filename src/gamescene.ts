@@ -1181,7 +1181,7 @@ export class GameScene extends Phaser.Scene {
             this.laserFunction();
             this.checkLogicStates();
             if (this.checkTickLooping() === 2) {
-                this.burnEmitter();
+                this.burnStuff();
                 break;
             }
         }
@@ -3121,8 +3121,36 @@ export class GameScene extends Phaser.Scene {
         return true;
     }
 
-    private burnEmitter() {
-        console.log("burnt!");
+    private burnStuff() { // checks what emitters/recievers changed power state during a tick loop and turns them into boxes
+        const comparison = this.tickhistory[this.tickhistory.length - 1];
+        const same = this.tickhistory.find(tick => (JSON.stringify(tick.plates) === JSON.stringify(comparison.plates) && JSON.stringify(tick.emitters) === JSON.stringify(comparison.emitters) && JSON.stringify(tick.recievers) === JSON.stringify(comparison.recievers) && JSON.stringify(tick.portals) === JSON.stringify(comparison.portals) && tick.tick !== comparison.tick));
+        let explodeIds = [];
+        if (!same) {console.log("ERROR in burnStuff"); return;}
+        for (let j = 0; j < same.emitters.length; j++) {
+            let baseline = same.emitters[j];
+            let added = false;
+            for (let i = same.tick; i < comparison.tick; i++) {
+                if (this.tickhistory[i].emitters[j][1] !== baseline[1] && added === false) {
+                    explodeIds.push(baseline[0]);
+                    added = true;
+                }
+            }
+        }
+        for (let j = 0; j < same.recievers.length; j++) {
+            let baseline = same.recievers[j];
+            let added = false;
+            for (let i = same.tick; i < comparison.tick; i++) {
+                if (this.tickhistory[i].recievers[j][1] !== baseline[1] && added === false) {
+                    explodeIds.push(baseline[0]);
+                    added = true;
+                }
+            }
+        }
+        for (const object of explodeIds) {
+            const entity = this.entities.find(entity => (entity.id === object))
+            entity.type = "box";
+            entity.emitting = undefined;
+        }
         return;
     }
 
@@ -5169,7 +5197,7 @@ export class GameScene extends Phaser.Scene {
             this.laserFunction();
             this.checkLogicStates();
             if (this.checkTickLooping() === 2) {
-                this.burnEmitter();
+                this.burnStuff();
                 break;
             }
         }
@@ -5280,7 +5308,7 @@ export class GameScene extends Phaser.Scene {
             this.laserFunction();
             this.checkLogicStates();
             if (this.checkTickLooping() === 2) {
-                this.burnEmitter();
+                this.burnStuff();
                 break;
             }
         }
